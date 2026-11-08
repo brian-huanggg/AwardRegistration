@@ -161,3 +161,16 @@ describe('accessibility', () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 });
+
+describe('global 401 (Frontend.md §5.2)', () => {
+  it('goes to /login?next=<current> with a session-ended notice and forgets the user', async () => {
+    const { router } = await open('/ideas?page=2', 'USER');
+    await screen.findByRole('heading', { level: 1 });
+    server.use(http.get(`${API}/ideas`, () => problem(401, 'UNAUTHENTICATED')));
+    const { apiFetch } = await import('@/shared/api');
+    await expect(apiFetch('/ideas')).rejects.toMatchObject({ status: 401 });
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+    expect(router.state.location.search).toBe(`?next=${encodeURIComponent('/ideas?page=2')}`);
+    expect(router.state.location.state).toEqual({ notice: 'sessionEnded' });
+  });
+});

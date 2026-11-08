@@ -1,5 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { parseApiError } from '@/shared/api';
+import { useQuery, type QueryClient } from '@tanstack/react-query';
+import type { DataRouter } from 'react-router';
+import { ApiError, apiFetch } from '@/shared/api';
+import { findRoute } from './access';
 import type { Role } from './routes';
 
 /** GET /auth/me body (docs/API/response-bodies.md); `email` is null for Admins. */
@@ -14,10 +16,30 @@ export const meKey = ['me'] as const;
 
 /** A 401 means visitor → null (Frontend.md §6.3 rule 1). */
 export async function fetchMe(signal?: AbortSignal): Promise<Me | null> {
-  const res = await fetch(`${location.origin}/api/v1/auth/me`, { headers: { Accept: 'application/json' }, signal });
-  if (res.status === 401) return null;
-  if (!res.ok) throw await parseApiError(res);
-  return (await res.json()) as Me;
+  try {
+    const res = await apiFetch('/auth/me', { signal, allowUnauthenticated: true });
+    return (await res.json()) as Me;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) return null;
+    throw e;
+  }
+}
+
+/** Router state a 401 redirect leaves for the login page to show "your session ended" (Frontend.md §5.2). */
+export interface SessionEndedState {
+  notice: 'sessionEnded';
+}
+
+/**
+ * Global 401 (Frontend.md §5.2): forget the user and go to `/login?next=<current>`.
+ * Already on a public route (login, register) there is nothing to leave, so only `me` is cleared.
+ */
+export function handleSessionEnded(client: QueryClient, router: DataRouter): void {
+  client.setQueryData(meKey, null);
+  const { pathname, search } = router.state.location;
+  if (findRoute(pathname)?.access === 'public') return;
+  const state: SessionEndedState = { notice: 'sessionEnded' };
+  void router.navigate(`/login?next=${encodeURIComponent(pathname + search)}`, { replace: true, state });
 }
 
 export function useMe() {
