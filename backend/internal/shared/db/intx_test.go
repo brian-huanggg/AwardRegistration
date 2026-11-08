@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -219,5 +220,29 @@ func TestOutcomeString(t *testing.T) {
 func TestSQLStateClassNonMySQL(t *testing.T) {
 	if sqlStateClass(errors.New("x")) != "" || IsContention(errors.New("x")) {
 		t.Error("non-MySQL error must have no class and no contention")
+	}
+}
+
+func TestDuplicateKey(t *testing.T) {
+	dup := func(msg string) error { return fmt.Errorf("wrap: %w", &mysql.MySQLError{Number: 1062, Message: msg}) }
+	cases := []struct {
+		name string
+		err  error
+		key  string
+		ok   bool
+	}{
+		{"plain", dup("Duplicate entry 'a@b' for key 'uq_app_user_email'"), "uq_app_user_email", true},
+		{"table qualified", dup("Duplicate entry '1' for key 'app_user.uq_app_user_emp_no'"), "uq_app_user_emp_no", true},
+		{"value contains the marker", dup("Duplicate entry 'for key ''x' for key 'uq_a'"), "uq_a", true},
+		{"no key in message", dup("boom"), "", true},
+		{"unterminated", dup("Duplicate entry 'x' for key 'uq_a"), "uq_a", true},
+		{"other number", &mysql.MySQLError{Number: 1205}, "", false},
+		{"not a mysql error", errors.New("x"), "", false},
+	}
+	for _, tc := range cases {
+		key, ok := DuplicateKey(tc.err)
+		if key != tc.key || ok != tc.ok {
+			t.Errorf("%s: got (%q, %v), want (%q, %v)", tc.name, key, ok, tc.key, tc.ok)
+		}
 	}
 }

@@ -96,3 +96,21 @@ func TestAdapterReasonWithoutActionStillAnswers(t *testing.T) {
 }
 
 func contains(s, sub string) bool { return strings.Contains(s, sub) }
+
+func TestAdapterCarriesSubmittedEmpNoAndDetail(t *testing.T) {
+	e := web.NewError(web.CodeEmpNoTaken, "taken")
+	e.AuditReason, e.AuditAction, e.AuditOutcome = "emp_no_taken", "AUTH_REGISTER", "FAILED"
+	e.AuditSubmittedEmpNo = "089290"
+	e.AuditDetail = map[string]string{"empNo": "089290", "reason": "must not override"}
+	f := &fakeRejecter{}
+
+	rec := serve(t, server.ErrorAdapter{Audit: f}, e)
+
+	if rec.Code != 409 || len(f.got) != 1 {
+		t.Fatalf("status %d rows %d", rec.Code, len(f.got))
+	}
+	g := f.got[0]
+	if g.Outcome != audit.Failed || g.SubmittedEmpNo != "089290" || string(g.After) != `{"empNo":"089290","reason":"emp_no_taken"}` {
+		t.Fatalf("event = %+v (after %s)", g, g.After)
+	}
+}

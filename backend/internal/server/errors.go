@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"maps"
 	"net/http"
-	"net/netip"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
@@ -59,37 +57,24 @@ func (a ErrorAdapter) record(r *http.Request, e *web.Error) {
 	if outcome == "" {
 		outcome = audit.Denied
 	}
-	after, _ := json.Marshal(map[string]string{"reason": e.AuditReason}) // map of strings cannot fail
+	detail := map[string]string{}
+	maps.Copy(detail, e.AuditDetail)
+	detail["reason"] = e.AuditReason // the reason always wins over a detail key
+	after, _ := json.Marshal(detail) // map of strings cannot fail
 	ev := audit.Event{
 		Action:     audit.Action(e.AuditAction),
 		Outcome:    outcome,
 		TargetType: audit.TargetType(e.AuditTargetType),
 		TargetID:   e.AuditTargetID,
 		Method:     r.Method,
-		Route:      routeTemplate(r),
+		Route:      web.RoutePattern(r),
 		Status:     e.Status,
 		ErrorCode:  string(e.Code),
-		IP:         remoteIP(r),
+		IP:         web.ClientIP(r),
 		UserAgent:  r.UserAgent(),
-		After:      after,
+
+		SubmittedEmpNo: e.AuditSubmittedEmpNo,
+		After:          after,
 	}
 	a.Audit.RecordRejected(r.Context(), ev)
-}
-
-// routeTemplate is the matched chi pattern (/api/v1/ideas/{id}), never the raw
-// path, so IDs do not leak into the log and rows group by route.
-func routeTemplate(r *http.Request) string {
-	if rc := chi.RouteContext(r.Context()); rc != nil {
-		return rc.RoutePattern()
-	}
-	return ""
-}
-
-// remoteIP is the TCP peer. Trusted-proxy handling is not decided yet.
-func remoteIP(r *http.Request) netip.Addr {
-	ap, err := netip.ParseAddrPort(r.RemoteAddr)
-	if err != nil {
-		return netip.Addr{}
-	}
-	return ap.Addr().Unmap()
 }

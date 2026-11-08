@@ -13,6 +13,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
@@ -42,7 +44,15 @@ func run() error {
 	}
 	defer func() { _ = db.Close() }()
 
-	si := server.API{Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}}}
+	auditSvc := audit.New(db, log)
+	errs := server.ErrorAdapter{Audit: auditSvc, Log: log}
+	si := server.API{
+		Account: account.Handler{
+			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
+			Fail:    errs.Write,
+		},
+		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},
+	}
 
 	var ready atomic.Bool
 	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si)), &ready, server.DBCheck(db))

@@ -160,6 +160,26 @@ type Problem struct {
 	Type string `json:"type"`
 }
 
+// RegisterRequest defines model for RegisterRequest.
+type RegisterRequest struct {
+	// Email Printable ASCII with exactly one @, at most 254 characters; stored lower-cased
+	Email string `json:"email"`
+
+	// EmpNo Exactly 6 ASCII digits
+	EmpNo string `json:"empNo"`
+
+	// Name 1-50 code points after clean-up
+	Name     string `json:"name"`
+	Password string `json:"password"`
+}
+
+// RegisterResponse defines model for RegisterResponse.
+type RegisterResponse struct {
+	Email string `json:"email"`
+	EmpNo string `json:"empNo"`
+	Name  string `json:"name"`
+}
+
 // CsrfToken defines model for CsrfToken.
 type CsrfToken = string
 
@@ -172,11 +192,20 @@ type LogoutParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// RegisterParams defines parameters for Register.
+type RegisterParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // ListIdeasParams defines parameters for ListIdeas.
 type ListIdeasParams struct {
 	Page *int `form:"page,omitempty" json:"page,omitempty"`
 	Size *int `form:"size,omitempty" json:"size,omitempty"`
 }
+
+// RegisterJSONRequestBody defines body for Register for application/json ContentType.
+type RegisterJSONRequestBody = RegisterRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -186,6 +215,9 @@ type ServerInterface interface {
 	// Logout End the session
 	// (POST /auth/logout)
 	Logout(w http.ResponseWriter, r *http.Request, params LogoutParams)
+	// Register Self-service registration (no session is created)
+	// (POST /auth/register)
+	Register(w http.ResponseWriter, r *http.Request, params RegisterParams)
 	// GetDeadline Submission deadline, state and database server time
 	// (GET /deadline)
 	GetDeadline(w http.ResponseWriter, r *http.Request)
@@ -210,6 +242,12 @@ func (_ Unimplemented) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
 // Logout End the session
 // (POST /auth/logout)
 func (_ Unimplemented) Logout(w http.ResponseWriter, r *http.Request, params LogoutParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Register Self-service registration (no session is created)
+// (POST /auth/register)
+func (_ Unimplemented) Register(w http.ResponseWriter, r *http.Request, params RegisterParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -286,6 +324,47 @@ func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Logout(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Register operation middleware
+func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegisterParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Register(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -499,6 +578,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/logout", wrapper.Logout)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/register", wrapper.Register)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/deadline", wrapper.GetDeadline)
