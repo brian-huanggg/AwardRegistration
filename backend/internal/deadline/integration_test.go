@@ -5,52 +5,29 @@ package deadline_test
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"regexp"
 	"testing"
 	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
 	"github.com/getkin/kin-openapi/routers"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
-	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
 )
 
 // TestGetDeadlineIntegration runs the real handler against MariaDB with the
 // real V001 migration and validates each response against api/openapi.yaml.
 func TestGetDeadlineIntegration(t *testing.T) {
 	ctx := context.Background()
-	ctr, err := mariadb.Run(ctx, "mariadb:11.4",
-		mariadb.WithDatabase("esg"), mariadb.WithUsername("esg"), mariadb.WithPassword("esg"),
-		mariadb.WithScripts(filepath.Join("..", "..", "db", "migration", "V001__init.sql")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = ctr.Terminate(context.WithoutCancel(ctx)) })
-
-	host, err := ctr.ConnectionString(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The container string has no pins; take its host:port and reuse the production DSN pins.
-	m := regexp.MustCompile(`@tcp\(([^)]+)\)`).FindStringSubmatch(host)
-	dsn := regexp.MustCompile(`@tcp\([^)]+\)`).ReplaceAllString(config.DefaultDSN, "@tcp("+m[1]+")")
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = db.Close() })
+	db := dbtest.New(t)
 
 	doc, err := openapi3.NewLoader().LoadFromFile(filepath.Join("..", "..", "api", "openapi.yaml"))
 	if err != nil {
