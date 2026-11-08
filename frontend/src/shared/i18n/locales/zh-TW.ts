@@ -18,6 +18,7 @@ export const zhTW: Dictionary = {
     main: '主要導覽',
     skip: '跳到主要內容',
     administrator: '管理員',
+    signOut: '登出',
     signIn: '登入',
     register: '註冊',
   },
@@ -53,7 +54,7 @@ export const zhTW: Dictionary = {
     leaderEmpNo: '組長員工編號',
   },
   pages: {
-    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。' },
+    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。', submitting: '登入中…', sessionEnded: '您的登入已結束，請重新登入。' },
     register: {
       title: '建立帳號',
       description: '請在下方輸入資料以完成註冊。',

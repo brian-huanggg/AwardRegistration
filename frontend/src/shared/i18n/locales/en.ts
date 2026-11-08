@@ -21,6 +21,7 @@ export const en = {
     main: 'Main navigation',
     skip: 'Skip to content',
     administrator: 'Administrator',
+    signOut: 'Sign out',
     signIn: 'Sign in',
     register: 'Register',
   },
@@ -56,7 +57,7 @@ export const en = {
     leaderEmpNo: 'Leader employee ID',
   },
   pages: {
-    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.' },
+    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.', submitting: 'Signing in…', sessionEnded: 'Your session has ended. Please sign in again.' },
     register: {
       title: 'Create an account',
       description: 'Enter your details below to register.',
