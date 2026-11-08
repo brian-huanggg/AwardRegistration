@@ -15,9 +15,9 @@ import (
 // Run starts the public and management servers and blocks until ctx is
 // cancelled (SIGTERM) or a server fails. Shutdown order: readiness false, drain
 // delay, http.Server.Shutdown with a timeout, return.
-func Run(ctx context.Context, cfg config.Config, log *slog.Logger, public http.Handler, ready *atomic.Bool) error {
+func Run(ctx context.Context, cfg config.Config, log *slog.Logger, public http.Handler, ready *atomic.Bool, checks ...Check) error {
 	pub := newHTTPServer(cfg.PublicAddr, public)
-	mgmt := newHTTPServer(cfg.ManagementAddr, NewManagement(ready))
+	mgmt := newHTTPServer(cfg.ManagementAddr, NewManagement(log, ready, checks...))
 
 	errc := make(chan error, 2)
 	for name, s := range map[string]*http.Server{"public": pub, "management": mgmt} {

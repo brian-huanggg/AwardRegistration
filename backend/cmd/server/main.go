@@ -45,5 +45,5 @@ func run() error {
 	si := server.API{Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}}}
 
 	var ready atomic.Bool
-	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si)), &ready)
+	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si)), &ready, server.DBCheck(db))
 }

@@ -2,9 +2,12 @@
 package server
 
 import (
+	"context"
+	"database/sql"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -32,17 +35,43 @@ func NewPublic(log *slog.Logger, mount func(chi.Router)) http.Handler {
 	return web.RequestID(web.AccessLog(log)(web.Recover(log)(web.AcceptCheck(r))))
 }
 
-// NewManagement builds the management router: probes only (metrics and the DB
-// readiness check arrive in later PRs). It is never exposed by the ingress.
-func NewManagement(ready *atomic.Bool) http.Handler {
+// Check reports whether one dependency is usable; a non-nil error makes
+// readiness answer 503. Only dependencies a request cannot do without belong
+// here: the database yes, MinIO no (PRD §8.3, Architecture §12).
+type Check func(ctx context.Context) error
+
+// checkTimeout bounds all checks of one readiness request, so a hung database
+// cannot make the kubelet probe time out with no answer.
+const checkTimeout = 2 * time.Second
+
+// DBCheck pings the database through the pool.
+func DBCheck(db *sql.DB) Check { return db.PingContext }
+
+// NewManagement builds the management router: probes only (metrics arrive in a
+// later PR). It is never exposed by the ingress.
+//
+// Liveness answers 200 whenever the process can serve; it checks nothing else,
+// so a database outage never restarts pods. Readiness answers 200 only while
+// `ready` is true (false before startup completes and after SIGTERM) and every
+// check passes.
+func NewManagement(log *slog.Logger, ready *atomic.Bool, checks ...Check) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+LivenessPath, func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET "+ReadinessPath, func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET "+ReadinessPath, func(w http.ResponseWriter, r *http.Request) {
 		if !ready.Load() {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), checkTimeout)
+		defer cancel()
+		for _, c := range checks {
+			if err := c(ctx); err != nil {
+				log.Warn("readiness check failed", "error", err)
+				w.WriteHeader(http.StatusServiceUnavailable)
+				return
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 	})

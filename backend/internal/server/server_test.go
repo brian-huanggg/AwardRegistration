@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -109,7 +110,7 @@ func TestAcceptAccepted(t *testing.T) {
 
 func TestProbes(t *testing.T) {
 	var ready atomic.Bool
-	h := server.NewManagement(&ready)
+	h := server.NewManagement(slog.New(slog.DiscardHandler), &ready)
 	get := func(p string) int {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
@@ -121,6 +122,42 @@ func TestProbes(t *testing.T) {
 	ready.Store(true)
 	if get(server.ReadinessPath) != 200 {
 		t.Fatal("after ready")
+	}
+}
+
+func TestReadinessChecks(t *testing.T) {
+	var ready atomic.Bool
+	ready.Store(true)
+	var dbErr error
+	db := func(context.Context) error { return dbErr }
+	h := server.NewManagement(slog.New(slog.DiscardHandler), &ready, db)
+	get := func(p string) int {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		return rec.Code
+	}
+	if get(server.ReadinessPath) != 200 {
+		t.Fatal("db up")
+	}
+	dbErr = errors.New("connection refused")
+	if get(server.ReadinessPath) != 503 {
+		t.Fatal("db down must fail readiness")
+	}
+	if get(server.LivenessPath) != 200 {
+		t.Fatal("db down must not fail liveness")
+	}
+}
+
+func TestReadinessCheckTimeout(t *testing.T) {
+	var ready atomic.Bool
+	ready.Store(true)
+	hang := func(ctx context.Context) error { <-ctx.Done(); return ctx.Err() }
+	h := server.NewManagement(slog.New(slog.DiscardHandler), &ready, hang)
+	rec := httptest.NewRecorder()
+	start := time.Now()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", server.ReadinessPath, nil))
+	if rec.Code != 503 || time.Since(start) > 4*time.Second {
+		t.Fatalf("%d after %v", rec.Code, time.Since(start))
 	}
 }
 
