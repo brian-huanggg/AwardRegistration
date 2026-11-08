@@ -71,7 +71,7 @@ describe('Register page: markup', () => {
 
   it.each(['en', 'zh-TW'] as const)('has no axe violations (%s), also with errors shown', async (locale) => {
     const { container, user } = await open(locale);
-    await screen.findByRole('region', { name: locale === 'en' ? 'Submission status' : /.+/ });
+    await screen.findByRole('heading', { level: 1 });
     expect((await axe(container)).violations).toEqual([]);
     await user.click(screen.getByRole('button', { name: locale === 'en' ? 'Create account' : '建立帳號' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();

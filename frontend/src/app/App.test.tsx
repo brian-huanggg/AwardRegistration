@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
 import { axe } from 'vitest-axe';
@@ -9,7 +9,7 @@ import { initI18n } from '@/shared/i18n';
 import { App } from './App';
 import { safeNext } from './access';
 import { PAGES, routes } from './router';
-import { ROUTES, navFor, type Role } from './routes';
+import { ROUTES, type Role } from './routes';
 
 const API = 'http://localhost:3000/api/v1';
 const me = (role: Role | null) =>
@@ -31,31 +31,6 @@ async function open(path: string, role: Role | null, state: 'NOT_OPEN' | 'OPEN' 
 
 /** A concrete URL for a route pattern. */
 const concrete = (p: string) => p.replace(':id', '11111111-1111-4111-8111-111111111111');
-
-describe('deadline banner (3 states)', () => {
-  it.each([
-    ['NOT_OPEN', 'Submissions are not open yet.'],
-    ['OPEN', 'Submissions are open.'],
-    ['CLOSED', 'Submissions are closed.'],
-  ] as const)('%s', async (state, text) => {
-    await open('/login', null, state);
-    const region = await screen.findByRole('region', { name: 'Submission status' });
-    expect(await within(region).findByText(new RegExp(text))).toBeInTheDocument();
-    expect(region).toHaveAttribute('data-state', state);
-  });
-
-  it('shows an error state when the deadline cannot be loaded', async () => {
-    server.use(me(null), http.get(`${API}/deadline`, () => problem(503, 'SERVICE_UNAVAILABLE')));
-    await initI18n('en');
-    render(<App router={createMemoryRouter(routes, { initialEntries: ['/login'] })} client={new QueryClient()} />);
-    expect(await screen.findByText('The submission status could not be loaded.')).toBeInTheDocument();
-  });
-
-  it('is present in AppShell too', async () => {
-    await open('/ideas', 'USER', 'CLOSED');
-    expect(await screen.findByRole('region', { name: 'Submission status' })).toBeInTheDocument();
-  });
-});
 
 describe('route access (Frontend.md §6.3)', () => {
   const nonPublic = ROUTES.filter((r) => r.access !== 'public');
@@ -98,19 +73,6 @@ describe('route access (Frontend.md §6.3)', () => {
   });
 });
 
-describe('navigation matches the route table', () => {
-  it.each([
-    ['USER', ['Ideas', 'Join requests']],
-    ['ADMIN', ['Ideas', 'Deadline', 'Statistics']],
-  ] as const)('%s', async (role, labels) => {
-    await open('/ideas', role);
-    const nav = await screen.findByRole('navigation', { name: 'Main navigation' });
-    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(labels);
-    expect(within(nav).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(navFor(role).map((r) => r.path));
-    expect(!!screen.queryByText('Administrator')).toBe(role === 'ADMIN');
-  });
-});
-
 describe('safeNext (§6.4)', () => {
   it.each([
     ['/ideas?page=2', 'USER', '/ideas?page=2'],
@@ -137,7 +99,6 @@ describe('every route has a page', () => {
     async (path, role) => {
       const { container } = await open(concrete(path), role);
       expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
-      await screen.findByRole('region', { name: 'Submission status' });
       expect((await axe(container)).violations).toEqual([]);
     },
   );
@@ -157,7 +118,6 @@ describe('accessibility', () => {
   ] as const)('%s as %s has no axe violations', async (path, role) => {
     const { container } = await open(path, role);
     await screen.findByRole('heading', { level: 1 });
-    await screen.findByRole('region', { name: 'Submission status' });
     expect((await axe(container)).violations).toEqual([]);
   });
 });

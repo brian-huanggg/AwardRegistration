@@ -13,12 +13,12 @@ import { routes } from "../router";
 
 const API = "http://localhost:3000/api/v1";
 const USER = { empNo: "089290", name: "Wang", email: "w@x.io", role: "USER" };
-const ADMIN = { empNo: "000001", name: "Root", email: null, role: "ADMIN" };
+type Account = typeof USER | { empNo: string; name: string; email: null; role: "ADMIN" };
 
 /** A visitor on `path`; `account` is who a successful login returns. `GET /auth/me` follows the session. */
-async function open(path: string, account: typeof USER | typeof ADMIN = USER) {
+async function open(path: string, account: Account = USER) {
   clearCsrfToken();
-  let session: typeof USER | typeof ADMIN | null = null;
+  let session: Account | null = null;
   const calls: { login: unknown[]; logoutCsrf: (string | null)[] } = {
     login: [],
     logoutCsrf: [],
@@ -87,15 +87,6 @@ describe("Login page", () => {
     await signIn(user, " 089290 ", "secret");
     await waitFor(() => expect(router.state.location.pathname).toBe("/ideas"));
     expect(calls.login).toEqual([{ empNo: "089290", password: "secret" }]);
-    expect(await screen.findByText("Wang")).toBeInTheDocument();
-    expect(screen.queryByText("Administrator")).not.toBeInTheDocument();
-  });
-
-  it("signs an Admin in, to the same page, with the Administrator badge", async () => {
-    const { router, user } = await open("/login", ADMIN);
-    await signIn(user, "000001");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/ideas"));
-    expect(await screen.findByText("Administrator")).toBeInTheDocument();
   });
 
   it("follows a role-allowed next", async () => {
@@ -172,47 +163,5 @@ describe("Login page", () => {
     expect(
       await screen.findByText("Your session has ended. Please sign in again."),
     ).toBeInTheDocument();
-  });
-});
-
-describe("Sign out", () => {
-  it("ends the session with the session-bound CSRF token and returns to a clean /login", async () => {
-    const { router, calls, user } = await open("/login");
-    await signIn(user);
-    await user.click(await screen.findByRole("button", { name: "Sign out" }));
-    await screen.findByRole("heading", {
-      level: 1,
-      name: "Sign in to your account",
-    });
-    expect(calls.logoutCsrf).toEqual(["tok-session"]);
-    expect(router.state.location.pathname).toBe("/login");
-    expect(router.state.location.search).toBe("");
-    expect(
-      screen.queryByText("Your session has ended. Please sign in again."),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Wang")).not.toBeInTheDocument();
-  });
-
-  it("a second login after logout uses a fresh CSRF token", async () => {
-    const { router, user } = await open("/login");
-    await signIn(user);
-    await user.click(await screen.findByRole("button", { name: "Sign out" }));
-    await screen.findByRole("heading", {
-      level: 1,
-      name: "Sign in to your account",
-    });
-    await signIn(user);
-    await waitFor(() => expect(router.state.location.pathname).toBe("/ideas"));
-  });
-
-  it("tells the user when sign-out fails and keeps them signed in", async () => {
-    const { router, user } = await open("/login");
-    await signIn(user);
-    server.use(
-      http.post(`${API}/auth/logout`, () => problem(500, "INTERNAL_ERROR")),
-    );
-    await user.click(await screen.findByRole("button", { name: "Sign out" }));
-    expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe("/ideas");
   });
 });

@@ -7,7 +7,7 @@ import {
   type RouteObject,
 } from "react-router";
 import { decide, safeNext } from "./access";
-import { AppShell, PublicLayout } from "./layouts";
+import { Screen } from "./layouts";
 import { NotFound } from "./pages/NotFound";
 import { Login, Register } from "./pages/auth";
 import { IdeaCreate, IdeaDetail, IdeaEdit, IdeaList } from "./pages/ideas";
@@ -94,11 +94,7 @@ function Gate({ route }: { route?: (typeof ROUTES)[number] }) {
   ) : (
     <NotFound />
   );
-  return me ? (
-    <AppShell me={me}>{page}</AppShell>
-  ) : (
-    <PublicLayout>{page}</PublicLayout>
-  );
+  return <Screen padded={route?.access !== "public"}>{page}</Screen>;
 }
 
 function RootRedirect() {

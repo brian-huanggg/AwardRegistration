@@ -71,7 +71,7 @@ export function Login() {
         ? t("pages.login.sessionEnded")
         : undefined;
   return (
-    <div className="grid min-h-[36rem] overflow-hidden rounded-xl border bg-card lg:grid-cols-[500px_1fr]">
+    <div className="grid min-h-screen bg-card lg:grid-cols-[500px_1fr]">
       <div
         className="relative hidden items-center justify-center bg-cover bg-center p-10 lg:flex"
         style={{ backgroundImage: "url(/auth-hero-login.jpg)" }}
@@ -101,7 +101,7 @@ export function Register() {
   const heading = useAuthHeading(t("nav.register"));
   return (
     <div
-      className="flex justify-center rounded-xl bg-cover bg-center px-4 py-10"
+      className="flex min-h-screen items-center justify-center bg-cover bg-center px-4 py-10"
       style={{ backgroundImage: "url(/auth-hero-register.jpg)" }}
     >
       <Card className="w-full max-w-md shadow-lg">

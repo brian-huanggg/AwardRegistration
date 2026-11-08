@@ -1,33 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { Leaf } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { NavLink, Link, useNavigate } from "react-router";
-import { logout } from "@/features/auth/login";
-import { DeadlineBanner } from "@/features/deadline/DeadlineBanner";
-import { LOCALES, setLocale, type Locale } from "@/shared/i18n";
-import { navFor } from "./routes";
-import { replaceIdentity, type Me } from "./session";
-
-function LanguageSwitch() {
-  const { t, i18n } = useTranslation();
-  return (
-    <label className="flex items-center gap-2 text-sm">
-      <span>{t("common.language")}</span>
-      <select
-        className="rounded-md border bg-background px-2 py-1"
-        value={i18n.language}
-        onChange={(e) => void setLocale(e.target.value as Locale)}
-      >
-        {LOCALES.map((l) => (
-          <option key={l} value={l}>
-            {l === "zh-TW" ? "繁體中文" : "English"}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
 
 /** One h1 per page; after a route change focus moves to it and the title updates (Frontend.md §8). */
 export function PageHeading({ title }: { title: string }) {
@@ -48,119 +20,17 @@ export function PageHeading({ title }: { title: string }) {
   );
 }
 
-function Frame({
-  header,
+/** Every page fills the viewport; there is no header, navigation or footer around it. */
+export function Screen({
   children,
+  padded = true,
 }: {
-  header: ReactNode;
   children: ReactNode;
+  padded?: boolean;
 }) {
-  const { t } = useTranslation();
   return (
-    <div className="min-h-screen bg-muted/40">
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-10 focus:bg-background focus:p-2"
-      >
-        {t("nav.skip")}
-      </a>
-      <header className="border-b bg-card shadow-xs">{header}</header>
-      <DeadlineBanner />
-      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
-        {children}
-      </main>
-    </div>
-  );
-}
-
-export function PublicLayout({ children }: { children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <Frame
-      header={
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 p-4">
-          <Link to="/login" className="flex items-center gap-2 font-semibold text-primary">
-            <Leaf aria-hidden="true" className="size-5" />
-            {t("app.name")}
-          </Link>
-          <LanguageSwitch />
-        </div>
-      }
-    >
+    <main id="main" className={padded ? "min-h-screen p-6 md:p-10" : "min-h-screen"}>
       {children}
-    </Frame>
-  );
-}
-
-/**
- * Ends the session. Whatever the answer, the browser must stop acting as this user: logout is
- * idempotent on the server, and on a network failure the user is told instead of being left unsure.
- */
-function SignOutButton() {
-  const { t } = useTranslation();
-  const client = useQueryClient();
-  const navigate = useNavigate();
-  const out = useMutation({
-    mutationFn: logout,
-    onSuccess: () => {
-      replaceIdentity(client, null);
-      void navigate("/login", { replace: true });
-    },
-  });
-  return (
-    <>
-      <button
-        type="button"
-        className="rounded-md border bg-background px-3 py-1 text-sm hover:bg-accent disabled:opacity-50"
-        disabled={out.isPending}
-        onClick={() => out.mutate()}
-      >
-        {t("nav.signOut")}
-      </button>
-      {out.isError && (
-        <span role="alert" className="text-sm text-destructive">
-          {t("errors.UNKNOWN")}
-        </span>
-      )}
-    </>
-  );
-}
-
-/** Logged-in layout; navigation comes from the route table and the role. */
-export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
-  const { t } = useTranslation();
-  return (
-    <Frame
-      header={
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 p-4">
-          <nav aria-label={t("nav.main")}>
-            <ul className="flex flex-wrap items-center gap-1">
-              {navFor(me.role).map((r) => (
-                <li key={r.path}>
-                  <NavLink
-                    to={r.path}
-                    className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary"
-                  >
-                    {t(`nav.${r.navKey!}`)}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="flex items-center gap-4">
-            {me.role === "ADMIN" && (
-              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-                {t("nav.administrator")}
-              </span>
-            )}
-            <span className="text-sm">{me.name}</span>
-            <LanguageSwitch />
-            <SignOutButton />
-          </div>
-        </div>
-      }
-    >
-      {children}
-    </Frame>
+    </main>
   );
 }
