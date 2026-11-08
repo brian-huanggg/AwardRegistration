@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useSearchParams, type RouteObject } from 'react-router';
 import { decide, safeNext } from './access';
@@ -8,6 +8,7 @@ import { Login, Register } from './pages/auth';
 import { IdeaCreate, IdeaDetail, IdeaEdit, IdeaList } from './pages/ideas';
 import { JoinRequests } from './pages/JoinRequests';
 import { ROUTES } from './routes';
+import { ApiError } from '@/shared/api';
 import { useMe } from './session';
 
 const AdminDeadline = lazy(() => import('./pages/admin').then((m) => ({ default: m.AdminDeadline })));
@@ -31,7 +32,12 @@ function Gate({ route }: { route?: (typeof ROUTES)[number] }) {
   const { t } = useTranslation();
   const location = useLocation();
   const [params] = useSearchParams();
-  const { data: me, isPending, isError } = useMe();
+  const { data: me, isPending, isError, error } = useMe();
+  useEffect(() => {
+    if (!isError) return;
+    if (error instanceof ApiError) console.error('GET /auth/me failed', error.status, error.code, error.requestId);
+    else console.error('GET /auth/me failed (network error or non-JSON response; is the backend / dev proxy up?)', error);
+  }, [isError, error]);
 
   if (isPending) return <p role="status">{t('common.loading')}</p>;
   if (isError) return <p role="alert">{t('errors.UNKNOWN')}</p>;
