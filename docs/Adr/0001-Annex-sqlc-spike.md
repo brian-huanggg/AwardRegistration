@@ -5,9 +5,9 @@
 | Date | 2026-11-08 |
 | Belongs to | `docs/Adr/0001-Backend-in-go.md` (G1), `docs/Architecture/Backend.md` §2.3 |
 | Tooling | Go 1.26.10, sqlc v1.31.1 (built with `go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest`), engine `mysql` |
-| Scope | **Parsing and code generation only.** No MariaDB server was started; no generated query was executed. The schema is the table definitions of `Backend.md` §10 written as MariaDB DDL. |
-| Verdict | **sqlc is usable, with five rules (R1–R5).** Two failure modes are silent and must be caught by CI (R2). |
-| Follow-up | PR `B0-02` repeats this on the real `V001__init.sql` and adds a runtime check against MariaDB (see §5). |
+| Scope | Part 1 (§1–§4, 2026-11-08): parsing and code generation only, schema = `Backend.md` §10 written as MariaDB DDL. **Part 2 (§5, PR `B0-02`): the real `V001__init.sql` plus a spike migration with `UUID`/`INET6`/`ALTER TABLE … ADD COLUMN`, applied to MariaDB 11.4.13 and every statement executed from Go.** |
+| Verdict | **sqlc is usable, with seven rules (R1–R7); verified against MariaDB 11.4.13 in `B0-02`.** Two failure modes are silent and must be caught by CI (R2). |
+| Follow-up | Done in `B0-02` (§5). Verdict unchanged; two further rules R6–R7 and a corrected conversion script (§4). |
  
 ---
  
@@ -89,37 +89,72 @@ Types that the overrides must provide in `shared/db` (the spike used a 30-line s
  
 ```python
 #!/usr/bin/env python3
-"""Flyway schema -> sqlc-readable schema + column overrides.
-UUID -> CHAR(36), INET6 -> VARCHAR(45); each converted column gets a Go type override.
-Usage: gen_sqlc_schema.py <in.sql> <out_schema.sql> <out_overrides.yaml>"""
+"""Flyway migrations -> sqlc-readable schema + column overrides.
+UUID -> CHAR(36), INET6 -> VARCHAR(45). Handles CREATE TABLE columns and
+ALTER TABLE ... ADD/MODIFY/CHANGE [COLUMN] clauses (one clause per line).
+Fails (exit 1) if a UUID/INET6 token survives conversion.
+Usage: gen_sqlc_schema.py <out_schema.sql> <out_overrides.yaml> <migration.sql>..."""
 import re, sys
-src, out_schema, out_overrides = sys.argv[1:4]
-table = None; ov = []; lines = []
-for line in open(src, encoding='utf-8'):
-    m = re.match(r'\s*CREATE TABLE\s+`?(\w+)`?', line, re.I)
-    if m: table = m.group(1)
-    c = re.match(r'(\s*)`?(\w+)`?\s+(UUID|INET6)\b(.*)', line, re.I)
-    if c and table:
-        ind, col, typ, rest = c.groups()
-        ov.append((table, col, typ.upper(), 'NOT NULL' not in rest.upper()))
-        line = f"{ind}`{col}` {'CHAR(36)' if typ.upper()=='UUID' else 'VARCHAR(45)'}{rest}\n"
-    lines.append(line)
-open(out_schema, 'w', encoding='utf-8').writelines(lines)
+out_schema, out_ov, *srcs = sys.argv[1:]
+table = None; ov = {}; out = []
+TYPE = r'(UUID|INET6)\b'
+for src in sorted(srcs):
+    for line in open(src, encoding='utf-8'):
+        m = re.match(r'\s*(?:CREATE TABLE|ALTER TABLE)\s+(?:IF NOT EXISTS\s+)?`?(\w+)`?', line, re.I)
+        if m: table = m.group(1)
+        c = re.match(r'(\s*(?:(?:ADD|MODIFY)(?:\s+COLUMN)?\s+)?)`?(\w+)`?\s+' + TYPE + r'(.*)', line, re.I)
+        if not c:  # single-line: ALTER TABLE t ADD COLUMN x UUID ...
+            c = re.match(r'(.*?\b(?:ADD|MODIFY)(?:\s+COLUMN)?\s+)`?(\w+)`?\s+' + TYPE + r'(.*)', line, re.I)
+        if c and table and c.group(2).upper() not in ('ADD', 'MODIFY'):
+            pre, col, typ, rest = c.groups()
+            typ = typ.upper()
+            ov[(table, col)] = (typ, 'NOT NULL' not in rest.upper())
+            line = f"{pre}`{col}` {'CHAR(36)' if typ == 'UUID' else 'VARCHAR(45)'}{rest}\n"
+        out.append(line)
+text = ''.join(out)
+left = [l for l in text.splitlines() if re.search(r'\b(UUID|INET6)\b', re.sub(r'--.*', '', l), re.I) and 'UUID()' not in l.upper()]
+if left:
+    sys.exit('unconverted UUID/INET6:\n' + '\n'.join(left))
+open(out_schema, 'w', encoding='utf-8').write(text)
 y = []
-for t, c, typ, nullable in ov:
+for (t, c), (typ, nullable) in sorted(ov.items()):
     if typ == 'UUID':
         gt = '{import: "github.com/google/uuid", type: "NullUUID"}' if nullable else '"github.com/google/uuid.UUID"'
     else:
         gt = '{import: "<module>/internal/shared/db", type: "NullIP"}' if nullable else '"<module>/internal/shared/db.IP"'
     y.append(f'          - column: "{t}.{c}"\n            go_type: {gt}')
-open(out_overrides, 'w').write('\n'.join(y) + '\n')
+open(out_ov, 'w').write('\n'.join(y) + '\n')
 ```
  
-Limits of the script: it reads one column per line and one `CREATE TABLE` at a time. A column added by `ALTER TABLE … ADD COLUMN x UUID` in a later migration is **not** seen; the migration style (expand-then-contract) therefore needs either a rule that the script also handles `ADD COLUMN`, or a test that fails when a converted type is missing an override. This is decided in `B0-02`.
- 
-## 5. Not tested — to repeat in PR `B0-02`
- 
-1. The real `V001__init.sql` (Flyway comments, placeholders, `ALTER TABLE` statements).
-2. Runtime behaviour against MariaDB 11.4 (OI-04): `uuid.UUID` text round-trip through the native `UUID` type; scanning an `INET6` value as `[]byte` or `string`; `RowsAffected()` with `clientFoundRows=true`; every statement of §2 executed once.
-3. Pinning the sqlc version in CI (the spike used the version the module proxy returned as latest).
-4. Whether the `sqlc.slice` expansion and `sqlc.narg` patterns are needed at all; the first modules may not use them.
+Changes since Part 1 (B0-02): `ALTER TABLE … ADD|MODIFY [COLUMN] x UUID` is converted (multi-line and single-line forms); the script **exits 1 if any `UUID`/`INET6` token survives**, which is the "fail when a type has no override" test. Unsupported forms (e.g. `CHANGE COLUMN a b UUID`) therefore fail the build instead of being skipped. `sqlc.yaml` has no include mechanism, so `overrides.yaml` is a fragment that the Makefile target concatenates into `sqlc.yaml` (or the script must write the whole file).
+
+## 5. Runtime verification (PR `B0-02`, MariaDB 11.4.13)
+
+Setup: `V001__init.sql` and a spike migration (`app_user`, `session`, `login_attempt`, `idea`, `pending_file_deletion`, `ALTER TABLE audit_log ADD COLUMN actor_id UUID, client_ip INET6, detail JSON`) applied unmodified (native `UUID`/`INET6`) to a throw-away database; the converted schema and `sqlc` v1.31.1 (built from the pinned tag) generated the code; DSN `parseTime=true&loc=UTC&time_zone='+00:00'&clientFoundRows=true`. Five Go tests ran the generated functions against the server.
+
+| Question (Part 1 §5) | Result |
+|---|---|
+| Flyway comments, `INSERT`, `ALTER TABLE` in sqlc input | Real `V001` converts and generates unchanged. `ALTER … ADD COLUMN` is read by sqlc once the type is converted. |
+| `uuid.UUID` through native `UUID` | **Works.** Written as text, read as text (`CAST(id AS CHAR)` equals `uuid.String()`); `uuid.NullUUID` works for NULL. |
+| `INET6` scanned as string | **Works with a custom type**; the driver returns text. **MariaDB returns IPv4 as `::ffff:a.b.c.d`** → R6. |
+| `RowsAffected()` with `clientFoundRows=true` | **Matched rows.** Session `UPDATE … SET last_access_at = IF(…)` that changes nothing returns 1; unknown session returns 0; `SetDeadline` with the same value returns 1. |
+| `CHECK` | Enforced at run time: email pattern, `(status='ACCEPTED') = (accepted_at IS NOT NULL)`, single-row `id = 1` all fail with MariaDB error **4025** (SQLState 23000, class 23). |
+| `ON DUPLICATE KEY UPDATE` with `IF(…, 1, fail_count + 1)` | Works (3 failures → count 3, for IPv4 and IPv6). |
+| `FOR UPDATE SKIP LOCKED` | Works: two concurrent transactions each claimed two different rows (`[1,2]` and `[3,4]`). `WithTx` is generated. |
+| `sqlc.slice`, `LIKE … ESCAPE`, `DELETE … LIMIT`, `:execrows`, `:execresult`, `NOW(6)` | All execute. |
+| R2 grep | Both silent failures are still present in the generated `*.sql.go` and **fail at run time with error 1370 (`routine 'sqlc.arg'`)**; the R2 grep catches both. |
+| `sqlc.narg` / `sqlc.slice` needed? | Not needed by the first modules; both work, `sqlc.slice` expands at run time. Keep, no rule. |
+| Version pin | `go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1`; pin the same tag in `mise.toml`/CI. |
+
+### New findings
+
+| # | Finding |
+|---|---|
+| **R6** | `shared/db.IP.Scan` must call `netip.Addr.Unmap()`: MariaDB stores IPv4 in `INET6` as IPv4-mapped IPv6 and returns `::ffff:203.0.113.7`. Compare and log the unmapped form. |
+| **R7** | A **nullable `JSON`** column is generated as `json.RawMessage`, and scanning NULL into it fails (`unsupported Scan, storing driver.Value type <nil>`). Add the override `db_type: json, nullable: true → shared/db.NullJSON` (a `[]byte` that is `Scanner`/`Valuer`, nil = NULL). `go_type: "[]byte"` is rejected by sqlc. NOT NULL `JSON` columns are fine as `json.RawMessage`. |
+
+Not tested here: lock-wait (1205) and deadlock (1213) mapping, and the `INSERT … SELECT` forms of later modules; they belong to the PRs that introduce them.
+
+**Hand-written SQL needed (acceptance):** dynamic `ORDER BY` of the Idea list (R5); nothing else so far. Everything else in the design is expressible in sqlc with rules R1–R7.
+
+Spike code (schema, queries, five tests) was kept outside the repository; the script of §4 and the override types of R6/R7 move into `B1-*`/`B0-*` PRs that add `shared/db` and `make sqlc-schema`.

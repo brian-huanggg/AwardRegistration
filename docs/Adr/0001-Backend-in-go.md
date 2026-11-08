@@ -48,7 +48,7 @@ This document checks what a Go implementation looks like if the current architec
 |---|---|---|
 | A1 | G4: oapi-codegen generates the **standard (non-strict)** chi server interface, not the strict server. | **Decided** (owner, 2026-11-08) |
 | A2 | G10 / G12: router **chi** instead of `net/http.ServeMux`. | **Decided** (owner, 2026-11-08) |
-| A3a | sqlc against the MariaDB schema. | **Spike done** (Annex): usable with rules R1–R5. Repeat on the real `V001__init.sql` and against a running MariaDB in PR `B0-02` (OI-51) |
+| A3a | sqlc against the MariaDB schema. | **Done** (Annex §5, PR `B0-02`): usable with rules R1–R7, verified on the real `V001__init.sql` and a running MariaDB 11.4 (OI-51) |
 | A3b | JSON body limit and its 413. | **Status 413 decided** (owner, 2026-11-08). Limit value and error code open (OI-50); worst-case body is under 5 KiB, 16 KiB proposed |
 | A3c | minio-go retry switch-off. | **Checked in the source** (v7.4.1, the version the module proxy returned): `Options.MaxRetries` set to **1** gives a single attempt; **0 means the default of 10** and does not disable retries. A test locks it (OI-52) |
  

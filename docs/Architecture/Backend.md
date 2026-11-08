@@ -68,7 +68,7 @@ internal/<module>/
 - Transactions are opened in service implementations. Handlers contain no business logic and no SQL.
 ### 2.3 Persistence **[ADR G1]**
  
-Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go 1.26.10; parsing and code generation only, no running MariaDB).
+Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go 1.26.10; Part 1 generation only, Part 2 executed against MariaDB 11.4.13).
  
 - One `sqlc.yaml` with **one package entry per module**; each module's queries live in `internal/<module>/internal/store/queries.sql`.
 - No module queries another module's tables. The only cross-table reads stay the explicit joins of `Backend.md` §6 (session) and §8 (visibility).
@@ -81,7 +81,7 @@ Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go
   `clientFoundRows=true` makes `RowsAffected()` report **matched** rows. The session statement (§6) depends on it, the same way the Java version depends on `useAffectedRows=false`; a test locks it.
 **What the spike found.** sqlc's MySQL parser rejects the native `UUID` and `INET6` column types and therefore cannot read the Flyway migrations as they are. Everything else the design needs parsed and generated correctly: `CHECK`, `JSON`, `DATETIME(6)`, `utf8mb4_bin`, `BINARY(32)`, foreign keys, `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, `INSERT … ON DUPLICATE KEY UPDATE`, `UPDATE … JOIN … SET … = IF(…)`, `NOW(6) - INTERVAL …`, `LIKE … ESCAPE`, `DELETE … LIMIT`, `sqlc.slice`.
  
-**Rules R1–R5 [Proposed]** (full text and evidence in the Annex):
+**Rules R1–R7 [Proposed]** (full text and evidence in the Annex):
  
 | # | Rule |
 |---|---|
@@ -90,6 +90,8 @@ Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go
 | R3 | No row comparison `(a, b) < (…)`. Keyset pagination (Audit Log) is written as `occurred_at < ? OR (occurred_at = ? AND id < ?)`. |
 | R4 | A flag passed to SQL is written `CAST(sqlc.arg(x) AS SIGNED)` (typed `int64`); without the cast sqlc types it `interface{}`. |
 | R5 | Dynamic `ORDER BY` (the `sort` / `order` of the Idea list) is hand-written in the module's `store` package from a closed `switch` over the API enum; sqlc types a sort-key parameter `interface{}` whatever the cast. Other statements sqlc cannot express are hand-written in the same package with `database/sql`. |
+| R6 | `shared/db.IP.Scan` unmaps IPv4: MariaDB returns an IPv4 address stored in `INET6` as `::ffff:a.b.c.d`. |
+| R7 | A nullable `JSON` column is overridden to `shared/db.NullJSON` (`db_type: json, nullable: true`); the default `json.RawMessage` fails to scan NULL. |
  
 - **Type mapping [Proposed]:**
   | MariaDB | Go | Note |
@@ -369,7 +371,7 @@ Same as `Backend.md` §10. Go type mapping is in §2.3. The API writes times as 
 | G13 | Go 1.26 | [Decided] |
 | A1 | oapi-codegen generates the standard (non-strict) server interface | [Decided] |
 | A2 | Router is chi | [Decided] |
-| A3a | sqlc spike first; result: usable with rules R1–R5 | Spike done; repeat in `B0-02` (OI-51) |
+| A3a | sqlc spike first; result: usable with rules R1–R5 | Done in `B0-02`: rules R1–R7, verified against MariaDB 11.4 (OI-51) |
 | A3b | Oversized JSON bodies answer 413 | Status [Decided]; limit and error code [Open] (OI-50) |
 | A3c | minio-go `MaxRetries: 1` | Verified in source; test pending (OI-52) |
  
