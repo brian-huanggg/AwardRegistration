@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "ESG_Award_Registration_System",
+  "project_id": "3568156c-fcfe-4fed-8a05-9dd70663365d"
+}
