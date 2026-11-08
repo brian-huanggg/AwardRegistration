@@ -14,10 +14,15 @@ type Config struct {
 	Profile         string // local | k3s | dev
 	PublicAddr      string // public http.Server
 	ManagementAddr  string // probes and metrics; never routed by the ingress
+	DBDSN           string // go-sql-driver DSN; must carry the pins of Backend.md §2.3
 	LogLevel        slog.Level
 	ShutdownTimeout time.Duration // must stay below terminationGracePeriodSeconds
 	ReadyDrainDelay time.Duration // time readiness stays false before Shutdown starts
 }
+
+// DefaultDSN matches docker-compose.yml (throwaway local credentials). The query
+// pins UTC and matched-row counts (Backend.md §2.3).
+const DefaultDSN = "esg:esg@tcp(localhost:3306)/esg?parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&clientFoundRows=true"
 
 // Load reads ESG_* variables through getenv (os.Getenv in production).
 func Load(getenv func(string) string) (Config, error) {
@@ -31,6 +36,7 @@ func Load(getenv func(string) string) (Config, error) {
 		Profile:        get("ESG_PROFILE", "local"),
 		PublicAddr:     get("ESG_PUBLIC_ADDR", ":8080"),
 		ManagementAddr: get("ESG_MANAGEMENT_ADDR", ":8081"),
+		DBDSN:          get("ESG_DB_DSN", DefaultDSN),
 	}
 	switch c.Profile {
 	case "local", "k3s", "dev":
