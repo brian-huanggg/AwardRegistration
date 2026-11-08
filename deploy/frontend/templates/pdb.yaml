@@ -1,0 +1,8 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: esg-frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {{- include "esg-frontend.selector" . | nindent 6 }}

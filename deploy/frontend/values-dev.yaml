@@ -1,0 +1,3 @@
+# DEV overrides; image.tag is updated by the CD pipeline (O0-09).
+image:
+  tag: ""

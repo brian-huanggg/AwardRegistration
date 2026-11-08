@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: esg-frontend
+  labels: {{- include "esg-frontend.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "esg-frontend.selector" . | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.service.port }}, targetPort: http }

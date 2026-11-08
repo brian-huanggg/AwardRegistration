@@ -63,3 +63,16 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  frontend-image:
+    name: frontend image (nginx checks, helm lint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/test-frontend-image.sh
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+      - run: helm lint deploy/frontend --set image.tag=ci
+      - run: helm template deploy/frontend --set image.tag=ci >/dev/null
