@@ -4,9 +4,10 @@ import "net/http"
 
 // PublicRoutes is the explicit list of operations that need no session
 // (Backend.md §3). It must equal the operations marked `security: []` in
-// api/openapi.yaml; a test locks that. B1-10 adds POST /auth/login to both. Paths include the /api/v1 prefix.
+// api/openapi.yaml; a test locks that. Paths include the /api/v1 prefix.
 var PublicRoutes = []struct{ Method, Path string }{
 	{http.MethodGet, "/api/v1/auth/csrf"},
+	{http.MethodPost, "/api/v1/auth/login"},
 	{http.MethodPost, "/api/v1/auth/register"},
 	{http.MethodPost, "/api/v1/auth/logout"},
 	{http.MethodGet, "/api/v1/deadline"},
@@ -27,6 +28,7 @@ func IsPublic(r *http.Request) bool {
 // CSRF denial is recorded (PRD §6.11). Later PRs add their routes here, with
 // the same exact-path rule; a write on an unknown path is not audited.
 var WriteActions = map[string]string{
+	http.MethodPost + " /api/v1/auth/login":    "AUTH_LOGIN",
 	http.MethodPost + " /api/v1/auth/register": "AUTH_REGISTER",
 	http.MethodPost + " /api/v1/auth/logout":   "AUTH_LOGOUT",
 }

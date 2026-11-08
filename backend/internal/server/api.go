@@ -14,6 +14,7 @@ import (
 type API struct {
 	api.Unimplemented
 	Auth     auth.Handler
+	Logins   auth.LoginHandler
 	Account  account.Handler
 	Deadline deadline.Handler
 }
@@ -28,3 +29,6 @@ func (a API) Register(w http.ResponseWriter, r *http.Request, _ api.RegisterPara
 
 // GetCsrfToken serves GET /auth/csrf.
 func (a API) GetCsrfToken(w http.ResponseWriter, r *http.Request) { a.Auth.GetCsrfToken(w, r) }
+
+// Login serves POST /auth/login.
+func (a API) Login(w http.ResponseWriter, r *http.Request, _ api.LoginParams) { a.Logins.Login(w, r) }

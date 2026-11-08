@@ -53,6 +53,24 @@ func (e IdeaSummaryMyRelation) Valid() bool {
 	}
 }
 
+// Defines values for LoginResponseRole.
+const (
+	ADMIN LoginResponseRole = "ADMIN"
+	USER  LoginResponseRole = "USER"
+)
+
+// Valid indicates whether the value is a known member of the LoginResponseRole enum.
+func (e LoginResponseRole) Valid() bool {
+	switch e {
+	case ADMIN:
+		return true
+	case USER:
+		return true
+	default:
+		return false
+	}
+}
+
 // CsrfTokenResponse defines model for CsrfTokenResponse.
 type CsrfTokenResponse struct {
 	Token string `json:"token"`
@@ -140,6 +158,25 @@ type IdeaSummary struct {
 // IdeaSummaryMyRelation null for Admin
 type IdeaSummaryMyRelation string
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	// EmpNo Any string; a badly formatted ID is an ordinary login failure
+	EmpNo    string `json:"empNo"`
+	Password string `json:"password"`
+}
+
+// LoginResponse defines model for LoginResponse.
+type LoginResponse struct {
+	// Email null for Admin
+	Email *string           `json:"email"`
+	EmpNo string            `json:"empNo"`
+	Name  string            `json:"name"`
+	Role  LoginResponseRole `json:"role"`
+}
+
+// LoginResponseRole defines model for LoginResponse.Role.
+type LoginResponseRole string
+
 // PersonRef defines model for PersonRef.
 type PersonRef struct {
 	EmpNo string `json:"empNo"`
@@ -186,6 +223,12 @@ type CsrfToken = string
 // IdeaId defines model for IdeaId.
 type IdeaId = openapi_types.UUID
 
+// LoginParams defines parameters for Login.
+type LoginParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // LogoutParams defines parameters for Logout.
 type LogoutParams struct {
 	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
@@ -204,6 +247,9 @@ type ListIdeasParams struct {
 	Size *int `form:"size,omitempty" json:"size,omitempty"`
 }
 
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
 
@@ -212,6 +258,9 @@ type ServerInterface interface {
 	// GetCsrfToken Session-bound CSRF token (anonymous before login)
 	// (GET /auth/csrf)
 	GetCsrfToken(w http.ResponseWriter, r *http.Request)
+	// Login Log in with employee ID and password (issues a new session)
+	// (POST /auth/login)
+	Login(w http.ResponseWriter, r *http.Request, params LoginParams)
 	// Logout End the session
 	// (POST /auth/logout)
 	Logout(w http.ResponseWriter, r *http.Request, params LogoutParams)
@@ -236,6 +285,12 @@ type Unimplemented struct{}
 // GetCsrfToken Session-bound CSRF token (anonymous before login)
 // (GET /auth/csrf)
 func (_ Unimplemented) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Login Log in with employee ID and password (issues a new session)
+// (POST /auth/login)
+func (_ Unimplemented) Login(w http.ResponseWriter, r *http.Request, params LoginParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -283,6 +338,47 @@ func (siw *ServerInterfaceWrapper) GetCsrfToken(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCsrfToken(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params LoginParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -575,6 +671,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/auth/csrf", wrapper.GetCsrfToken)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/auth/login", wrapper.Login)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/auth/logout", wrapper.Logout)

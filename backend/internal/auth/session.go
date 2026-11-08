@@ -45,11 +45,21 @@ func New(db *sql.DB) *Sessions { return &Sessions{DB: db} }
 // (32 random bytes, base64url without padding). Every login calls it, so an ID
 // is never reused (no fixation).
 func (s *Sessions) Create(ctx context.Context, userID uuid.UUID) (string, error) {
+	return s.create(ctx, s.DB, userID)
+}
+
+// CreateIn is Create inside the caller's transaction, so login commits the
+// session together with its audit row.
+func (s *Sessions) CreateIn(ctx context.Context, tx *sql.Tx, userID uuid.UUID) (string, error) {
+	return s.create(ctx, tx, userID)
+}
+
+func (s *Sessions) create(ctx context.Context, x store.Execer, userID uuid.UUID) (string, error) {
 	raw := make([]byte, idBytes)
 	if _, err := rand.Read(raw); err != nil {
 		return "", fmt.Errorf("session id: %w", err)
 	}
-	if err := store.Insert(ctx, s.DB, hash(raw), userID); err != nil {
+	if err := store.Insert(ctx, x, hash(raw), userID); err != nil {
 		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(raw), nil

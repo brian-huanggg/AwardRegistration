@@ -51,8 +51,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	sessions := auth.New(db)
+	logins, err := auth.NewLogins(sessions, auditSvc, auth.NoThrottle{}) // B1b-04 wires the real throttle
+	if err != nil {
+		return err
+	}
 	si := server.API{
-		Auth: auth.Handler{CSRF: csrf, Log: log},
+		Auth:   auth.Handler{CSRF: csrf, Log: log},
+		Logins: auth.LoginHandler{Logins: logins, Fail: errs.Write},
 		Account: account.Handler{
 			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
 			Fail:    errs.Write,
@@ -62,6 +68,6 @@ func run() error {
 
 	var ready atomic.Bool
 	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si),
-		auth.Middleware(auth.New(db), server.IsPublic, log),
+		auth.Middleware(sessions, server.IsPublic, log),
 		csrf.Middleware(errs.Write, server.ActionFor)), &ready, server.DBCheck(db))
 }

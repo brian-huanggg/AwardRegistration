@@ -29,6 +29,49 @@ paths:
               schema: { $ref: '#/components/schemas/CsrfTokenResponse' }
         '429': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log in with employee ID and password (issues a new session)
+      description: >
+        Sets the session cookie and returns the caller. Unknown, malformed and disabled
+        accounts and wrong passwords all answer the same 401. The CSRF token changes
+        with the session, so the client refetches it.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200':
+          description: Logged in
+          headers:
+            Set-Cookie:
+              description: __Host-session=<opaque ID>; HttpOnly; Secure; SameSite=Lax; Path=/
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '429':
+          description: Throttled (LOGIN_THROTTLED)
+          headers:
+            Retry-After:
+              description: Seconds until a new attempt may succeed
+              schema: { type: integer, minimum: 1 }
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /auth/logout:
     post:
       operationId: logout
@@ -154,6 +197,20 @@ components:
       required: [token]
       properties:
         token: { type: string }
+    LoginRequest:
+      type: object
+      required: [empNo, password]
+      properties:
+        empNo: { type: string, description: 'Any string; a badly formatted ID is an ordinary login failure' }
+        password: { type: string, format: password }
+    LoginResponse:
+      type: object
+      required: [empNo, name, email, role]
+      properties:
+        empNo: { type: string }
+        name: { type: string }
+        email: { type: string, nullable: true, description: null for Admin }
+        role: { type: string, enum: [USER, ADMIN] }
     RegisterRequest:
       type: object
       required: [empNo, name, email, password]

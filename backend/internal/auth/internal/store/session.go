@@ -20,9 +20,14 @@ type Limits struct {
 	RefreshSeconds  int
 }
 
+// Execer is *sql.DB or *sql.Tx.
+type Execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
 // Insert stores a new session row. hash is SHA-256 of the session ID.
-func Insert(ctx context.Context, db *sql.DB, hash []byte, userID uuid.UUID) error {
-	_, err := db.ExecContext(ctx,
+func Insert(ctx context.Context, x Execer, hash []byte, userID uuid.UUID) error {
+	_, err := x.ExecContext(ctx,
 		`INSERT INTO session (id_hash, user_id) VALUES (?, ?)`, hash, userID.String())
 	if err != nil {
 		return fmt.Errorf("insert session: %w", err)
@@ -108,4 +113,37 @@ func DeleteExpired(ctx context.Context, db *sql.DB, l Limits) (int64, error) {
 		return 0, fmt.Errorf("purge sessions rows: %w", err)
 	}
 	return n, nil
+}
+
+// Account is the login view of app_user: what is needed to check a password
+// and answer the login response. PasswordHash never leaves the auth module.
+type Account struct {
+	ID           uuid.UUID
+	EmpNo        string
+	Name         string
+	Email        *string // NULL for Admin
+	PasswordHash string
+	Role         security.Role
+	Enabled      bool
+}
+
+// AccountByEmpNo reads one account by employee ID; found is false when none
+// exists.
+func AccountByEmpNo(ctx context.Context, db *sql.DB, empNo string) (a Account, found bool, err error) {
+	var id, role string
+	err = db.QueryRowContext(ctx,
+		`SELECT id, emp_no, name, email, password_hash, role, enabled
+		   FROM app_user WHERE emp_no = ?`, empNo).
+		Scan(&id, &a.EmpNo, &a.Name, &a.Email, &a.PasswordHash, &role, &a.Enabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Account{}, false, nil
+	}
+	if err != nil {
+		return Account{}, false, fmt.Errorf("read account: %w", err)
+	}
+	if a.ID, err = uuid.Parse(id); err != nil {
+		return Account{}, false, fmt.Errorf("parse user id %q: %w", id, err)
+	}
+	a.Role = security.Role(role)
+	return a, true, nil
 }

@@ -3,6 +3,8 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -28,6 +30,9 @@ type Error struct {
 	Detail string
 	Fields []FieldError
 	Cause  error
+	// RetryAfter, when positive, is sent as Retry-After in whole seconds,
+	// rounded up (minimum 1; PRD §6.5 throttling).
+	RetryAfter time.Duration
 
 	// AuditReason is the real reason of a rejected attempt (CSRF, role, state,
 	// not-yours, not-found). It is stored in the row's after_json, never sent
@@ -94,6 +99,10 @@ func WriteProblem(w http.ResponseWriter, r *http.Request, e *Error) {
 	}
 	w.Header().Set("Content-Type", ProblemContentType)
 	w.Header().Set("Cache-Control", "no-store")
+	if e.RetryAfter > 0 {
+		secs := max(1, int64((e.RetryAfter+time.Second-1)/time.Second))
+		w.Header().Set("Retry-After", strconv.FormatInt(secs, 10))
+	}
 	w.WriteHeader(e.Status)
 	_ = json.NewEncoder(w).Encode(body)
 }
