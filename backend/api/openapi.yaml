@@ -41,6 +41,35 @@ paths:
         '204': { description: Logged out }
         '403': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Self-service registration (no session is created)
+      description: >
+        Validation order: format, password policy, uniqueness (PRD 6.3). Sets no cookie.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201':
+          description: Account created; log in separately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RegisterResponse' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /deadline:
     get:
       operationId: getDeadline
@@ -125,6 +154,21 @@ components:
       required: [token]
       properties:
         token: { type: string }
+    RegisterRequest:
+      type: object
+      required: [empNo, name, email, password]
+      properties:
+        empNo: { type: string, description: 'Exactly 6 ASCII digits' }
+        name: { type: string, description: 1-50 code points after clean-up }
+        email: { type: string, description: 'Printable ASCII with exactly one @, at most 254 characters; stored lower-cased' }
+        password: { type: string, format: password }
+    RegisterResponse:
+      type: object
+      required: [empNo, name, email]
+      properties:
+        empNo: { type: string }
+        name: { type: string }
+        email: { type: string }
     Problem:
       type: object
       required: [type, title, status, code]

@@ -41,6 +41,12 @@ type Error struct {
 	// AuditTargetType and AuditTargetID name the resource, when there is one.
 	AuditTargetType string
 	AuditTargetID   uuid.UUID
+	// AuditSubmittedEmpNo is the employee ID typed into a failed registration
+	// or login; the audit package sanitizes it before storing.
+	AuditSubmittedEmpNo string
+	// AuditDetail adds keys to the row's after_json beside "reason". Callers
+	// must not put secrets here.
+	AuditDetail map[string]string
 }
 
 func (e *Error) Error() string {
