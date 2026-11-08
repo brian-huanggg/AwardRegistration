@@ -1,0 +1,28 @@
+{
+  "name": "@johnnyboy11234/esg-idea-contest",
+  "version": "0.1.0",
+  "description": "ESG Idea Contest registration system: Go backend, React frontend and design documents (source distribution).",
+  "license": "MIT",
+  "author": "Brian Huang",
+  "keywords": ["esg", "registration", "go", "react", "openapi"],
+  "files": [
+    "backend/",
+    "frontend/",
+    "docs/",
+    "!docs/deployment/",
+    "testdata/",
+    "site/.vitepress/config.mts",
+    "site/.vitepress/theme/",
+    "site/*.md",
+    "site/package.json",
+    "site/package-lock.json",
+    "docker-compose.yml",
+    "Makefile",
+    "mise.toml",
+    "AGENTS.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}
