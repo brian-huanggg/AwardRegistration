@@ -1,0 +1,383 @@
+{
+ "description": "Shared by backend (Go) and frontend (TS). input/want are raw strings; max is the inclusive code-point limit; wantProblem is the first error in order REQUIRED, INVALID_FORMAT, INVALID_NAME_CHARS, OUT_OF_RANGE (\"\" = valid). PRD 6.2.",
+ "cases": [
+  {
+   "id": "name-plain",
+   "kind": "name",
+   "input": "Alice",
+   "max": 50,
+   "want": "Alice",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-trim-ascii",
+   "kind": "name",
+   "input": "  Alice  ",
+   "max": 50,
+   "want": "Alice",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-collapse-run",
+   "kind": "name",
+   "input": "Alice \t\n  Wang",
+   "max": 50,
+   "want": "Alice Wang",
+   "wantCount": 10,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-ideographic-space",
+   "kind": "name",
+   "input": "\u3000\u738b\u3000\u5c0f\u660e\u3000",
+   "max": 50,
+   "want": "\u738b \u5c0f\u660e",
+   "wantCount": 4,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-nbsp-and-nel",
+   "kind": "name",
+   "input": "a\u00a0\u0085b",
+   "max": 50,
+   "want": "a b",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-all-25-whitespace",
+   "kind": "name",
+   "input": "\t\n\u000b\f\r \u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000x",
+   "max": 50,
+   "want": "x",
+   "wantCount": 1,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-nfd-to-nfc",
+   "kind": "name",
+   "input": "e\u0301",
+   "max": 50,
+   "want": "\u00e9",
+   "wantCount": 1,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-nfd-korean-jamo",
+   "kind": "name",
+   "input": "\u1112\u1161\u11ab",
+   "max": 50,
+   "want": "\ud55c",
+   "wantCount": 1,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-emoji-one-code-point",
+   "kind": "name",
+   "input": "\ud83d\ude00",
+   "max": 50,
+   "want": "\ud83d\ude00",
+   "wantCount": 1,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-emoji-zwj-sequence-counts-code-points",
+   "kind": "name",
+   "input": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67",
+   "max": 50,
+   "want": "\ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-zero-width-not-whitespace",
+   "kind": "name",
+   "input": "a\u200bb",
+   "max": 50,
+   "want": "a\u200bb",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-zero-width-only-is-not-empty",
+   "kind": "name",
+   "input": "\u200b",
+   "max": 50,
+   "want": "\u200b",
+   "wantCount": 1,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-only-whitespace",
+   "kind": "name",
+   "input": " \u3000\t",
+   "max": 50,
+   "want": "",
+   "wantCount": 0,
+   "wantProblem": "REQUIRED"
+  },
+  {
+   "id": "name-empty",
+   "kind": "name",
+   "input": "",
+   "max": 50,
+   "want": "",
+   "wantCount": 0,
+   "wantProblem": "REQUIRED"
+  },
+  {
+   "id": "name-control-char",
+   "kind": "name",
+   "input": "a\u0001b",
+   "max": 50,
+   "want": "a\u0001b",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "name-control-fs-not-whitespace",
+   "kind": "name",
+   "input": "a\u001cb",
+   "max": 50,
+   "want": "a\u001cb",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "name-del-is-control",
+   "kind": "name",
+   "input": "a\u007fb",
+   "max": 50,
+   "want": "a\u007fb",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "name-forbidden-slash",
+   "kind": "name",
+   "input": "a/b",
+   "max": 50,
+   "want": "a/b",
+   "wantCount": 3,
+   "wantProblem": "INVALID_NAME_CHARS"
+  },
+  {
+   "id": "name-forbidden-all",
+   "kind": "name",
+   "input": "\\:*?\"<>|",
+   "max": 50,
+   "want": "\\:*?\"<>|",
+   "wantCount": 8,
+   "wantProblem": "INVALID_NAME_CHARS"
+  },
+  {
+   "id": "name-fullwidth-slash-allowed",
+   "kind": "name",
+   "input": "a\uff0fb",
+   "max": 50,
+   "want": "a\uff0fb",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-order-format-before-chars",
+   "kind": "name",
+   "input": "a/\u0001",
+   "max": 50,
+   "want": "a/\u0001",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "name-order-chars-before-range",
+   "kind": "name",
+   "input": "/aaaaa",
+   "max": 3,
+   "want": "/aaaaa",
+   "wantCount": 6,
+   "wantProblem": "INVALID_NAME_CHARS"
+  },
+  {
+   "id": "name-max-exact",
+   "kind": "name",
+   "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "max": 50,
+   "want": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "wantCount": 50,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-over-max",
+   "kind": "name",
+   "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "max": 50,
+   "want": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "wantCount": 51,
+   "wantProblem": "OUT_OF_RANGE"
+  },
+  {
+   "id": "name-count-after-cleanup",
+   "kind": "name",
+   "input": "  aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  ",
+   "max": 50,
+   "want": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "wantCount": 50,
+   "wantProblem": ""
+  },
+  {
+   "id": "name-emoji-count-limit",
+   "kind": "name",
+   "input": "\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+   "max": 2,
+   "want": "\ud83d\ude00\ud83d\ude00\ud83d\ude00",
+   "wantCount": 3,
+   "wantProblem": "OUT_OF_RANGE"
+  },
+  {
+   "id": "summary-plain",
+   "kind": "summary",
+   "input": "hello",
+   "max": 300,
+   "want": "hello",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-crlf-to-lf",
+   "kind": "summary",
+   "input": "a\r\nb",
+   "max": 300,
+   "want": "a\nb",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-cr-to-lf",
+   "kind": "summary",
+   "input": "a\rb",
+   "max": 300,
+   "want": "a\nb",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-lone-lf-kept",
+   "kind": "summary",
+   "input": "a\n\n\nb",
+   "max": 300,
+   "want": "a\n\n\nb",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-interior-spaces-kept",
+   "kind": "summary",
+   "input": "a   b\u3000c",
+   "max": 300,
+   "want": "a   b\u3000c",
+   "wantCount": 7,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-trim-edges",
+   "kind": "summary",
+   "input": "\r\n \u3000hi there\n\t ",
+   "max": 300,
+   "want": "hi there",
+   "wantCount": 8,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-nfd-to-nfc",
+   "kind": "summary",
+   "input": "e\u0301\r\ne\u0301",
+   "max": 300,
+   "want": "\u00e9\n\u00e9",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-slash-allowed",
+   "kind": "summary",
+   "input": "a/b\\c",
+   "max": 300,
+   "want": "a/b\\c",
+   "wantCount": 5,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-only-whitespace",
+   "kind": "summary",
+   "input": "\r\n\u3000 ",
+   "max": 300,
+   "want": "",
+   "wantCount": 0,
+   "wantProblem": "REQUIRED"
+  },
+  {
+   "id": "summary-tab-inside-rejected",
+   "kind": "summary",
+   "input": "a\tb",
+   "max": 300,
+   "want": "a\tb",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "summary-nel-inside-rejected",
+   "kind": "summary",
+   "input": "a\u0085b",
+   "max": 300,
+   "want": "a\u0085b",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "summary-control-char",
+   "kind": "summary",
+   "input": "a\u0000b",
+   "max": 300,
+   "want": "a\u0000b",
+   "wantCount": 3,
+   "wantProblem": "INVALID_FORMAT"
+  },
+  {
+   "id": "summary-over-max",
+   "kind": "summary",
+   "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "max": 300,
+   "want": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "wantCount": 301,
+   "wantProblem": "OUT_OF_RANGE"
+  },
+  {
+   "id": "summary-max-exact-cjk",
+   "kind": "summary",
+   "input": "\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57",
+   "max": 300,
+   "want": "\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57\u5b57",
+   "wantCount": 300,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-newline-counts-one",
+   "kind": "summary",
+   "input": "a\r\nb",
+   "max": 3,
+   "want": "a\nb",
+   "wantCount": 3,
+   "wantProblem": ""
+  },
+  {
+   "id": "summary-crlf-over-limit-by-lf",
+   "kind": "summary",
+   "input": "aa\r\nb",
+   "max": 3,
+   "want": "aa\nb",
+   "wantCount": 4,
+   "wantProblem": "OUT_OF_RANGE"
+  }
+ ]
+}

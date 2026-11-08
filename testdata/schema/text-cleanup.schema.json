@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "text-cleanup.schema.json",
+  "title": "Text clean-up cases",
+  "description": "Shared front-end/back-end cases for PRD 6.2: clean-up, code-point count and first error per field.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cases"],
+  "properties": {
+    "description": { "type": "string" },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "input", "max", "want", "wantCount", "wantProblem"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["name", "summary"] },
+          "input": { "type": "string" },
+          "max": { "type": "integer", "minimum": 1 },
+          "want": { "type": "string" },
+          "wantCount": { "type": "integer", "minimum": 0 },
+          "wantProblem": { "enum": ["", "REQUIRED", "INVALID_FORMAT", "INVALID_NAME_CHARS", "OUT_OF_RANGE"] }
+        }
+      }
+    }
+  }
+}
