@@ -3,6 +3,8 @@ package web
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 // ProblemContentType is the RFC 9457 media type.
@@ -16,15 +18,29 @@ type FieldError struct {
 }
 
 // Error is the one error type handlers and services return. The central
-// adapter turns it into problem+json; AuditReason (set later by the audit PRs)
-// makes the adapter record a track-B row.
+// adapter turns it into problem+json; a non-empty AuditReason makes the adapter
+// record a track-B row (Backend.md §7). Without a reason nothing is audited.
+//
+// The Audit* fields are plain strings because package audit imports web.
 type Error struct {
-	Status      int
-	Code        ErrorCode
-	Detail      string
-	Fields      []FieldError
+	Status int
+	Code   ErrorCode
+	Detail string
+	Fields []FieldError
+	Cause  error
+
+	// AuditReason is the real reason of a rejected attempt (CSRF, role, state,
+	// not-yours, not-found). It is stored in the row's after_json, never sent
+	// to the client.
 	AuditReason string
-	Cause       error
+	// AuditAction is the audit action of the attempted operation, e.g.
+	// "IDEA_VIEW". Required whenever AuditReason is set.
+	AuditAction string
+	// AuditOutcome is DENIED, FAILED or THROTTLED; empty means DENIED.
+	AuditOutcome string
+	// AuditTargetType and AuditTargetID name the resource, when there is one.
+	AuditTargetType string
+	AuditTargetID   uuid.UUID
 }
 
 func (e *Error) Error() string {
