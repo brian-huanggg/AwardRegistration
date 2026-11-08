@@ -29,7 +29,34 @@ function useAuthHeading(title: string) {
   return ref;
 }
 
-/** shadcn `login-02`: two columns, form on the left, brand panel on the right (hidden below lg). */
+/** Brand mark shared by both hero layouts and the form header. */
+function LogoMark({ className = "size-16" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`flex items-center justify-center rounded-2xl bg-primary text-primary-foreground ${className}`}
+    >
+      <Leaf className="size-1/2" />
+    </div>
+  );
+}
+
+function HeroCopy({ title, body }: { title: string; body: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="flex flex-col items-center gap-4 text-center"
+    >
+      <LogoMark />
+      <p className="max-w-sm text-3xl font-semibold text-balance whitespace-pre-line text-primary">
+        {title}
+      </p>
+      <p className="max-w-xs text-sm text-balance text-foreground/80">{body}</p>
+    </div>
+  );
+}
+
+/** Design `Login - Employee`: 500px photo panel on the left (lg and up), form centred on the right. */
 export function Login() {
   const { t } = useTranslation();
   const heading = useAuthHeading(t("nav.signIn"));
@@ -44,8 +71,17 @@ export function Login() {
         ? t("pages.login.sessionEnded")
         : undefined;
   return (
-    <div className="grid overflow-hidden rounded-xl border lg:grid-cols-2">
-      <div className="flex items-center justify-center p-6 md:p-10">
+    <div className="grid min-h-[36rem] overflow-hidden rounded-xl border bg-card lg:grid-cols-[500px_1fr]">
+      <div
+        className="relative hidden items-center justify-center bg-cover bg-center p-10 lg:flex"
+        style={{ backgroundImage: "url(/auth-hero-login.jpg)" }}
+      >
+        <HeroCopy
+          title={t("pages.login.panelTitle")}
+          body={t("pages.login.panelBody")}
+        />
+      </div>
+      <div className="flex items-center justify-center p-6 md:p-12">
         {/* A new session means a new identity: nothing cached for the previous one may survive. The gate then
             sees `me` and redirects to the validated `next` (Frontend.md §6.4). */}
         <LoginForm
@@ -54,32 +90,24 @@ export function Login() {
           onLoggedIn={(me) => replaceIdentity(client, me)}
         />
       </div>
-      <div
-        aria-hidden="true"
-        className="hidden flex-col items-center justify-center gap-3 bg-muted p-10 text-center lg:flex"
-      >
-        <div className="flex size-12 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Leaf className="size-6" />
-        </div>
-        <p className="text-xl font-semibold">{t("pages.login.panelTitle")}</p>
-        <p className="max-w-xs text-sm text-balance text-muted-foreground">
-          {t("pages.login.panelBody")}
-        </p>
-      </div>
     </div>
   );
 }
 
-/** shadcn `signup-01`: a single centred card. */
+/** Design `Sign Up - Employee`: a full-bleed photo with the form card centred on it. */
 export function Register() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const heading = useAuthHeading(t("nav.register"));
   return (
-    <div className="mx-auto w-full max-w-sm">
-      <Card>
-        <CardHeader>
-          <CardTitle>
+    <div
+      className="flex justify-center rounded-xl bg-cover bg-center px-4 py-10"
+      style={{ backgroundImage: "url(/auth-hero-register.jpg)" }}
+    >
+      <Card className="w-full max-w-md shadow-lg">
+        <CardHeader className="items-center text-center">
+          <LogoMark className="size-14" />
+          <CardTitle className="pt-2 text-2xl">
             <h1 ref={heading} tabIndex={-1} className="outline-none">
               {t("pages.register.title")}
             </h1>
@@ -88,11 +116,11 @@ export function Register() {
         </CardHeader>
         <CardContent>
           <RegisterForm
-            onRegistered={() => {
-              const state: RegisteredState = { notice: "registered" };
-              void navigate("/login", { replace: true, state });
-            }}
-          />
+              onRegistered={() => {
+                const state: RegisteredState = { notice: "registered" };
+                void navigate("/login", { replace: true, state });
+              }}
+            />
         </CardContent>
       </Card>
     </div>

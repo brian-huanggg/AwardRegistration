@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
+import { Leaf } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ApiError } from "@/shared/api";
@@ -65,11 +66,17 @@ export function LoginForm({
 
   return (
     <form
-      className="flex w-full max-w-xs flex-col gap-6"
+      className="flex w-full max-w-sm flex-col gap-6"
       onSubmit={(e) => void onSubmit(e)}
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
+          <div
+            aria-hidden="true"
+            className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
+          >
+            <Leaf className="size-7" />
+          </div>
           <h1
             ref={heading}
             tabIndex={-1}

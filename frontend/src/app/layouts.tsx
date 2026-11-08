@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { Leaf } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { NavLink, Link, useNavigate } from "react-router";
@@ -40,7 +41,7 @@ export function PageHeading({ title }: { title: string }) {
     <h1
       ref={ref}
       tabIndex={-1}
-      className="mb-4 text-2xl font-semibold outline-none"
+      className="mb-6 text-2xl font-semibold outline-none"
     >
       {title}
     </h1>
@@ -56,16 +57,16 @@ function Frame({
 }) {
   const { t } = useTranslation();
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-muted/40">
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:z-10 focus:bg-background focus:p-2"
       >
         {t("nav.skip")}
       </a>
-      <header className="border-b">{header}</header>
+      <header className="border-b bg-card shadow-xs">{header}</header>
       <DeadlineBanner />
-      <main id="main" className="mx-auto max-w-5xl p-4">
+      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
         {children}
       </main>
     </div>
@@ -78,7 +79,8 @@ export function PublicLayout({ children }: { children: ReactNode }) {
     <Frame
       header={
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 p-4">
-          <Link to="/login" className="font-semibold">
+          <Link to="/login" className="flex items-center gap-2 font-semibold text-primary">
+            <Leaf aria-hidden="true" className="size-5" />
             {t("app.name")}
           </Link>
           <LanguageSwitch />
@@ -109,7 +111,7 @@ function SignOutButton() {
     <>
       <button
         type="button"
-        className="rounded-md border px-2 py-1 text-sm disabled:opacity-50"
+        className="rounded-md border bg-background px-3 py-1 text-sm hover:bg-accent disabled:opacity-50"
         disabled={out.isPending}
         onClick={() => out.mutate()}
       >
@@ -132,12 +134,12 @@ export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
       header={
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 p-4">
           <nav aria-label={t("nav.main")}>
-            <ul className="flex flex-wrap items-center gap-4">
+            <ul className="flex flex-wrap items-center gap-1">
               {navFor(me.role).map((r) => (
                 <li key={r.path}>
                   <NavLink
                     to={r.path}
-                    className="underline-offset-4 hover:underline aria-[current=page]:font-semibold"
+                    className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary"
                   >
                     {t(`nav.${r.navKey!}`)}
                   </NavLink>
@@ -147,7 +149,7 @@ export function AppShell({ me, children }: { me: Me; children: ReactNode }) {
           </nav>
           <div className="flex items-center gap-4">
             {me.role === "ADMIN" && (
-              <span className="rounded-md border px-2 py-0.5 text-sm">
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
                 {t("nav.administrator")}
               </span>
             )}

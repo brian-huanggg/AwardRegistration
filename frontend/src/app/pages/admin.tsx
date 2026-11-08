@@ -10,7 +10,7 @@ export function AdminDeadline() {
   return (
     <>
       <PageHeading title={t('nav.deadline')} />
-      <form onSubmit={(e: FormEvent) => e.preventDefault()} className="max-w-md">
+      <form onSubmit={(e: FormEvent) => e.preventDefault()} className="max-w-md rounded-xl border bg-card p-6">
         <Field label={t('pages.adminDeadline.label')} hint={t('pages.adminDeadline.hint')}>
           {(p) => <input {...p} name="deadline" type="datetime-local" required />}
         </Field>

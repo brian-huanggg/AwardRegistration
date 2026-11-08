@@ -62,12 +62,12 @@ export function IdeaList() {
           </Button>
         )}
       </form>
-      <table className="w-full text-left text-sm">
+      <table className="w-full rounded-xl border bg-card text-left text-sm">
         <caption className="sr-only">{t('nav.ideas')}</caption>
         <thead>
           <tr>
             {(['ideaName', 'category', 'org', 'direction', 'leader', 'members'] as const).map((c) => (
-              <th key={c} scope="col" className="border-b p-2">
+              <th key={c} scope="col" className="border-b p-3 font-medium text-muted-foreground">
                 {t(`fields.${c}`)}
               </th>
             ))}
@@ -86,7 +86,7 @@ export function IdeaCreate() {
   return (
     <>
       <PageHeading title={t('pages.ideaCreate.title')} />
-      <form onSubmit={noSubmit} className="max-w-2xl">
+      <form onSubmit={noSubmit} className="max-w-2xl rounded-xl border bg-card p-6">
         <IdeaFields withSlides />
         <Button type="submit" disabled={!open}>
           {t('pages.ideaCreate.submit')}
@@ -98,8 +98,8 @@ export function IdeaCreate() {
 
 function Section({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <section className="mb-6">
-      <h2 className="mb-2 text-lg font-semibold">{title}</h2>
+    <section className="mb-4 rounded-xl border bg-card p-6">
+      <h2 className="mb-3 text-lg font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -133,7 +133,7 @@ export function IdeaDetail() {
           <Button variant="destructive">{t('pages.ideaDetail.delete')}</Button>
         </div>
       </Section>
-      <Link to="/ideas" className="underline">
+      <Link to="/ideas" className="font-medium text-primary underline underline-offset-4">
         {t('pages.ideaDetail.back')}
       </Link>
     </>
@@ -145,7 +145,7 @@ export function IdeaEdit() {
   return (
     <>
       <PageHeading title={t('pages.ideaEdit.title')} />
-      <form onSubmit={noSubmit} className="max-w-2xl">
+      <form onSubmit={noSubmit} className="max-w-2xl rounded-xl border bg-card p-6">
         <IdeaFields withSlides={false} />
         <div className="flex gap-2">
           <Button type="submit">{t('common.save')}</Button>

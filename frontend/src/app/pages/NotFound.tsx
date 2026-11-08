@@ -9,7 +9,7 @@ export function NotFound() {
     <>
       <PageHeading title={t('notFound.title')} />
       <p className="mb-4">{t('notFound.body')}</p>
-      <Link to="/" className="underline">
+      <Link to="/" className="font-medium text-primary underline underline-offset-4">
         {t('notFound.home')}
       </Link>
     </>
