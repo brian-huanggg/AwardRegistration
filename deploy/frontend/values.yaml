@@ -1,11 +1,19 @@
 replicaCount: 2
 image:
-  repository: harbor.example.invalid/esg/frontend   # placeholder until OI-02 / O0-09
+  repository: harbor.pf.internal/lab/esg-frontend   # shared Harbor project "lab" (OI-02)
   tag: ""            # git SHA, written by the pipeline into values-<env>.yaml
   pullPolicy: IfNotPresent
+# Secret produced by the harbor-pull ExternalSecret (apps/esg/secrets).
+imagePullSecrets:
+  - name: harbor-pull
 service:
   port: 80
   targetPort: 8080
+# Disabled until the backend chart exists (O0-08): the real Ingress routes / and /api together.
+ingress:
+  enabled: false
+  className: traefik
+  host: ""
 resources:
   requests: { cpu: 25m, memory: 32Mi }
   limits: { memory: 64Mi }
