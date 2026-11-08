@@ -2,9 +2,9 @@
  
 | | |
 |---|---|
-| Version | 1.3 |
+| Version | 1.4 |
 | Date | 2026-11-08 |
-| Companion of | `docs/PRD.md` v1.5, `docs/API/`, `docs/Architecture/Architecture.md` v0.8, `docs/Architecture/Backend.md` v0.4, `docs/Architecture/Frontend.md` v0.4, `docs/Architecture/Sequence.md` v0.3, `docs/PR-plan.md` v0.4, `docs/modules/` |
+| Companion of | `docs/PRD.md` v1.5, `docs/API/`, `docs/Architecture/Architecture.md` v0.8, `docs/Architecture/Backend.md` v0.4, `docs/Architecture/Frontend.md` v0.6, `docs/Architecture/Sequence.md` v0.3, `docs/PR-plan.md` v0.4, `docs/modules/` |
  
 This is the **only** place where unresolved questions, owner confirmations and platform answers are tracked. It replaces PRD §11–§12 (v1.4), overview §14 (open points), frontend §14 and delivery-plan §9.
  
@@ -15,6 +15,8 @@ How to use it:
 - "Gates" says which delivery slice (`docs/PR-plan.md`) cannot be accepted before the answer; the PR list in `PR-plan.md` shows the same information per slice.
 - The backend is implemented in Go (ADR-0001, accepted 2026-11-08). The Go-specific open points O1–O3 stay in `docs/Adr/0001-Backend-in-go.md`; the ones that gate a delivery slice are OI-51 and OI-52 below.
 - Gaps found while writing a module guide (`docs/modules/`) are listed in that guide's last section first and move here once someone agrees they are real questions.
+Changes in 1.4: OI-24 (front-end libraries) answered by the owner and moved to §5.
+ 
 Changes in 1.3: OI-50 (JSON body limit and error code) answered by the owner and moved to §5.
  
 Changes in 1.2: Go items OI-50 to OI-52 added (§3); owner decisions on the Go design (A1, A2, Go version, status 413) recorded in §5.
@@ -55,7 +57,6 @@ Each row changes a **[Decided]** text or is a product decision; the engineering 
 | OI-21 | Front end: no automatic renaming of the slide file before upload (**proposed no**) | Project owner | S3 UI (start of S3) | frontend §5.5 | Proposed |
 | OI-22 | Front end: idle-timeout warning at 28 minutes, "Continue" calls `GET /auth/me` (**proposed yes**) | Project owner | S1a UI (end of S1a) | frontend §8.1; delivery-plan S1a | Proposed |
 | OI-23 | Manual screen-reader check with NVDA + Chrome only (**proposed**) | Project owner | S7 | frontend §8.2 | Proposed |
-| OI-24 | Front-end library choices: routing, server state, forms, i18n, UI primitives, styling, tests | Project owner | S0 front end (before S0) | frontend §2 | Open |
 | OI-25 | Team size and contest deadline, needed to set calendar dates | Project owner | milestone dates (before S0) | delivery-plan §2, §7 | Open |
 | OI-26 | Response bodies, including `expectedFilenameBase` in the Idea detail and `testdata/expected-filename.json` | Project owner | S3 | `api/response-bodies.md`; PRD §6.14; frontend §5.5, F14 | Proposed |
  
@@ -96,6 +97,7 @@ Assumptions that are already visible as an inline **[Proposed]** rule in the own
 | ADR-0001 A1 — generated server style | oapi-codegen generates the **standard (non-strict)** chi server interface; the strict server decodes JSON before the handler and would break the check order | 2026-11-08 (owner) | overview D58; ADR-0001 G4; backend-go §3 |
 | ADR-0001 A2 — router | **chi** instead of `net/http.ServeMux` (problem+json 404 / 405 hooks; `HEAD` on a `GET`-only route answers 405; checked on Go 1.26.10) | 2026-11-08 (owner) | overview D59; ADR-0001 G12; backend-go §3 |
 | Go language version | **Go 1.26** (`go 1.26` + `toolchain` line, latest patch at the start of S0) | 2026-11-08 (owner) | overview D57; ADR-0001 G13; backend-go §1 |
+| OI-24 — front-end library choices | React Router, TanStack Query, React Hook Form, react-i18next, **shadcn/ui (Radix) + Tailwind CSS**, raw `XMLHttpRequest` for upload, `eslint-plugin-boundaries`; chart library deferred to the bonus. Runtime-injected `<style>` elements are checked under the real CSP | 2026-11-08 (owner) | Frontend §2, F4, F6, F8 |
 | OI-50 / ADR-0001 A3b — oversized JSON request body | Answers **413** with the new code **`REQUEST_TOO_LARGE`**; limit **16 KiB** (the largest JSON body, the Idea edit, stays under 5 KiB even with every character escaped). `FILE_TOO_LARGE` stays for files. The code is added to `API/error-codes.md` now; `testdata/error-codes.json` and the zh-TW / en dictionaries follow in the implementing pull requests | 2026-11-08 (owner) | overview D60; `API/error-codes.md` v1.1; backend-go §3 |
  
 ## 6. Mapping from the old numbers
@@ -112,7 +114,7 @@ Older documents and commit messages may still say "PRD §12 #n". Use this table 
 | PRD §12 #6 | OI-06 |
 | PRD §12 #7, #8, #11, #14 | Resolved (§5) |
 | PRD §12 #9 | OI-31 |
-| PRD §12 #10, frontend §14 #1 | OI-24 |
+| PRD §12 #10, frontend §14 #1 | OI-24 (Resolved, §5) |
 | PRD §12 #12 (table rows, in order) | OI-10, OI-11, OI-12, OI-13, OI-14, OI-15, OI-16, OI-17, then OI-18 / OI-19 / OI-20 (defaults row), then OI-21 / OI-22 / OI-23 (front-end row) |
 | PRD §12 #13 | OI-07 |
 | PRD §11 #1, #2 | OI-40, OI-41 (other §11 items are inline rules) |

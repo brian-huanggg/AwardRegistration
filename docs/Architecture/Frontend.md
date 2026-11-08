@@ -2,13 +2,15 @@
  
 | | |
 |---|---|
-| Version | 0.5 (draft; aligned with `Backend.md` 0.3 and PRD 1.5) |
+| Version | 0.6 (draft; aligned with `Backend.md` 0.3 and PRD 1.5) |
 | Date | 2026-11-08 |
 | Companion of | `docs/PRD.md` v1.5, `docs/API/` (`api-endpoints.md`, `error-codes.md`, `response-bodies.md`), `docs/Architecture/Architecture.md` v0.5, `docs/Architecture/Backend.md` v0.3, `docs/Architecture/Sequence.md` v0.3 |
 | Status markers | **[Decided]** agreed in discussion · **[Proposed]** drafted by the author, awaiting confirmation · **[Open]** unresolved (tracked in `docs/Open-items.md`) |
  
 This document says how the front end is built to meet the PRD. Requirements stay in the PRD; the API contract (endpoints, error codes, response bodies) is in `docs/API/`; system-level decisions stay in the architecture overview; back-end design is in `Backend.md`. The front end is a TypeScript SPA (React + Vite) served from the same origin as the API (PRD §6.1, §8.6).
  
+Changes in 0.6:
+- §2 decided (OI-24): shadcn/ui + Tailwind, react-i18next, raw XHR, `eslint-plugin-boundaries`; CSP check for runtime-injected styles; F4, F6, F8 decided.
 Changes in 0.5:
 - §6 rewritten as "Routes and pages": one login entry for Admins and Users (§6.1); **no `/admin/ideas` route**, Idea list and detail are shared and Admin-only actions are driven by `can()` (§6.2); a route table with an access rule per route; a role mismatch shows the **same 404 page** as an unknown route (§6.3); rules for the `next` parameter (§6.4); role-driven layout (§6.5); no prefetch or focus refetch of the Idea detail for Admins, because every Admin detail view is audited (§6.7);
 - §1, §3, §5.4, §13 adjusted to match; F16–F20 added.
@@ -48,10 +50,34 @@ Changes in 0.2: companion documents updated; feature folders mapped to the revis
 6. **No hidden state in the browser.** No tokens in `localStorage`; the session lives in an HttpOnly cookie, the CSRF token in memory. **[Proposed]**
 ---
  
-## 2. Technology choices **[Proposed]** (OI-24)
+## 2. Technology choices **[Decided]** (OI-24, owner, 2026-11-08)
  
 | Area | Choice | Reason |
 |---|---|---|
+| Build | Vite + React + TypeScript (`strict`) | Decided (D11) |
+| Routing | React Router (data router) | Loaders, guards, lazy routes |
+| Server state | TanStack Query | Cache, invalidation, retries; no global store needed |
+| Forms | React Hook Form + own validators from `shared/text` | Field-level mapping of `errors[]` |
+| i18n | react-i18next | zh-TW / en; errors localized by `code` |
+| UI components | **shadcn/ui** (components copied into `shared/ui`, built on Radix UI primitives) | Keyboard and ARIA behaviour built in (WCAG); the code is ours, no runtime UI dependency to upgrade as a block |
+| Styling | **Tailwind CSS** (build-time, required by shadcn/ui) | Build-time CSS, compatible with CSP (see the CSP check below) |
+| Component helpers | `class-variance-authority`, `clsx`, `tailwind-merge`, `lucide-react` (icons, bundled) | The shadcn/ui standard set; no icon font or CDN |
+| API types | `openapi-typescript` from the committed OpenAPI snapshot | Prevents drift |
+| Upload | Raw `XMLHttpRequest` in `shared/api` | `fetch` has no upload progress; PRD §8.5 requires a progress bar; no extra dependency |
+| Unit / component tests | Vitest, Testing Library, MSW, `vitest-axe` | |
+| E2E | Playwright (+ `@axe-core/playwright`) | Also serves as the DEV smoke test (PRD §8.4) |
+| Dependency rules | `eslint-plugin-boundaries` | Already configured in the F0-01 skeleton (§3) |
+| Charts (bonus) | Chosen when the bonus starts; small, lazy-loaded, table alternative required (§8) | Not needed before S7 |
+ 
+shadcn/ui rules:
+ 
+- Components are generated with the shadcn CLI into `frontend/src/shared/ui/` and then belong to the project. They are reviewed like any other code, must pass `jsx-a11y` and `vitest-axe`, and are changed there, not wrapped.
+- Only the components in use are added (Button, Input, Label, Form field wrapper, Dialog, AlertDialog, Table, Pagination, Select, Checkbox, Badge, Alert, Tooltip, Toast). Each is checked against §8 before use.
+- `shared/ui` may import Radix packages, Tailwind helpers and `lucide-react`; it never imports a feature.
+- Theme tokens (colours, radius) are CSS variables in one stylesheet; contrast of every token pair is checked against §8.1 (4.5:1 text, 3:1 components).
+- **CSP check [Proposed]:** `style-src` follows `default-src 'self'`, so inline `<style>` elements are blocked. Tailwind output is one static CSS file and React sets `style` through the CSSOM, so both pass. Some Radix/shadcn dependencies (for example the scroll lock of `react-remove-scroll` and the Sonner toast) inject a `<style>` element at runtime. An E2E test loads every dialog and toast under the real CSP and fails on a CSP violation; if one cannot be avoided, that component is replaced (for toasts, Radix Toast instead of Sonner) rather than weakening the CSP with `'unsafe-inline'`.
+ 
+---|---|---|
 | Build | Vite + React + TypeScript (`strict`) | Decided (D11) |
 | Routing | React Router (data router) | Loaders, guards, lazy routes |
 | Server state | TanStack Query | Cache, invalidation, retries; no global store needed |
@@ -363,9 +389,10 @@ Automated tools find only part of the problems (roughly a third), so the manual 
  
 ## 14. Open points
  
-Tracked in `docs/Open-items.md`. Front-end items: OI-24 library choices (§2); OI-21 no automatic renaming (§5.5); OI-22 idle-timeout warning (§8.1); OI-23 screen-reader matrix (§8.2); OI-17 official zh-TW labels (§10); OI-26 `expectedFilenameBase` and the other response bodies (§5.5).
+Tracked in `docs/Open-items.md`. Front-end items: OI-21 no automatic renaming (§5.5); OI-22 idle-timeout warning (§8.1); OI-23 screen-reader matrix (§8.2); OI-17 official zh-TW labels (§10); OI-26 `expectedFilenameBase` and the other response bodies (§5.5).
  
 Resolved:
+- Library choices (OI-24): React Router, TanStack Query, React Hook Form, react-i18next, shadcn/ui + Tailwind, raw XHR, `eslint-plugin-boundaries` (§2, F4, F6, F8). Chart library deferred to the bonus.
 - 413 vs state-403 precedence for oversized bodies: 413 first, no draining (D39); the UI pre-checks size and maps a non-JSON 413 (§5.2).
 - Separate Admin login entry: no, one login page and endpoint (§6.1, F16).
 - Separate `/admin/ideas` route: dropped, shared Idea pages (§6.2, F17).
@@ -379,11 +406,11 @@ Resolved:
 | F1 | Feature-based packages aligned with back-end modules (mapping in §1) | Traceability to requirements and tests | Decided |
 | F2 | Server is the single source of truth; UI checks are first-line only | Security and consistency | Decided |
 | F3 | API types, text rules, error codes and permission matrix come from the contract (OpenAPI + `testdata/`) | No drift between front end and back end | Decided |
-| F4 | TanStack Query for server state; no global store | Little client-only state | Proposed |
+| F4 | TanStack Query for server state; no global store | Little client-only state | Decided (OI-24) |
 | F5 | Own text clean-up, never built-in `trim` or `maxlength` | Must equal PRD §6.2 | Proposed |
-| F6 | Upload through `XMLHttpRequest` | Progress bar | Proposed |
+| F6 | Upload through raw `XMLHttpRequest` (no axios) | Progress bar; no extra dependency | Decided (OI-24) |
 | F7 | Download through fetch → blob | Friendly errors | Proposed |
-| F8 | Unstyled accessible primitives + build-time CSS | WCAG support and CSP | Proposed |
+| F8 | shadcn/ui (Radix primitives, copied into `shared/ui`) + Tailwind CSS, build-time | WCAG support and CSP; owner preference | Decided (owner, 2026-11-08; OI-24) |
 | F9 | Accessibility gated by lint, axe (component and page) and a manual per-release checklist | Automation covers only part of WCAG | Proposed |
 | F10 | One same-origin image for all environments | Build once, deploy many | Proposed |
 | F11 | A non-JSON 413 (transport limit, answered before any other check) is mapped from the HTTP status to `FILE_TOO_LARGE` | Follows back-end D39 | Decided |
