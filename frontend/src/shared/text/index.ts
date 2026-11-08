@@ -91,3 +91,23 @@ export function checkSummary(s: string, max: number): CheckResult {
   const cleaned = cleanSummary(s);
   return { cleaned, problem: check(cleaned, max, false) };
 }
+
+export type EmailProblem = '' | 'REQUIRED' | 'INVALID_FORMAT' | 'OUT_OF_RANGE';
+
+const MAX_EMAIL = 254;
+
+/**
+ * Pre-check of PRD §6.3 (the server is the judge): trim, printable ASCII only
+ * (U+0021–U+007E, so no whitespace anywhere), exactly one `@` with non-empty
+ * sides, at most 254 characters. `cleaned` is lower-cased as the server stores it.
+ * First problem in report order: REQUIRED → INVALID_FORMAT → OUT_OF_RANGE.
+ */
+export function checkEmail(s: string): { cleaned: string; problem: EmailProblem } {
+  const e = trimWhitespace(s);
+  if (e === '') return { cleaned: '', problem: 'REQUIRED' };
+  if (!/^[\u0021-\u007e]+$/.test(e)) return { cleaned: e, problem: 'INVALID_FORMAT' };
+  const at = e.indexOf('@');
+  if (at <= 0 || at === e.length - 1 || e.indexOf('@', at + 1) !== -1) return { cleaned: e, problem: 'INVALID_FORMAT' };
+  if (e.length > MAX_EMAIL) return { cleaned: e, problem: 'OUT_OF_RANGE' };
+  return { cleaned: e.toLowerCase(), problem: '' };
+}

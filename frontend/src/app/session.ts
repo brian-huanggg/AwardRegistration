@@ -30,6 +30,11 @@ export interface SessionEndedState {
   notice: 'sessionEnded';
 }
 
+/** Router state `/register` leaves for the login page to confirm the account (not in the URL, Frontend.md §6). */
+export interface RegisteredState {
+  notice: 'registered';
+}
+
 /**
  * Global 401 (Frontend.md §5.2): forget the user and go to `/login?next=<current>`.
  * Already on a public route (login, register) there is nothing to leave, so only `me` is cleared.

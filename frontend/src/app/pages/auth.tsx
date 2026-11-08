@@ -1,11 +1,13 @@
 import { useEffect, useRef, type FormEvent } from 'react';
 import { Leaf } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
+import { RegisterForm } from '@/features/auth/RegisterForm';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card';
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/shared/ui/field';
 import { Input } from '@/shared/ui/input';
+import type { RegisteredState } from '../session';
 
 const noSubmit = (e: FormEvent) => e.preventDefault();
 
@@ -24,6 +26,7 @@ function useAuthHeading(title: string) {
 export function Login() {
   const { t } = useTranslation();
   const heading = useAuthHeading(t('nav.signIn'));
+  const registered = (useLocation().state as Partial<RegisteredState> | null)?.notice === 'registered';
   return (
     <div className="grid overflow-hidden rounded-xl border lg:grid-cols-2">
       <div className="flex items-center justify-center p-6 md:p-10">
@@ -35,6 +38,11 @@ export function Login() {
               </h1>
               <p className="text-sm text-balance text-muted-foreground">{t('pages.login.description')}</p>
             </div>
+            {registered && (
+              <p role="status" className="rounded-md border border-primary p-3 text-sm">
+                {t('pages.register.success')}
+              </p>
+            )}
             <Field>
               <FieldLabel htmlFor="empNo">{t('fields.empNo')}</FieldLabel>
               <Input id="empNo" name="empNo" autoComplete="username" required />
@@ -72,6 +80,7 @@ export function Login() {
 /** shadcn `signup-01`: a single centred card. */
 export function Register() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const heading = useAuthHeading(t('nav.register'));
   return (
     <div className="mx-auto w-full max-w-sm">
@@ -85,40 +94,12 @@ export function Register() {
           <CardDescription>{t('pages.register.description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={noSubmit}>
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="empNo">{t('fields.empNo')}</FieldLabel>
-                <Input id="empNo" name="empNo" autoComplete="username" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="name">{t('fields.name')}</FieldLabel>
-                <Input id="name" name="name" autoComplete="name" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="email">{t('fields.email')}</FieldLabel>
-                <Input id="email" name="email" type="email" autoComplete="email" required />
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="password">{t('fields.password')}</FieldLabel>
-                <Input id="password" name="password" type="password" autoComplete="new-password" required />
-                <FieldDescription>{t('pages.register.passwordHint')}</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="confirmPassword">{t('fields.confirmPassword')}</FieldLabel>
-                <Input id="confirmPassword" name="confirmPassword" type="password" autoComplete="new-password" required />
-              </Field>
-              <Field>
-                <Button type="submit">{t('nav.register')}</Button>
-                <FieldDescription className="text-center">
-                  {t('pages.register.haveAccount')}{' '}
-                  <Link to="/login" className="underline underline-offset-4">
-                    {t('nav.signIn')}
-                  </Link>
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </form>
+          <RegisterForm
+            onRegistered={() => {
+              const state: RegisteredState = { notice: 'registered' };
+              void navigate('/login', { replace: true, state });
+            }}
+          />
         </CardContent>
       </Card>
     </div>
