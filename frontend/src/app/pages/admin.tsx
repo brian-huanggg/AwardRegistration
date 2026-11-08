@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
-import { Field } from '@/shared/ui/field';
+import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
 
 /** Admin-only pages are lazy-loaded so ordinary Users never download them (Frontend.md §7). */

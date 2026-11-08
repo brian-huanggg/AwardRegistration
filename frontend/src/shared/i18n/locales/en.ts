@@ -56,8 +56,8 @@ export const en = {
     leaderEmpNo: 'Leader employee ID',
   },
   pages: {
-    login: { noAccount: 'No account yet?' },
-    register: { passwordHint: 'At least 8 characters; see the rules shown while you type.', haveAccount: 'Already registered?' },
+    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.' },
+    register: { title: 'Create an account', description: 'Enter your details below to register.', passwordHint: 'At least 8 characters; see the rules shown while you type.', haveAccount: 'Already registered?' },
     ideaList: { search: 'Search', apply: 'Apply filters', create: 'Create an Idea', empty: 'No Ideas yet.' },
     ideaForm: { slidesHint: 'PDF or PPTX, up to 5 MiB.' },
     ideaCreate: { title: 'Create an Idea', submit: 'Submit Idea' },

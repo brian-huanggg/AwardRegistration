@@ -53,8 +53,8 @@ export const zhTW: Dictionary = {
     leaderEmpNo: '組長員工編號',
   },
   pages: {
-    login: { noAccount: '還沒有帳號？' },
-    register: { passwordHint: '至少 8 個字元，輸入時會顯示規則檢查。', haveAccount: '已經註冊？' },
+    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。' },
+    register: { title: '建立帳號', description: '請在下方輸入資料以完成註冊。', passwordHint: '至少 8 個字元，輸入時會顯示規則檢查。', haveAccount: '已經註冊？' },
     ideaList: { search: '搜尋', apply: '套用篩選', create: '建立提案', empty: '目前沒有提案。' },
     ideaForm: { slidesHint: 'PDF 或 PPTX，最大 5 MiB。' },
     ideaCreate: { title: '建立提案', submit: '送出提案' },

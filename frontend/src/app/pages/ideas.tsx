@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useDeadline } from '@/features/deadline/useDeadline';
 import { Button } from '@/shared/ui/button';
-import { Field } from '@/shared/ui/field';
+import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
 import { useMe } from '../session';
 
