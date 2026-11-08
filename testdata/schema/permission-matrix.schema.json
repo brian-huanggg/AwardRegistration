@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "permission-matrix.schema.json",
+  "title": "Permission matrix",
+  "description": "PRD §7 as data: one row per operation (or check-order case), one expected cell per actor. Read by backend/test/matrix. Later PRs add their rows and actors.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rows"],
+  "properties": {
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "operation", "method", "path", "expect"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+          "operation": { "type": "string", "minLength": 1 },
+          "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+          "path": { "type": "string", "pattern": "^/api/v1/" },
+          "body": { "type": "object" },
+          "csrf": { "enum": ["valid", "none"], "default": "valid" },
+          "outsideSpec": { "type": "boolean", "default": false },
+          "expect": {
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1,
+            "properties": {
+              "visitor": { "$ref": "#/$defs/cell" },
+              "user": { "$ref": "#/$defs/cell" },
+              "member": { "$ref": "#/$defs/cell" },
+              "leader": { "$ref": "#/$defs/cell" },
+              "admin": { "$ref": "#/$defs/cell" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "integer", "minimum": 200, "maximum": 599 },
+        "code": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$" }
+      }
+    }
+  }
+}

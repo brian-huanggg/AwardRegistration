@@ -1,0 +1,109 @@
+{
+  "rows": [
+    {
+      "id": "csrf",
+      "operation": "csrf",
+      "method": "GET",
+      "path": "/api/v1/auth/csrf",
+      "expect": {
+        "visitor": { "status": 200 },
+        "user": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "deadline",
+      "operation": "deadline",
+      "method": "GET",
+      "path": "/api/v1/deadline",
+      "expect": {
+        "visitor": { "status": 200 },
+        "user": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "register",
+      "operation": "register",
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "body": { "empNo": "${newEmpNo}", "name": "Matrix Person", "email": "${newEmpNo}@example.com", "password": "${password}" },
+      "expect": {
+        "visitor": { "status": 201 },
+        "user": { "status": 201 },
+        "admin": { "status": 201 }
+      }
+    },
+    {
+      "id": "login",
+      "operation": "login",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "body": { "empNo": "${actorEmpNo}", "password": "${password}" },
+      "expect": {
+        "visitor": { "status": 401, "code": "INVALID_CREDENTIALS" },
+        "user": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "logout",
+      "operation": "logout",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "expect": {
+        "visitor": { "status": 204 },
+        "user": { "status": 204 },
+        "admin": { "status": 204 }
+      }
+    },
+    {
+      "id": "me",
+      "operation": "me",
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "order-logout-no-csrf",
+      "operation": "check order: a write without a CSRF token",
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "csrf": "none",
+      "expect": {
+        "visitor": { "status": 403, "code": "CSRF_INVALID" },
+        "user": { "status": 403, "code": "CSRF_INVALID" },
+        "admin": { "status": 403, "code": "CSRF_INVALID" }
+      }
+    },
+    {
+      "id": "order-unknown-write-no-csrf",
+      "operation": "check order: 401 before CSRF on a path outside the contract",
+      "method": "POST",
+      "path": "/api/v1/matrix-unknown",
+      "csrf": "none",
+      "outsideSpec": true,
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "CSRF_INVALID" },
+        "admin": { "status": 403, "code": "CSRF_INVALID" }
+      }
+    },
+    {
+      "id": "order-unknown-write-csrf",
+      "operation": "check order: CSRF before 404 on a path outside the contract",
+      "method": "POST",
+      "path": "/api/v1/matrix-unknown",
+      "outsideSpec": true,
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "admin": { "status": 404, "code": "NOT_FOUND" }
+      }
+    }
+  ]
+}
