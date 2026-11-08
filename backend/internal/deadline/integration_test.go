@@ -3,24 +3,18 @@
 package deadline_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/getkin/kin-openapi/openapi3"
-	"github.com/getkin/kin-openapi/openapi3filter"
-	"github.com/getkin/kin-openapi/routers"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
+	"github.com/brian-huanggg/AwardRegistration/backend/test/apispec"
 )
 
 // TestGetDeadlineIntegration runs the real handler against MariaDB with the
@@ -29,15 +23,10 @@ func TestGetDeadlineIntegration(t *testing.T) {
 	ctx := context.Background()
 	db := dbtest.New(t)
 
-	doc, err := openapi3.NewLoader().LoadFromFile(filepath.Join("..", "..", "api", "openapi.yaml"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := doc.Paths.Find("/deadline")
-	route := &routers.Route{Spec: doc, Path: "/deadline", PathItem: path, Method: "GET", Operation: path.Get}
+	spec := apispec.Load(t)
 
-	h := server.NewPublic(slog.New(slog.DiscardHandler),
-		server.Mount(server.API{Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}}}))
+	h := spec.Validate(t, server.NewPublic(slog.New(slog.DiscardHandler),
+		server.Mount(server.API{Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}}})))
 
 	call := func(t *testing.T) (b struct {
 		Deadline   *string
@@ -50,16 +39,6 @@ func TestGetDeadlineIntegration(t *testing.T) {
 		h.ServeHTTP(rec, req)
 		if rec.Code != 200 {
 			t.Fatalf("status %d: %s", rec.Code, rec.Body)
-		}
-		err := openapi3filter.ValidateResponse(ctx, &openapi3filter.ResponseValidationInput{
-			RequestValidationInput: &openapi3filter.RequestValidationInput{
-				Request: req, Route: route,
-				Options: &openapi3filter.Options{AuthenticationFunc: openapi3filter.NoopAuthenticationFunc},
-			},
-			Status: rec.Code, Header: rec.Header(), Body: io.NopCloser(bytes.NewReader(rec.Body.Bytes())),
-		})
-		if err != nil {
-			t.Fatalf("response does not match the spec: %v", err)
 		}
 		if err := json.Unmarshal(rec.Body.Bytes(), &b); err != nil {
 			t.Fatal(err)
