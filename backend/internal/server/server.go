@@ -22,8 +22,8 @@ const (
 
 // NewPublic builds the public router. Module routes are mounted by `mount`
 // (nil in the skeleton) under the chain: request ID → access log → recover →
-// Accept check.
-func NewPublic(log *slog.Logger, mount func(chi.Router)) http.Handler {
+// extra (the session middleware, so 401 beats 406) → Accept check.
+func NewPublic(log *slog.Logger, mount func(chi.Router), extra ...func(http.Handler) http.Handler) http.Handler {
 	r := chi.NewRouter()
 	r.NotFound(web.NotFound)
 	r.MethodNotAllowed(web.MethodNotAllowed)
@@ -32,7 +32,11 @@ func NewPublic(log *slog.Logger, mount func(chi.Router)) http.Handler {
 	}
 	// The chain wraps the router instead of using r.Use: chi skips r.Use
 	// middleware (also for NotFound) while no route is registered.
-	return web.RequestID(web.AccessLog(log)(web.Recover(log)(web.AcceptCheck(r))))
+	h := web.AcceptCheck(r)
+	for i := len(extra) - 1; i >= 0; i-- {
+		h = extra[i](h)
+	}
+	return web.RequestID(web.AccessLog(log)(web.Recover(log)(h)))
 }
 
 // Check reports whether one dependency is usable; a non-nil error makes

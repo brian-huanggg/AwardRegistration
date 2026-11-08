@@ -15,6 +15,7 @@ import (
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
@@ -55,5 +56,5 @@ func run() error {
 	}
 
 	var ready atomic.Bool
-	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si)), &ready, server.DBCheck(db))
+	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si), auth.Middleware(auth.New(db), server.IsPublic, log)), &ready, server.DBCheck(db))
 }
