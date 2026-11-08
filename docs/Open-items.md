@@ -2,7 +2,7 @@
  
 | | |
 |---|---|
-| Version | 1.4 |
+| Version | 1.5 |
 | Date | 2026-11-08 |
 | Companion of | `docs/PRD.md` v1.5, `docs/API/`, `docs/Architecture/Architecture.md` v0.8, `docs/Architecture/Backend.md` v0.4, `docs/Architecture/Frontend.md` v0.6, `docs/Architecture/Sequence.md` v0.3, `docs/PR-plan.md` v0.4, `docs/modules/` |
  
@@ -13,8 +13,10 @@ How to use it:
 - One row per question, identified by **OI-nn**. Other documents cite the ID and never restate the question.
 - A **[Proposed]** marker in the owning document points here by ID. When a row is answered, move it to "Resolved" below and update the marker in the owning document.
 - "Gates" says which delivery slice (`docs/PR-plan.md`) cannot be accepted before the answer; the PR list in `PR-plan.md` shows the same information per slice.
-- The backend is implemented in Go (ADR-0001, accepted 2026-11-08). The Go-specific open points O1–O3 stay in `docs/Adr/0001-Backend-in-go.md`; the ones that gate a delivery slice are OI-51 and OI-52 below.
+- The backend is implemented in Go (ADR-0001, accepted 2026-11-08). The Go-specific points of ADR-0001 are tracked here: A3a = OI-51, A3b = OI-50, A3c = OI-52, O1 = OI-53, O2 = OI-54, O3 = OI-55.
 - Gaps found while writing a module guide (`docs/modules/`) are listed in that guide's last section first and move here once someone agrees they are real questions.
+Changes in 1.5 (D-03): ADR-0001 open points O1–O3 given OI-53–OI-55 with default and owner; A3a/A3b/A3c cross-referenced; `modules/shared.md` gaps 1–4 were already decided (§5, D53–D56).
+ 
 Changes in 1.4: OI-24 (front-end libraries) answered by the owner and moved to §5.
  
 Changes in 1.3: OI-50 (JSON body limit and error code) answered by the owner and moved to §5.
@@ -68,7 +70,10 @@ Each row changes a **[Decided]** text or is a product decision; the engineering 
 | OI-31 | Third-party library compatibility with Spring Boot 4 (springdoc-openapi, Testcontainers, Jackson 3, …): handled as problems appear, no dedicated spike; risk accepted (overview D28). S0 exercises every library | Engineering | S0 | PRD §8.6; delivery-plan S0, §8 | Deferred |
 | OI-51 | **sqlc on the real schema.** The spike (`Adr/0001-Annex-sqlc-spike.md`) proved that sqlc works on a converted schema with rules R1–R5, but ran only on test tables and without a database. Repeat on the real `V001__init.sql`; run every statement once against MariaDB (UUID text round-trip, `INET6` scanning, matched-row counts); decide how a later `ALTER TABLE … ADD COLUMN x UUID` is handled by the conversion script; pin the sqlc version | Engineering | S0 (PR `B0-02`, before the first module) | backend-go §2.3; ADR-0001 G1 | Resolved (B0-02, 2026-11-08; Annex §5) |
 | OI-52 | **minio-go single attempt.** `Options.MaxRetries` must be `1`; `0` keeps the default of 10 (verified in the source of v7.4.1). Add a test that asserts one connection attempt against a refusing server | Engineering | S3 (PR `B3-02`, MinIO port) | backend-go §4.4; overview D50 | Proposed |
- 
+ | OI-53 | **JSON decoder design (ADR-0001 O1).** `encoding/json` v1 matches field names case-insensitively and lets the last duplicate key win; `encoding/json/v2` is still behind `GOEXPERIMENT=jsonv2`. Proposed: `Token()` pre-pass (duplicate keys, trailing data) plus exact-case field picking in `shared/web`; replace by v2 when stable, `test/binding` stays. **Default: as proposed (implemented in B0-08)** | Project owner | S0 (confirm before S1a) | ADR-0001 O1; backend §3 | Proposed |
+| OI-54 | **Coverage denominator (ADR-0001 O2).** Exclude generated code (sqlc, oapi-codegen) and the `cmd/` entrypoint from the 80 % statement-coverage gate? **Default: yes** | Project owner | S0 (`make ci`) | PRD §8.4; PR-plan §1 | Proposed |
+| OI-55 | **Probe paths (ADR-0001 O3).** Keep `/actuator/health/{liveness,readiness}` (current code, `backend/internal/server/server.go`) or switch to `/healthz`-style paths (the frontend chart already uses `/healthz`) and update the backend chart. **Default: keep `/actuator/...` until O0-07 (backend Helm), then decide with Platform** | Engineering / Platform | S0 deploy (O0-07) | PRD §8.7; PR-plan O0-07 | Open |
+
 ## 4. Assumptions awaiting review
  
 Assumptions that are already visible as an inline **[Proposed]** rule in the owning document are tracked by that rule and are not repeated here. Only assumptions with a dependency on someone else's answer remain:

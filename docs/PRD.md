@@ -413,8 +413,9 @@ Rules:
 - Security headers on all responses **[Proposed]**: `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'` (SPA); `Referrer-Policy: strict-origin-when-cross-origin`; `X-Content-Type-Options: nosniff`; HSTS at the ingress.
 ### 8.4 Quality
 - Unit tests plus integration tests against a **real MariaDB** (testcontainers-go) with the **real migrations**; a test report is produced.
-- Backend **statement** coverage ≥ 80 % (Go's coverage unit; measured with `go test -coverpkg=./...`), enforced as a CI gate on every build and pull request (a per-package report published); unit and integration results merged; only the main class and generated code excluded. **[Proposed]**
+- Backend **statement** coverage ≥ 80 % (Go's coverage unit; measured with `go test -coverpkg=./...`), enforced as a CI gate on every build and pull request (a per-package report published); unit and integration results merged; only the `cmd/` entrypoint and generated code (sqlc, oapi-codegen) excluded (OI-54). **[Proposed]**
 - Every permission-matrix cell has an automated test.
+- `sqlc generate`, `go generate` (oapi-codegen) and front-end type generation must leave no diff; CI fails otherwise.
 - Shared front-end/back-end test data in `testdata/` (text clean-up, employee ID, person name, email, password policy, expected filename, error codes), each with a JSON Schema in `testdata/schema/` validated in CI. **[Proposed]**
 - An import-graph test, the Go compiler's `internal/` rule and `depguard` enforce module dependency direction, no access to another module's `internal/`, no ORM, and no `UPDATE`/`DELETE` on `audit_log` (`docs/Architecture/Backend.md` §2.4).
 - Storage-consistency tests (MinIO down, lost-commit simulation, concurrent replace) per `docs/Architecture/Sequence.md` §7.

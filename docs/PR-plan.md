@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Version | 0.3 (owner-confirmed; frontend routing changed: no `/admin/ideas`, single login entry; §7 "72-hour budget" still unconfirmed) |
+| Version | 0.4 (Go DoD recorded in §1 per D-02; owner-confirmed; frontend routing changed: no `/admin/ideas`, single login entry; §7 "72-hour budget" still unconfirmed) |
 | Date | 2026-11-08 |
 | Requirements | `docs/PRD.md` v1.5, `docs/API/`, `docs/Open-items.md`, `docs/Architecture/Frontend.md` v0.5 |
-| Tech baseline | `docs/Architecture/Backend.md` v0.1, `docs/Adr/0001-Backend-in-go.md` (**accepted**; A1–A3, O1–O3 pending) |
+| Tech baseline | `docs/Architecture/Backend.md` v0.1, `docs/Adr/0001-Backend-in-go.md` (**accepted**; A1–A3 decided or tracked as OI-50–OI-52; O1–O3 tracked as OI-53–OI-55) |
 | Tracking | **beads (`bd`)** is the only task tracker. Linear is no longer used; the earlier Linear projects are archived and nothing is read from them. This file is the plan, not a task list: work items live in `bd` |
 
 ## 0. How to read this
@@ -19,8 +19,10 @@
 **Size/scope:** one thing per PR (one endpoint, middleware, table+queries, or page); hand-written code ≤ 400 lines (excluding sqlc/oapi-codegen output, `testdata/`), exceptions justified in the description; doable in 1–2 days; `main` always deployable (unfinished routes unregistered or `x-internal`).
 
 **PR DoD:**
-- CI green: `golangci-lint`, `go test -race` (unit + `integration` tag), statement coverage ≥ 80 % (from the first code PR).
-- `sqlc generate`, `go generate`, frontend type generation produce no diff.
+- CI green: `golangci-lint` (incl. `depguard`), `go test -race` (unit + `integration` tag), statement coverage ≥ 80 % (from the first code PR). Coverage is measured with `go test -coverpkg=./...`, unit and integration results merged; generated code (sqlc, oapi-codegen) is excluded from the denominator (OI-54).
+- Integration tests run on **testcontainers-go against a real MariaDB with the real Flyway migrations** (no H2/SQLite/mocks for SQL); a new migration comes with a test that exercises it.
+- Import-graph test (`test/arch`) green: module dependency direction, no access to another module's `internal/`, `shared` imports no module, no ORM, no `UPDATE`/`DELETE` on `audit_log`.
+- `sqlc generate`, `go generate` (oapi-codegen) and frontend type generation produce no diff (CI runs them and fails on `git diff`).
 - New behavior tested; touched permission-matrix cells added to `testdata/permission-matrix.json` with automated tests.
 - New error codes synced: catalogue, `testdata/error-codes.json`, `docs/API/error-codes.md`, zh-TW/en dictionaries.
 - New audit events tested (track A SUCCESS; track B DENIED/FAILED/THROTTLED).

@@ -56,9 +56,9 @@ This document checks what a Go implementation looks like if the current architec
  
 | # | Item |
 |---|---|
-| O1 | **Facts checked on Go 1.26.10.** `encoding/json` (v1) matches field names case-insensitively (`"EMPNO"` fills `empNo`) and, for a duplicate key, the last one wins. `encoding/json/v2` is **still behind `GOEXPERIMENT=jsonv2`** and cannot be imported without it, so it is not used. With the experiment on, v2 rejects duplicate keys and matches names case-sensitively, which is what the PRD wants. `Backend.md` §3 proposes the `Token()` pre-pass plus exact-name field picking. When v2 becomes stable, only the decoder in `shared/web` is replaced; the `test/binding` tests stay. Waiting for owner confirmation of the decoder design. |
-| O2 | Exclude generated code (sqlc, oapi-codegen) from the coverage denominator? Recommended: yes. |
-| O3 | Probe paths: keep the `/actuator/...` paths or switch to `/healthz`-style paths and update the chart. |
+| O1 (= OI-53) | **Facts checked on Go 1.26.10.** `encoding/json` (v1) matches field names case-insensitively (`"EMPNO"` fills `empNo`) and, for a duplicate key, the last one wins. `encoding/json/v2` is **still behind `GOEXPERIMENT=jsonv2`** and cannot be imported without it, so it is not used. With the experiment on, v2 rejects duplicate keys and matches names case-sensitively, which is what the PRD wants. `Backend.md` §3 proposes the `Token()` pre-pass plus exact-name field picking. When v2 becomes stable, only the decoder in `shared/web` is replaced; the `test/binding` tests stay. Waiting for owner confirmation of the decoder design. |
+| O2 (= OI-54) | Exclude generated code (sqlc, oapi-codegen) from the coverage denominator? Recommended: yes. |
+| O3 (= OI-55) | Probe paths: keep the `/actuator/...` paths or switch to `/healthz`-style paths and update the chart. |
  
 ## What adoption requires
  
