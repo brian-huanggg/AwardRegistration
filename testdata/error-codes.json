@@ -1,0 +1,158 @@
+[
+  {
+    "code": "MALFORMED_REQUEST",
+    "status": 400
+  },
+  {
+    "code": "UNAUTHENTICATED",
+    "status": 401
+  },
+  {
+    "code": "INVALID_CREDENTIALS",
+    "status": 401
+  },
+  {
+    "code": "CSRF_INVALID",
+    "status": 403
+  },
+  {
+    "code": "FORBIDDEN",
+    "status": 403
+  },
+  {
+    "code": "SUBMISSION_NOT_OPEN",
+    "status": 403
+  },
+  {
+    "code": "SUBMISSION_CLOSED",
+    "status": 403
+  },
+  {
+    "code": "NOT_FOUND",
+    "status": 404
+  },
+  {
+    "code": "METHOD_NOT_ALLOWED",
+    "status": 405
+  },
+  {
+    "code": "NOT_ACCEPTABLE",
+    "status": 406
+  },
+  {
+    "code": "EMP_NO_TAKEN",
+    "status": 409
+  },
+  {
+    "code": "EMAIL_TAKEN",
+    "status": 409
+  },
+  {
+    "code": "IDEA_DUPLICATE",
+    "status": 409
+  },
+  {
+    "code": "ALREADY_MEMBER",
+    "status": 409
+  },
+  {
+    "code": "JOIN_REQUEST_EXISTS",
+    "status": 409
+  },
+  {
+    "code": "TEAM_FULL",
+    "status": 409
+  },
+  {
+    "code": "JOIN_REQUEST_NOT_PENDING",
+    "status": 409
+  },
+  {
+    "code": "VERSION_CONFLICT",
+    "status": 412
+  },
+  {
+    "code": "FILE_TOO_LARGE",
+    "status": 413
+  },
+  {
+    "code": "REQUEST_TOO_LARGE",
+    "status": 413
+  },
+  {
+    "code": "UNSUPPORTED_FILE_TYPE",
+    "status": 415
+  },
+  {
+    "code": "UNSUPPORTED_MEDIA_TYPE",
+    "status": 415
+  },
+  {
+    "code": "VALIDATION_FAILED",
+    "status": 422
+  },
+  {
+    "code": "PASSWORD_POLICY",
+    "status": 422
+  },
+  {
+    "code": "INVALID_NAME_CHARS",
+    "status": 422
+  },
+  {
+    "code": "FILENAME_TOO_LONG",
+    "status": 422
+  },
+  {
+    "code": "FILENAME_MISMATCH",
+    "status": 422
+  },
+  {
+    "code": "EMPTY_FILE",
+    "status": 422
+  },
+  {
+    "code": "CANNOT_JOIN_OWN_IDEA",
+    "status": 422
+  },
+  {
+    "code": "EXPORT_TOO_LARGE",
+    "status": 422
+  },
+  {
+    "code": "LOGIN_THROTTLED",
+    "status": 429
+  },
+  {
+    "code": "RATE_LIMITED",
+    "status": 429
+  },
+  {
+    "code": "INTERNAL_ERROR",
+    "status": 500
+  },
+  {
+    "code": "STORAGE_UNAVAILABLE",
+    "status": 503
+  },
+  {
+    "code": "SERVICE_UNAVAILABLE",
+    "status": 503
+  },
+  {
+    "code": "REQUIRED",
+    "status": 422
+  },
+  {
+    "code": "INVALID_FORMAT",
+    "status": 422
+  },
+  {
+    "code": "OUT_OF_RANGE",
+    "status": 422
+  },
+  {
+    "code": "INVALID_ENUM",
+    "status": 422
+  }
+]
