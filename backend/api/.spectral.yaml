@@ -1,0 +1,31 @@
+extends: ["spectral:oas"]
+rules:
+  info-contact: off
+  operation-description: off
+  # Backend.md §11: every write declares X-CSRF-Token (checked by the CSRF middleware).
+  write-declares-csrf-header:
+    description: POST/PUT/DELETE operations must reference the X-CSRF-Token parameter.
+    severity: error
+    given: "$.paths[*][?(@property === 'post' || @property === 'put' || @property === 'delete')]"
+    then:
+      field: parameters
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            type: object
+            required: [name, in]
+            properties:
+              name: { const: X-CSRF-Token }
+              in: { const: header }
+  # Errors are RFC 9457 problem+json, never another media type.
+  errors-are-problem-json:
+    description: 4xx/5xx responses must use application/problem+json.
+    severity: error
+    given: "$.paths[*][*].responses[?(@property.match(/^[45]/))]"
+    then:
+      field: "$ref"
+      function: enumeration
+      functionOptions:
+        values: ["#/components/responses/Problem"]

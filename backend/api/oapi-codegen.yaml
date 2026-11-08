@@ -1,0 +1,8 @@
+# Standard (non-strict) chi server, Backend.md A1. Output is committed; CI fails on a diff.
+package: api
+output: api.gen.go
+generate:
+  models: true
+  chi-server: true
+output-options:
+  skip-prune: true

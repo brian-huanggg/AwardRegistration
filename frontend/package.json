@@ -8,10 +8,12 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint . && node scripts/check-no-js.mjs && node scripts/gen-error-codes.mjs --check",
+    "lint": "eslint . && node scripts/check-no-js.mjs && node scripts/gen-error-codes.mjs --check && npm run -s gen:api:check",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:error-codes": "node scripts/gen-error-codes.mjs"
+    "gen:error-codes": "node scripts/gen-error-codes.mjs",
+    "gen:api": "openapi-typescript ../backend/api/openapi.yaml -o src/shared/api/types.generated.ts",
+    "gen:api:check": "openapi-typescript ../backend/api/openapi.yaml -o /tmp/api-types.check.ts >/dev/null && diff -q /tmp/api-types.check.ts src/shared/api/types.generated.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",
@@ -48,11 +50,17 @@
     "jiti": "^2.7.0",
     "jsdom": "^31.0.0",
     "msw": "^3.0.4",
+    "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~6.0",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.6",
     "vitest": "^5.1.0",
     "vitest-axe": "^0.1.0"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    }
   }
 }

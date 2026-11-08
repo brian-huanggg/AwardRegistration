@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: ESG Idea Contest API
+  version: 1.0.0
+  description: >
+    Single source of the API contract (Backend.md G4). Skeleton: shared components plus the
+    operations needed to lock binding rules; the remaining endpoints of docs/API/api-endpoints.md
+    are added by their own PRs. Error codes: docs/API/error-codes.md, testdata/error-codes.json.
+servers:
+  - url: /api/v1
+security:
+  - sessionCookie: []
+tags:
+  - name: auth
+  - name: deadline
+  - name: ideas
+paths:
+  /auth/csrf:
+    get:
+      operationId: getCsrfToken
+      tags: [auth]
+      summary: Session-bound CSRF token (anonymous before login)
+      security: []
+      responses:
+        '200':
+          description: Token to send as X-CSRF-Token on every write
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CsrfTokenResponse' }
+        '429': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: End the session
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': { description: Logged out }
+        '403': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+  /deadline:
+    get:
+      operationId: getDeadline
+      tags: [deadline]
+      summary: Submission deadline, state and database server time
+      security: []
+      responses:
+        '200':
+          description: Current deadline state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deadline' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+  /ideas:
+    get:
+      operationId: listIdeas
+      tags: [ideas]
+      summary: List Ideas visible to the caller
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: One page of IdeaSummary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaPage' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+  /ideas/{id}:
+    get:
+      operationId: getIdea
+      tags: [ideas]
+      summary: Idea detail
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+      responses:
+        '200':
+          description: IdeaDetail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetail' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: __Host-session
+  parameters:
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: false
+      description: >
+        Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF
+        middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+      schema: { type: string }
+    IdeaId:
+      name: id
+      in: path
+      required: true
+      description: A malformed ID answers the uniform 404, not 400.
+      schema: { type: string, format: uuid }
+  responses:
+    Problem:
+      description: RFC 9457 problem; `code` is the stable contract (docs/API/error-codes.md)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    CsrfTokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    Problem:
+      type: object
+      required: [type, title, status, code]
+      properties:
+        type: { type: string, example: about:blank }
+        title: { type: string }
+        status: { type: integer }
+        code: { type: string, description: One of testdata/error-codes.json }
+        detail: { type: string }
+        requestId: { type: string, format: uuid }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+    FieldError:
+      type: object
+      required: [field, code]
+      properties:
+        field: { type: string }
+        code: { type: string }
+        expected: { type: string }
+    Deadline:
+      type: object
+      required: [deadline, state, serverTime]
+      properties:
+        deadline: { type: string, format: date-time, nullable: true }
+        state: { type: string, enum: [NOT_OPEN, OPEN, CLOSED] }
+        serverTime: { type: string, format: date-time, description: Millisecond precision }
+    PersonRef:
+      type: object
+      required: [empNo, name]
+      properties:
+        empNo: { type: string }
+        name: { type: string }
+    IdeaSummary:
+      type: object
+      required: [id, name, category, org, direction, leader, memberCount, myRelation, createdAt, slidesUpdatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        category: { type: string }
+        org: { type: string }
+        direction: { type: string }
+        leader: { $ref: '#/components/schemas/PersonRef' }
+        memberCount: { type: integer }
+        myRelation: { type: string, enum: [LEADER, MEMBER], nullable: true, description: null for Admin }
+        createdAt: { type: string, format: date-time }
+        slidesUpdatedAt: { type: string, format: date-time }
+    IdeaPage:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/IdeaSummary' }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer }
+    IdeaDetail:
+      type: object
+      required: [id, category, org, direction, name, summary, leader, members, pendingRequests, slides, expectedFilenameBase, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        category: { type: string }
+        org: { type: string }
+        direction: { type: string }
+        name: { type: string }
+        summary: { type: string }
+        leader: { $ref: '#/components/schemas/PersonRef' }
+        members:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/PersonRef'
+              - type: object
+                required: [joinedAt]
+                properties:
+                  joinedAt: { type: string, format: date-time }
+        pendingRequests:
+          type: array
+          nullable: true
+          description: null unless Leader or Admin
+          items:
+            allOf:
+              - $ref: '#/components/schemas/PersonRef'
+              - type: object
+                required: [requestedAt]
+                properties:
+                  requestedAt: { type: string, format: date-time }
+        slides:
+          type: object
+          required: [ext, size, sha256, updatedAt, downloadFilename]
+          properties:
+            ext: { type: string }
+            size: { type: integer, format: int64 }
+            sha256: { type: string }
+            updatedAt: { type: string, format: date-time }
+            downloadFilename: { type: string }
+        expectedFilenameBase: { type: string, description: Without extension }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64 }
