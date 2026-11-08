@@ -83,7 +83,7 @@ flowchart LR
     BE -->|read admins every 60 s| V[HashiCorp Vault]
     P[Prometheus] -->|management port| BE
     subgraph Delivery
-      AZ[Azure DevOps CI] --> H[Harbor]
+      AZ[GitHub Actions CI] --> H[Harbor]
       AZ --> DR[Deployment repo]
       DR --> A[Argo CD] --> K[Kubernetes DEV]
     end

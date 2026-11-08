@@ -42,7 +42,7 @@ Judging, scoring, voting and ranking are **not** part of this system (see §3.2)
 - Admin: set the deadline, see and operate every Idea (view, download, delete, replace slides), query the Audit Log through the API.
 - Admin accounts exist only through Vault sync, never through registration.
 - Audit Log of writes, logins, downloads and denied attempts.
-- Build, CI/CD (Azure DevOps) and deployment to the company Kubernetes DEV environment via Argo CD.
+- Build, CI/CD (GitHub Actions) and deployment to the company Kubernetes DEV environment via Argo CD.
 - Every functional requirement in this document, without exception.
 ### 3.2 Out of scope
 - 2FA, MFA, password reset, email verification, company SSO, CAPTCHA, OTP.
@@ -438,7 +438,7 @@ Rules:
 | Monitoring | Prometheus + Grafana; JSON logs (ECS format **[Proposed]**) to stdout |
 | Containers | Docker; registry: company Harbor |
 | Orchestration | Company Kubernetes platform; personal K3S for pre-testing |
-| Delivery | Azure DevOps CI, Helm chart, Argo CD (GitOps) with a **separate deployment repository** |
+| Delivery | GitHub Actions CI, Helm chart, Argo CD (GitOps) with a **separate deployment repository** |
 ### 8.7 Environments and delivery
 Environments: **Local** (docker-compose with MariaDB, MinIO, Vault dev mode or the file-based admin directory, §4.2); **CI** (testcontainers-go, real migrations); **personal K3S** (pre-testing); **company K8S DEV** (Argo CD, E2E smoke test). MariaDB and MinIO are platform-provided.
 
@@ -446,7 +446,7 @@ Environments: **Local** (docker-compose with MariaDB, MinIO, Vault dev mode or t
 
 **Branching:** `main` is protected; feature branches merge by pull request; `dev` is auto-deployed to DEV.
 
-**Pipeline (Azure DevOps):** PR → build, unit + integration tests, coverage gate (≥ 80 %), lint, OpenAPI validation, secret scan, image scan. Merge to `dev` → image tagged with the git SHA → push to Harbor → commit the tag to the deployment repository (so the application pipeline is not re-triggered) → Argo CD syncs → E2E smoke test.
+**Pipeline (GitHub Actions):** PR → build, unit + integration tests, coverage gate (≥ 80 %), lint, OpenAPI validation, secret scan, image scan. Merge to `dev` → image tagged with the git SHA → push to Harbor → commit the tag to the deployment repository (so the application pipeline is not re-triggered) → Argo CD syncs → E2E smoke test.
 
 **Helm + Argo CD**
 - Argo CD renders the chart with `helm template` (no `--atomic`). Rollback = revert the Git commit in the deployment repository.
@@ -487,7 +487,7 @@ Start only after §8.1 is satisfied. Priority order:
 - Login and registration use an anonymous (not session-bound) CSRF token, because no session exists yet; protection there relies on the `__Host-` cookie and `SameSite`.
 
 ## 11. Assumptions and Open Issues
-Assumptions are inline **[Proposed]** rules in the sections they belong to or in the architecture documents. Open questions, owner confirmations and platform answers (Vault authentication, Argo CD access, credential delivery, MariaDB/MinIO versions, Prometheus/Grafana, hosting and ingress limits, Azure DevOps agents, front-end libraries, Spring Boot 4 compatibility) are tracked only in `docs/Open-items.md` (OI-01 … OI-41). Old references of the form "§12 #n" map through `Open-items.md` §6.
+Assumptions are inline **[Proposed]** rules in the sections they belong to or in the architecture documents. Open questions, owner confirmations and platform answers (Vault authentication, Argo CD access, credential delivery, MariaDB/MinIO versions, Prometheus/Grafana, hosting and ingress limits, CI runners, front-end libraries, Spring Boot 4 compatibility) are tracked only in `docs/Open-items.md` (OI-01 … OI-41). Old references of the form "§12 #n" map through `Open-items.md` §6.
 
 ## 12. Revision History
 | Version | Changes |

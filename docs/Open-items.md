@@ -35,7 +35,7 @@ Changes in 1.1: four gaps found while writing `docs/modules/shared.md` were deci
 | OI-04 | **MariaDB version reopened:** 10.8 is a short-term release and end of life; **11.4 LTS** proposed (maintained until 2029-05; minimum 10.7 for native `UUID`). MinIO version also needed; the Testcontainers images must match | Platform | S0 Testcontainers (before S0) | PRD §8.6; overview D27, D45; backend §10.1, §11 | Open |
 | OI-05 | Prometheus / Grafana availability and the dashboard import mechanism (Monitoring is not committed) | Platform | none | PRD §8.2 | Open |
 | OI-06 | Hosting location and domain of the public `site/` and of the application (same-origin routing); ingress body-size limit 6 MiB | Platform | S3 exit | PRD §6.8, §8.7; frontend §11 | Open |
-| OI-07 | Azure DevOps agents: Microsoft-hosted or self-hosted? Is Docker available for Testcontainers? Is Docker Hub reachable, or must images come through a Harbor proxy cache? | Platform | S0 pipeline (before S0) | PRD §8.7; backend §11; delivery-plan S0 | Open |
+| OI-07 | GitHub Actions runners: GitHub-hosted (Docker and Docker Hub available, fine for `make ci`) or self-hosted? The image-push and deployment-repo stages need Harbor and Argo CD reachable from the runner; must images come through a Harbor proxy cache? | Platform | S0 pipeline (before S0) | PRD §8.7; backend §11; delivery-plan S0 | Open |
  
 ## 2. Owner decisions and confirmations
  
