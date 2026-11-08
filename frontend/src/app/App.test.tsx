@@ -8,7 +8,7 @@ import { server } from '@/shared/api/mocks/server';
 import { initI18n } from '@/shared/i18n';
 import { App } from './App';
 import { safeNext } from './access';
-import { routes } from './router';
+import { PAGES, routes } from './router';
 import { ROUTES, navFor, type Role } from './routes';
 
 const API = 'http://localhost:3000/api/v1';
@@ -124,6 +124,27 @@ describe('safeNext (§6.4)', () => {
     [null, 'USER', '/ideas'],
   ] as const)('%s as %s → %s', (next, role, out) => {
     expect(safeNext(next, role)).toBe(out);
+  });
+});
+
+describe('every route has a page', () => {
+  it('PAGES covers exactly the route table', () => {
+    expect(Object.keys(PAGES).sort()).toEqual(ROUTES.map((r) => r.path).sort());
+  });
+
+  it.each(ROUTES.map((r) => [r.path, r.access === 'ADMIN' ? 'ADMIN' : r.access === 'public' ? null : 'USER'] as const))(
+    '%s renders one h1 with no axe violations',
+    async (path, role) => {
+      const { container } = await open(concrete(path), role);
+      expect(await screen.findAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await screen.findByRole('region', { name: 'Submission status' });
+      expect((await axe(container)).violations).toEqual([]);
+    },
+  );
+
+  it('create is reachable but disabled when submissions are closed (§6.3 rule 6)', async () => {
+    await open('/ideas/new', 'USER', 'CLOSED');
+    expect(await screen.findByRole('button', { name: 'Submit Idea' })).toBeDisabled();
   });
 });
 

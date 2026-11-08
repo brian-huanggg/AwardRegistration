@@ -1,23 +1,33 @@
+import { lazy, Suspense, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useLocation, useSearchParams, type RouteObject } from 'react-router';
 import { decide, safeNext } from './access';
-import { AppShell, PageHeading, PublicLayout } from './layouts';
+import { AppShell, PublicLayout } from './layouts';
 import { NotFound } from './pages/NotFound';
-import { ROUTES, type RouteDef } from './routes';
+import { Login, Register } from './pages/auth';
+import { IdeaCreate, IdeaDetail, IdeaEdit, IdeaList } from './pages/ideas';
+import { JoinRequests } from './pages/JoinRequests';
+import { ROUTES } from './routes';
 import { useMe } from './session';
 
-function Placeholder({ route }: { route: RouteDef }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <PageHeading title={t(`nav.${route.titleKey}`)} />
-      <p>{t('pages.placeholder')}</p>
-    </>
-  );
-}
+const AdminDeadline = lazy(() => import('./pages/admin').then((m) => ({ default: m.AdminDeadline })));
+const AdminStats = lazy(() => import('./pages/admin').then((m) => ({ default: m.AdminStats })));
+
+/** Page per route path; keys must match `ROUTES` (checked by a test). */
+export const PAGES: Record<string, ComponentType> = {
+  '/login': Login,
+  '/register': Register,
+  '/ideas': IdeaList,
+  '/ideas/new': IdeaCreate,
+  '/ideas/:id': IdeaDetail,
+  '/ideas/:id/edit': IdeaEdit,
+  '/join-requests': JoinRequests,
+  '/admin/deadline': AdminDeadline,
+  '/admin/stats': AdminStats,
+};
 
 /** Wraps a page with identity, the access decision (§6.3) and the right layout. `route` undefined = 404. */
-function Gate({ route }: { route?: RouteDef }) {
+function Gate({ route }: { route?: (typeof ROUTES)[number] }) {
   const { t } = useTranslation();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -31,7 +41,14 @@ function Gate({ route }: { route?: RouteDef }) {
   if (d.kind === 'login') return <Navigate to={`/login?next=${encodeURIComponent(d.next)}`} replace />;
   if (d.kind === 'home') return <Navigate to={role ? safeNext(params.get('next'), role) : '/login'} replace />;
 
-  const page = d.kind === 'allow' && route ? <Placeholder route={route} /> : <NotFound />;
+  const Page = d.kind === 'allow' && route ? PAGES[route.path] : undefined;
+  const page = Page ? (
+    <Suspense fallback={<p role="status">{t('common.loading')}</p>}>
+      <Page />
+    </Suspense>
+  ) : (
+    <NotFound />
+  );
   return me ? <AppShell me={me}>{page}</AppShell> : <PublicLayout>{page}</PublicLayout>;
 }
 
