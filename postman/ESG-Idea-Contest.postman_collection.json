@@ -1,0 +1,846 @@
+{
+  "info": {
+    "name": "ESG Idea Contest API",
+    "description": "Local collection for docs/API/api-endpoints.md. Base path /api/v1. Run `GET csrf` or any write; the CSRF header is added automatically. Cookie `__Host-session` is kept by Postman's cookie jar.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "description": "",
+      "item": [
+        {
+          "name": "GET csrf",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/csrf",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "csrf"
+              ]
+            },
+            "description": "Returns {token}. The collection pre-request script calls this automatically before every write."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates an account (no session). 201 / 409 EMP_NO_TAKEN, EMAIL_TAKEN / 422 PASSWORD_POLICY, VALIDATION_FAILED.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empNo\": \"{{userEmpNo}}\",\n  \"name\": \"王小明\",\n  \"email\": \"user@example.com\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "POST login (User)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "401 INVALID_CREDENTIALS / 429 LOGIN_THROTTLED. CSRF token is refetched afterwards (token changes at login).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empNo\": \"{{userEmpNo}}\",\n  \"password\": \"{{userPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.unset('csrfToken');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Admin accounts come from Vault; same endpoint.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"empNo\": \"{{adminEmpNo}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset('csrfToken');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "{empNo, name, email, role}"
+          }
+        },
+        {
+          "name": "POST logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "204"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset('csrfToken');"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "deadline",
+      "description": "",
+      "item": [
+        {
+          "name": "GET deadline",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/deadline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "deadline"
+              ]
+            },
+            "description": "Public. {deadline, state, serverTime}"
+          }
+        },
+        {
+          "name": "PUT admin deadline",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/deadline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "deadline"
+              ]
+            },
+            "description": "Admin only. ISO 8601 with offset or Z; any value allowed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deadline\": \"2026-12-31T15:59:59Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "ideas",
+      "description": "",
+      "item": [
+        {
+          "name": "POST create idea (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas"
+              ]
+            },
+            "description": "User. 201 + Location. Pick a PDF/PPTX for `slides`; filename must be I_<ORG>_<leaderName>_<leaderEmpNo>_<ideaName>.<ext>. Saves ideaId.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "category",
+                  "value": "COOL_IDEA",
+                  "type": "text",
+                  "description": "COOL_IDEA | OUTSTANDING_IMPACT"
+                },
+                {
+                  "key": "org",
+                  "value": "BSID",
+                  "type": "text",
+                  "description": "AAID, BSID, ICSD, TSID, PLED, DEID"
+                },
+                {
+                  "key": "direction",
+                  "value": "RESPONSIBLE_SUPPLY_CHAIN",
+                  "type": "text",
+                  "description": "GREEN_MANUFACTURING | RESPONSIBLE_SUPPLY_CHAIN | INCLUSIVE_WORKPLACE | TALENT_DEVELOPMENT | CARING_FOR_DISADVANTAGED"
+                },
+                {
+                  "key": "name",
+                  "value": "成立供應商永續學院",
+                  "type": "text",
+                  "description": "1-75 code points; no / \\ : * ? \" < > |"
+                },
+                {
+                  "key": "summary",
+                  "value": "Sample summary (1-300 code points)",
+                  "type": "text"
+                },
+                {
+                  "key": "slides",
+                  "type": "file",
+                  "src": [],
+                  "description": "One PDF or PPTX. Filename must equal expectedFilenameBase + ext (see GET /ideas/{id})"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const j = pm.response.json();",
+                  "  if (j.id) pm.collectionVariables.set('ideaId', j.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET list ideas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas?page=1&size=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "disabled": false
+                },
+                {
+                  "key": "size",
+                  "value": "20",
+                  "disabled": false
+                },
+                {
+                  "key": "org",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "direction",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "leaderEmpNo",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "q",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "createdFrom",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "createdTo",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt",
+                  "disabled": true
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Paged: {items, page, size, total}. size max 100."
+          }
+        },
+        {
+          "name": "GET idea",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}"
+              ]
+            },
+            "description": "IdeaDetail. Saves ideaId."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const j = pm.response.json();",
+                  "  if (j.id) pm.collectionVariables.set('ideaId', j.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT idea",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}"
+              ]
+            },
+            "description": "Leader only. Full replacement of category, org, direction, name, summary.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"category\": \"COOL_IDEA\",\n  \"org\": \"BSID\",\n  \"direction\": \"RESPONSIBLE_SUPPLY_CHAIN\",\n  \"name\": \"成立供應商永續學院\",\n  \"summary\": \"Updated summary\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "DELETE idea",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}"
+              ]
+            },
+            "description": "Leader/Admin. 204"
+          }
+        },
+        {
+          "name": "PUT replace slides (multipart)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}/slides",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}",
+                "slides"
+              ]
+            },
+            "description": "Leader/Admin. 422 FILENAME_MISMATCH if name wrong.",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "slides",
+                  "type": "file",
+                  "src": [],
+                  "description": "One PDF or PPTX; filename must match expectedFilenameBase"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET download slides",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}/slides",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}",
+                "slides"
+              ]
+            },
+            "description": "Leader/Member/Admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "team",
+      "description": "",
+      "item": [
+        {
+          "name": "POST join request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/join-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "join-requests"
+              ]
+            },
+            "description": "User. Resolved by leader empNo + exact idea name.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leaderEmpNo\": \"{{leaderEmpNo}}\",\n  \"ideaName\": \"成立供應商永續學院\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "GET join requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/join-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "join-requests"
+              ]
+            },
+            "description": "{items: JoinRequest[]}"
+          }
+        },
+        {
+          "name": "POST approve member",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}/members/{{memberEmpNo}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}",
+                "members",
+                "{{memberEmpNo}}",
+                "approve"
+              ]
+            },
+            "description": "Leader. 409 TEAM_FULL / JOIN_REQUEST_NOT_PENDING."
+          }
+        },
+        {
+          "name": "DELETE reject/remove member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}/members/{{memberEmpNo}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}",
+                "members",
+                "{{memberEmpNo}}"
+              ]
+            },
+            "description": "Leader. Works on PENDING and ACCEPTED."
+          }
+        },
+        {
+          "name": "DELETE leave/withdraw (me)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ideas/{{ideaId}}/members/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ideas",
+                "{{ideaId}}",
+                "members",
+                "me"
+              ]
+            },
+            "description": "Member/Applicant."
+          }
+        }
+      ]
+    },
+    {
+      "name": "admin",
+      "description": "",
+      "item": [
+        {
+          "name": "GET audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-logs?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "disabled": false
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "actorEmpNo",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "action",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "outcome",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "targetType",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "targetId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "requestId",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "ip",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Keyset pagination: cursor + limit (default 50, max 100)."
+          }
+        },
+        {
+          "name": "GET stats (bonus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET ideas export (bonus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/ideas/export",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "ideas",
+                "export"
+              ]
+            },
+            "description": ""
+          }
+        },
+        {
+          "name": "GET audit logs verify (bonus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/audit-logs/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "audit-logs",
+                "verify"
+              ]
+            },
+            "description": ""
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Attach X-CSRF-Token to every write (PRD 6.5). Token is session-bound and changes at login/logout.",
+          "const m = pm.request.method;",
+          "if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(m)) {",
+          "  const set = (t) => pm.request.headers.upsert({ key: 'X-CSRF-Token', value: t });",
+          "  const cached = pm.collectionVariables.get('csrfToken');",
+          "  if (cached) { set(cached); }",
+          "  else {",
+          "    pm.sendRequest({ url: pm.variables.replaceIn('{{baseUrl}}/auth/csrf'), method: 'GET' }, (err, res) => {",
+          "      if (err) { console.error('csrf fetch failed', err); return; }",
+          "      const t = res.json().token;",
+          "      pm.collectionVariables.set('csrfToken', t);",
+          "      set(t);",
+          "    });",
+          "  }",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// A 403 CSRF_INVALID means the cached token is stale: drop it so the next send refetches.",
+          "if (pm.response.code === 403) {",
+          "  try { if (pm.response.json().code === 'CSRF_INVALID') pm.collectionVariables.unset('csrfToken'); } catch (e) {}",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "csrfToken",
+      "value": ""
+    },
+    {
+      "key": "ideaId",
+      "value": ""
+    }
+  ]
+}
