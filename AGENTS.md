@@ -1,5 +1,49 @@
 # Agent Instructions
 
+Project: **ESG Idea Contest** registration system. Employees register, form teams of 1–4 and submit one Idea (one slide file per team); admins manage everything; every write is audited. The repo currently holds **documents only** — no `backend/` or `frontend/` code exists yet (first code PR is `B0-01` in `docs/PR-plan.md`).
+
+## Where things are (read in this order)
+
+| Need | File |
+|---|---|
+| What to build (requirements, permission matrix, NFRs) | `docs/PRD.md` — **wins over every other document on behaviour** |
+| System design, principles, decision log (D1–D61) | `docs/Architecture/Architecture.md` |
+| Backend design (Go): modules, pipeline, transactions, session/CSRF, audit, data model, tests | `docs/Architecture/Backend.md` |
+| Frontend design | `docs/Architecture/Frontend.md` |
+| Sequence diagrams (create / replace / delete / download, storage consistency) | `docs/Architecture/Sequence.md` |
+| API contract (endpoints, error codes, response bodies) | `docs/API/` (start at `README.md`) |
+| Why Go, and the sqlc findings | `docs/Adr/0001-Backend-in-go.md`, `docs/Adr/0001-Annex-sqlc-spike.md` |
+| Unresolved questions (OI-nn) and owner confirmations | `docs/Open-items.md` — the only tracker for them |
+| PR breakdown, slices S0–S7, PR rules and Definition of Done | `docs/PR-plan.md` (plan only; work items live in `bd`) |
+
+Not written yet (do not cite as existing): `docs/modules/`, `docs/runbook.md`, `docs/test-report.md`, `docs/limitations.md`, root `README.md`, `backend/api/openapi.yaml`.
+
+If documents disagree: PRD > ADR > Backend/Frontend > Architecture decision log; report the conflict, do not silently pick one. Status markers: **[Decided]** / **[Proposed]** / **[Open]** (open items in `docs/Open-items.md`). Do not treat **[Proposed]** as agreed.
+
+## Stack (decided)
+
+Go 1.26 · chi · spec-first OpenAPI (oapi-codegen, standard non-strict server) · sqlc + `go-sql-driver/mysql` against MariaDB · Flyway migrations · own session/CSRF/throttling middleware · `log/slog` · minio-go (`MaxRetries: 1`) · React + Vite + TypeScript frontend. Java/Spring text in older decision-log rows is superseded.
+
+## Build & Test (target commands; they start to work when the code PRs land)
+
+```bash
+golangci-lint run
+go test -race ./...                       # unit
+go test -race -tags integration ./...     # needs Docker (testcontainers-go, real MariaDB + migrations)
+go test -coverpkg=./... -coverprofile=cover.out ./... && go tool cover -func=cover.out   # gate: statement coverage >= 80 %
+sqlc generate && go generate ./...        # must produce no diff
+```
+
+## Conventions that are easy to get wrong
+
+- Packages by feature: `internal/<module>/` with implementation in `internal/<module>/internal/`; dependency direction is checked by an import-graph test and `depguard`. No ORM.
+- Uniform 404: a resource the caller may not see answers the **same uniform 404** as a missing one (and is audited as DENIED). Do not add distinguishing responses.
+- Database time is the only clock. A write succeeds only together with its audit row (track A inside the tx; track B `RecordRejected` in its own tx).
+- Check order: 413 → 401 → CSRF 403 → 404 / role / state, all **before** the multipart body is read. JSON bodies: pointer fields, unknown fields ignored, duplicate keys and wrong types → 400.
+- Unknown transaction outcome (`COMMIT` error not in SQLState class 23/40): keep storage objects; cleanup goes through `pending_file_deletion`.
+- Every PR that adds an error code updates the catalogue, `testdata/error-codes.json`, `docs/API/error-codes.md` and the zh-TW/en dictionaries; every touched permission-matrix cell gets a test.
+- Repo documents are English. No secrets, Vault paths or internal hostnames in `site/`.
+
 This project uses **bd** (beads) for issue tracking. Run `bd prime` for full workflow context.
 
 > **Architecture in one line:** Issues live in a local Dolt database
