@@ -91,6 +91,15 @@ func (s *Sessions) Revoke(ctx context.Context, id string) error {
 	return store.Delete(ctx, s.DB, h)
 }
 
+// RevokeIn is Revoke inside the caller's transaction.
+func (s *Sessions) RevokeIn(ctx context.Context, tx *sql.Tx, id string) error {
+	h, valid := parse(id)
+	if !valid {
+		return nil
+	}
+	return store.Delete(ctx, tx, h)
+}
+
 // RevokeAll deletes every session of the user. It implements
 // account.SessionRevoker (wired in main.go; account never imports auth).
 func (s *Sessions) RevokeAll(ctx context.Context, userID uuid.UUID) error {

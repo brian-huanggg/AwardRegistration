@@ -82,9 +82,10 @@ func Principal(ctx context.Context, db *sql.DB, hash []byte) (p security.Princip
 	return p, true, nil
 }
 
-// Delete removes one session; deleting a missing one is not an error.
-func Delete(ctx context.Context, db *sql.DB, hash []byte) error {
-	if _, err := db.ExecContext(ctx, `DELETE FROM session WHERE id_hash = ?`, hash); err != nil {
+// Delete removes one session; deleting a missing one is not an error. x is the
+// *sql.DB, or the caller's *sql.Tx so logout commits with its audit row.
+func Delete(ctx context.Context, x Execer, hash []byte) error {
+	if _, err := x.ExecContext(ctx, `DELETE FROM session WHERE id_hash = ?`, hash); err != nil {
 		return fmt.Errorf("delete session: %w", err)
 	}
 	return nil
@@ -144,6 +145,25 @@ func AccountByEmpNo(ctx context.Context, db *sql.DB, empNo string) (a Account, f
 	if a.ID, err = uuid.Parse(id); err != nil {
 		return Account{}, false, fmt.Errorf("parse user id %q: %w", id, err)
 	}
+	a.Role = security.Role(role)
+	return a, true, nil
+}
+
+// AccountByID reads one account by its user ID; found is false when none
+// exists.
+func AccountByID(ctx context.Context, db *sql.DB, id uuid.UUID) (a Account, found bool, err error) {
+	var sid, role string
+	err = db.QueryRowContext(ctx,
+		`SELECT id, emp_no, name, email, password_hash, role, enabled
+		   FROM app_user WHERE id = ?`, id.String()).
+		Scan(&sid, &a.EmpNo, &a.Name, &a.Email, &a.PasswordHash, &role, &a.Enabled)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Account{}, false, nil
+	}
+	if err != nil {
+		return Account{}, false, fmt.Errorf("read account by id: %w", err)
+	}
+	a.ID = id
 	a.Role = security.Role(role)
 	return a, true, nil
 }

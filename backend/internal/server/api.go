@@ -15,6 +15,8 @@ type API struct {
 	api.Unimplemented
 	Auth     auth.Handler
 	Logins   auth.LoginHandler
+	Logouts  auth.LogoutHandler
+	Me       auth.MeHandler
 	Account  account.Handler
 	Deadline deadline.Handler
 }
@@ -32,3 +34,11 @@ func (a API) GetCsrfToken(w http.ResponseWriter, r *http.Request) { a.Auth.GetCs
 
 // Login serves POST /auth/login.
 func (a API) Login(w http.ResponseWriter, r *http.Request, _ api.LoginParams) { a.Logins.Login(w, r) }
+
+// Logout serves POST /auth/logout.
+func (a API) Logout(w http.ResponseWriter, r *http.Request, _ api.LogoutParams) {
+	a.Logouts.Logout(w, r)
+}
+
+// GetMe serves GET /auth/me.
+func (a API) GetMe(w http.ResponseWriter, r *http.Request) { a.Me.GetMe(w, r) }

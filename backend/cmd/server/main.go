@@ -57,8 +57,10 @@ func run() error {
 		return err
 	}
 	si := server.API{
-		Auth:   auth.Handler{CSRF: csrf, Log: log},
-		Logins: auth.LoginHandler{Logins: logins, Fail: errs.Write},
+		Auth:    auth.Handler{CSRF: csrf, Log: log},
+		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
+		Logouts: auth.LogoutHandler{Logouts: &auth.Logouts{Sessions: sessions, Audit: auditSvc}, Fail: errs.Write},
+		Me:      auth.MeHandler{Sessions: sessions, Fail: errs.Write},
 		Account: account.Handler{
 			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
 			Fail:    errs.Write,

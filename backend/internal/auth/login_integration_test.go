@@ -63,6 +63,11 @@ type loginEnv struct {
 
 func newLoginEnv(t *testing.T) loginEnv {
 	t.Helper()
+	return newLoginEnvLog(t, slog.New(slog.DiscardHandler))
+}
+
+func newLoginEnvLog(t *testing.T, log *slog.Logger) loginEnv {
+	t.Helper()
 	db := dbtest.New(t)
 	auditSvc := audit.New(db, nil)
 	errs := server.ErrorAdapter{Audit: auditSvc}
@@ -76,10 +81,11 @@ func newLoginEnv(t *testing.T) loginEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log := slog.New(slog.DiscardHandler)
 	si := server.API{
-		Auth:   auth.Handler{CSRF: csrf, Log: log},
-		Logins: auth.LoginHandler{Logins: logins, Fail: errs.Write},
+		Auth:    auth.Handler{CSRF: csrf, Log: log},
+		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
+		Logouts: auth.LogoutHandler{Logouts: &auth.Logouts{Sessions: sessions, Audit: auditSvc}, Fail: errs.Write},
+		Me:      auth.MeHandler{Sessions: sessions, Fail: errs.Write},
 	}
 	chain := server.NewPublic(log, server.Mount(si),
 		auth.Middleware(sessions, server.IsPublic, log),
