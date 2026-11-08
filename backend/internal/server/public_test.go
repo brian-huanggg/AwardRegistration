@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"slices"
 	"testing"
@@ -55,6 +56,18 @@ func TestIsPublicNeedsExactMethodAndPath(t *testing.T) {
 		req := httptest.NewRequestWithContext(context.Background(), tc.method, "http://x"+tc.path, nil)
 		if got := server.IsPublic(req); got != tc.want {
 			t.Errorf("%s %s = %v, want %v", tc.method, tc.path, got, tc.want)
+		}
+	}
+}
+
+func TestActionForCoversPublicWrites(t *testing.T) {
+	for _, p := range server.PublicRoutes {
+		if p.Method == http.MethodGet {
+			continue
+		}
+		r := httptest.NewRequest(p.Method, p.Path, nil)
+		if server.ActionFor(r) == "" {
+			t.Errorf("%s %s has no audit action for a CSRF denial", p.Method, p.Path)
 		}
 	}
 }

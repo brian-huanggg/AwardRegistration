@@ -47,7 +47,12 @@ func run() error {
 
 	auditSvc := audit.New(db, log)
 	errs := server.ErrorAdapter{Audit: auditSvc, Log: log}
+	csrf, err := auth.NewCSRF(cfg.CSRFKey, cfg.CSRFKeyPrevious)
+	if err != nil {
+		return err
+	}
 	si := server.API{
+		Auth: auth.Handler{CSRF: csrf, Log: log},
 		Account: account.Handler{
 			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
 			Fail:    errs.Write,
@@ -56,5 +61,7 @@ func run() error {
 	}
 
 	var ready atomic.Bool
-	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si), auth.Middleware(auth.New(db), server.IsPublic, log)), &ready, server.DBCheck(db))
+	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si),
+		auth.Middleware(auth.New(db), server.IsPublic, log),
+		csrf.Middleware(errs.Write, server.ActionFor)), &ready, server.DBCheck(db))
 }

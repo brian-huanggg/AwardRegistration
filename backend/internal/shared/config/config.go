@@ -18,7 +18,15 @@ type Config struct {
 	LogLevel        slog.Level
 	ShutdownTimeout time.Duration // must stay below terminationGracePeriodSeconds
 	ReadyDrainDelay time.Duration // time readiness stays false before Shutdown starts
+	CSRFKey         string        // HMAC key that signs CSRF tokens (>= 32 bytes)
+	CSRFKeyPrevious string        // optional: still verifies for 8 h after a rotation
 }
+
+// DefaultCSRFKey is the throwaway key of the local profile only; every other
+// profile must set ESG_CSRF_KEY.
+const DefaultCSRFKey = "local-dev-csrf-key-not-a-secret-0000"
+
+const minCSRFKeyBytes = 32
 
 // DefaultDSN matches docker-compose.yml (throwaway local credentials). The query
 // pins UTC and matched-row counts (Backend.md §2.3).
@@ -33,15 +41,26 @@ func Load(getenv func(string) string) (Config, error) {
 		return def
 	}
 	c := Config{
-		Profile:        get("ESG_PROFILE", "local"),
-		PublicAddr:     get("ESG_PUBLIC_ADDR", ":8080"),
-		ManagementAddr: get("ESG_MANAGEMENT_ADDR", ":8081"),
-		DBDSN:          get("ESG_DB_DSN", DefaultDSN),
+		Profile:         get("ESG_PROFILE", "local"),
+		PublicAddr:      get("ESG_PUBLIC_ADDR", ":8080"),
+		ManagementAddr:  get("ESG_MANAGEMENT_ADDR", ":8081"),
+		DBDSN:           get("ESG_DB_DSN", DefaultDSN),
+		CSRFKey:         getenv("ESG_CSRF_KEY"),
+		CSRFKeyPrevious: getenv("ESG_CSRF_KEY_PREVIOUS"),
 	}
 	switch c.Profile {
 	case "local", "k3s", "dev":
 	default:
 		return Config{}, fmt.Errorf("ESG_PROFILE %q: want local, k3s or dev", c.Profile)
+	}
+	if c.CSRFKey == "" && c.Profile == "local" {
+		c.CSRFKey = DefaultCSRFKey
+	}
+	if len(c.CSRFKey) < minCSRFKeyBytes {
+		return Config{}, fmt.Errorf("ESG_CSRF_KEY: need at least %d bytes", minCSRFKeyBytes)
+	}
+	if c.CSRFKeyPrevious != "" && len(c.CSRFKeyPrevious) < minCSRFKeyBytes {
+		return Config{}, fmt.Errorf("ESG_CSRF_KEY_PREVIOUS: need at least %d bytes", minCSRFKeyBytes)
 	}
 	if err := c.LogLevel.UnmarshalText([]byte(strings.ToUpper(get("ESG_LOG_LEVEL", "info")))); err != nil {
 		return Config{}, fmt.Errorf("ESG_LOG_LEVEL: %w", err)

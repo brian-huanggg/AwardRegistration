@@ -5,6 +5,7 @@ import (
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/api"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 )
 
@@ -12,6 +13,7 @@ import (
 // module has not landed yet stay api.Unimplemented (501).
 type API struct {
 	api.Unimplemented
+	Auth     auth.Handler
 	Account  account.Handler
 	Deadline deadline.Handler
 }
@@ -23,3 +25,6 @@ func (a API) GetDeadline(w http.ResponseWriter, r *http.Request) { a.Deadline.Ge
 func (a API) Register(w http.ResponseWriter, r *http.Request, _ api.RegisterParams) {
 	a.Account.Register(w, r)
 }
+
+// GetCsrfToken serves GET /auth/csrf.
+func (a API) GetCsrfToken(w http.ResponseWriter, r *http.Request) { a.Auth.GetCsrfToken(w, r) }

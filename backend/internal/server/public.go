@@ -22,3 +22,14 @@ func IsPublic(r *http.Request) bool {
 	}
 	return false
 }
+
+// WriteActions maps the writes that exist today to their audit action, so a
+// CSRF denial is recorded (PRD §6.11). Later PRs add their routes here, with
+// the same exact-path rule; a write on an unknown path is not audited.
+var WriteActions = map[string]string{
+	http.MethodPost + " /api/v1/auth/register": "AUTH_REGISTER",
+	http.MethodPost + " /api/v1/auth/logout":   "AUTH_LOGOUT",
+}
+
+// ActionFor returns the audit action of r, or "" when unknown.
+func ActionFor(r *http.Request) string { return WriteActions[r.Method+" "+r.URL.Path] }
