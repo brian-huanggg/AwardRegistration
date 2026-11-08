@@ -4,7 +4,11 @@
 // that any package may import it.
 package security
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
 
 // Role is an account role (PRD §3). Leader, Member and Applicant are relations
 // to one Idea, not roles.
@@ -34,7 +38,7 @@ const (
 // Principal is the caller resolved from a valid session. The role is read from
 // the account on every request, never copied into the session (PRD §6.5).
 type Principal struct {
-	UserID int64
+	UserID uuid.UUID
 	EmpNo  string
 	Role   Role
 }

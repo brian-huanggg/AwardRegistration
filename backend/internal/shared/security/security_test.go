@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/security"
 )
 
@@ -12,7 +14,7 @@ func TestPrincipalRoundTrip(t *testing.T) {
 	if _, ok := security.PrincipalFrom(ctx); ok {
 		t.Fatal("empty context must have no principal")
 	}
-	want := security.Principal{UserID: 7, EmpNo: "A123", Role: security.RoleUser}
+	want := security.Principal{UserID: uuid.New(), EmpNo: "A123", Role: security.RoleUser}
 	got, ok := security.PrincipalFrom(security.WithPrincipal(ctx, want))
 	if !ok || got != want {
 		t.Fatalf("got %+v, %v", got, ok)
@@ -21,9 +23,9 @@ func TestPrincipalRoundTrip(t *testing.T) {
 
 func TestActorRole(t *testing.T) {
 	bg := context.Background()
-	user := security.Principal{UserID: 1, EmpNo: "U1", Role: security.RoleUser}
-	admin := security.Principal{UserID: 2, EmpNo: "A1", Role: security.RoleAdmin}
-	bad := security.Principal{UserID: 3, EmpNo: "X", Role: "ROOT"}
+	user := security.Principal{UserID: uuid.New(), EmpNo: "U1", Role: security.RoleUser}
+	admin := security.Principal{UserID: uuid.New(), EmpNo: "A1", Role: security.RoleAdmin}
+	bad := security.Principal{UserID: uuid.New(), EmpNo: "X", Role: "ROOT"}
 
 	tests := []struct {
 		name string

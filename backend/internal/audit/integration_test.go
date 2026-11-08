@@ -84,7 +84,7 @@ func TestAudit(t *testing.T) {
 
 	t.Run("track A is written in the caller's transaction and carries every field", func(t *testing.T) {
 		reset(t, d)
-		ctx := ctxWithReq(&security.Principal{UserID: 7, EmpNo: "E0001", Role: security.RoleUser})
+		ctx := ctxWithReq(&security.Principal{UserID: uuid.New(), EmpNo: "E0001", Role: security.RoleUser})
 		target := uuid.New()
 		out, err := db.InTx(ctx, d, func(ctx context.Context, tx *sql.Tx) error {
 			return svc.Record(ctx, tx, audit.Event{
