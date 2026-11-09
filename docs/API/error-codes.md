@@ -37,7 +37,7 @@ Format: RFC 9457 `application/problem+json`.
  
 - `code` is the stable contract; `detail` is English and not for display (the UI localizes by `code`).
 - With several field errors, `errors[]` lists all of them in form-field order; the top-level `code` equals `errors[0].code` when that is a registered specific code, otherwise `VALIDATION_FAILED`.
-- Generic field codes: `REQUIRED`, `INVALID_FORMAT`, `OUT_OF_RANGE`, `INVALID_ENUM`. Per-field rules (which error a field reports first) are in PRD §6.2. The password is the exception: `errors[]` lists every violated rule (PRD §6.4).
+- Generic field codes: `REQUIRED`, `INVALID_FORMAT`, `OUT_OF_RANGE`, `INVALID_ENUM`. Per-field rules (which error a field reports first) are in PRD §6.2. The password is the exception: `errors[]` lists every violated rule (PRD §6.4), each as `{ "field": "password", "code": "PASSWORD_POLICY", "rule": "<rule id>" }` in table order. `rule` appears only on these entries.
 - `requestId` is a server-generated UUID. An incoming `X-Request-Id` is reused only if it is a valid UUID. It is returned in the response header and the error body.
 - 500 responses carry only `INTERNAL_ERROR` and `requestId`: no stack traces, SQL or paths.
 - A malformed ID in a path is a 404, not a 400.

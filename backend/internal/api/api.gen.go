@@ -93,6 +93,9 @@ type FieldError struct {
 	Code     string  `json:"code"`
 	Expected *string `json:"expected,omitempty"`
 	Field    string  `json:"field"`
+
+	// Rule PASSWORD_POLICY only, the violated rule id (PRD 6.4)
+	Rule *string `json:"rule,omitempty"`
 }
 
 // IdeaDetail defines model for IdeaDetail.

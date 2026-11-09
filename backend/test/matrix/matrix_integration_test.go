@@ -57,7 +57,7 @@ func newEnv(t *testing.T) *env {
 		Logouts: auth.LogoutHandler{Logouts: &auth.Logouts{Sessions: sessions, Audit: auditSvc}, Fail: errs.Write},
 		Me:      auth.MeHandler{Sessions: sessions, Fail: errs.Write},
 		Account: account.Handler{
-			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
+			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.DefaultPolicy()},
 			Fail:    errs.Write,
 		},
 		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},

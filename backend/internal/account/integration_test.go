@@ -32,7 +32,7 @@ func newEnv(t *testing.T) env {
 	auditSvc := audit.New(db, nil)
 	errs := server.ErrorAdapter{Audit: auditSvc}
 	api := server.API{Account: account.Handler{
-		Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
+		Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.DefaultPolicy()},
 		Fail:    errs.Write,
 	}}
 	h := apispec.Load(t).Validate(t, server.NewPublic(slog.New(slog.DiscardHandler), server.Mount(api)))
@@ -48,6 +48,8 @@ func (e env) register(body string) *httptest.ResponseRecorder {
 	e.h.ServeHTTP(rec, req)
 	return rec
 }
+
+const goodPW = "Correct-Horse-1"
 
 func reg(empNo, name, email, pw string) string {
 	b, _ := json.Marshal(map[string]string{"empNo": empNo, "name": name, "email": email, "password": pw})
@@ -150,16 +152,16 @@ func TestRegisterSuccess(t *testing.T) {
 
 func TestRegisterConflicts(t *testing.T) {
 	e := newEnv(t)
-	if rec := e.register(reg("089290", "A", "a@x.com", "pw")); rec.Code != 201 {
+	if rec := e.register(reg("089290", "A", "a@x.com", goodPW)); rec.Code != 201 {
 		t.Fatal(rec.Body)
 	}
 
 	cases := []struct {
 		name, body, code, reason string
 	}{
-		{"same employee ID", reg("089290", "B", "b@x.com", "pw"), "EMP_NO_TAKEN", "emp_no_taken"},
-		{"same email, any case", reg("089291", "B", " A@X.COM ", "pw"), "EMAIL_TAKEN", "email_taken"},
-		{"both taken reports the employee ID", reg("089290", "B", "a@x.com", "pw"), "EMP_NO_TAKEN", "emp_no_taken"},
+		{"same employee ID", reg("089290", "B", "b@x.com", goodPW), "EMP_NO_TAKEN", "emp_no_taken"},
+		{"same email, any case", reg("089291", "B", " A@X.COM ", goodPW), "EMAIL_TAKEN", "email_taken"},
+		{"both taken reports the employee ID", reg("089290", "B", "a@x.com", goodPW), "EMP_NO_TAKEN", "emp_no_taken"},
 	}
 	for _, tc := range cases {
 		rec := e.register(tc.body)
@@ -189,14 +191,14 @@ func TestRegisterConflicts(t *testing.T) {
 
 func TestRegisterValidationBeatsConflictAndIsAudited(t *testing.T) {
 	e := newEnv(t)
-	e.register(reg("089290", "A", "a@x.com", "pw"))
+	e.register(reg("089290", "A", "a@x.com", goodPW))
 
 	// The employee ID is taken, but the email is malformed: 422, never 409.
-	rec := e.register(reg("089290", "B", "a b@x.com", "pw"))
+	rec := e.register(reg("089290", "B", "a b@x.com", goodPW))
 	if rec.Code != 422 || problemCode(t, rec) != "VALIDATION_FAILED" {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
-	rec = e.register(reg("12 4", "B/C", "ok@x.com", "pw"))
+	rec = e.register(reg("12 4", "B/C", "ok@x.com", goodPW))
 	if rec.Code != 422 {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
@@ -248,7 +250,7 @@ func TestRegisterRaceHasOneWinner(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			codes[i] = e.register(reg("089290", "A", "race"+string(rune('a'+i))+"@x.com", "pw")).Code
+			codes[i] = e.register(reg("089290", "A", "race"+string(rune('a'+i))+"@x.com", goodPW)).Code
 		}()
 	}
 	wg.Wait()
@@ -264,5 +266,39 @@ func TestRegisterRaceHasOneWinner(t *testing.T) {
 	}
 	if created != 1 || conflicts != n-1 || e.users(t) != 1 {
 		t.Fatalf("codes = %v, users = %d", codes, e.users(t))
+	}
+}
+
+func TestRegisterWeakPasswordListsEveryRuleInTableOrder(t *testing.T) {
+	e := newEnv(t)
+	// Format and policy errors come back together; the password contains the
+	// employee ID, repeats a character and has only two classes.
+	rec := e.register(reg("089290", "A", "nope", "aaa089290"))
+	if rec.Code != 422 || problemCode(t, rec) != "VALIDATION_FAILED" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	var body struct {
+		Errors []struct{ Field, Code, Rule string }
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range body.Errors {
+		got = append(got, f.Field+":"+f.Code+":"+f.Rule)
+	}
+	want := "email:INVALID_FORMAT: password:PASSWORD_POLICY:LENGTH password:PASSWORD_POLICY:COMPLEXITY " +
+		"password:PASSWORD_POLICY:REPEAT password:PASSWORD_POLICY:CONTAINS_EMP_NO"
+	if strings.Join(got, " ") != want {
+		t.Errorf("errors = %v\nwant     %s", got, want)
+	}
+
+	// Alone, a weak password makes PASSWORD_POLICY the top-level code.
+	rec = e.register(reg("089290", "A", "a@x.com", "short"))
+	if rec.Code != 422 || problemCode(t, rec) != "PASSWORD_POLICY" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if e.users(t) != 0 {
+		t.Error("a rejected registration created a user")
 	}
 }

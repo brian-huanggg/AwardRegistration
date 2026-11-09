@@ -15,7 +15,7 @@ import (
 // A Service with no database: every case here must be rejected before any I/O.
 func validate(t *testing.T, cmd account.RegisterCommand) *web.Error {
 	t.Helper()
-	svc := &account.Service{Policy: account.StubPolicy{}}
+	svc := &account.Service{Policy: account.DefaultPolicy()}
 	_, err := svc.Register(context.Background(), cmd, account.Request{})
 	var e *web.Error
 	if !errors.As(err, &e) {
@@ -25,7 +25,7 @@ func validate(t *testing.T, cmd account.RegisterCommand) *web.Error {
 }
 
 func good() account.RegisterCommand {
-	return account.RegisterCommand{EmpNo: "089290", Name: "王小明", Email: "a@b.c", Password: "whatever-goes"}
+	return account.RegisterCommand{EmpNo: "089290", Name: "王小明", Email: "a@b.c", Password: "Correct-Horse-1"}
 }
 
 func codes(e *web.Error) []string {
@@ -61,11 +61,11 @@ func TestRegisterValidation(t *testing.T) {
 		{"email non-ASCII", func(c *account.RegisterCommand) { c.Email = "é@x.com" }, web.CodeValidationFailed, "email:INVALID_FORMAT"},
 		{"email empty", func(c *account.RegisterCommand) { c.Email = "" }, web.CodeValidationFailed, "email:REQUIRED"},
 		{"email 255 chars", func(c *account.RegisterCommand) { c.Email = strings.Repeat("a", 253) + "@b" }, web.CodeValidationFailed, "email:OUT_OF_RANGE"},
-		{"password empty", func(c *account.RegisterCommand) { c.Password = "" }, web.CodeValidationFailed, "password:REQUIRED"},
-		{"password beyond bcrypt", func(c *account.RegisterCommand) { c.Password = strings.Repeat("p", 73) }, web.CodeValidationFailed, "password:OUT_OF_RANGE"},
+		{"password empty", func(c *account.RegisterCommand) { c.Password = "" }, web.CodePasswordPolicy, "password:PASSWORD_POLICY password:PASSWORD_POLICY"},
+		{"password beyond bcrypt", func(c *account.RegisterCommand) { c.Password = strings.Repeat("Pp1", 25) }, web.CodePasswordPolicy, "password:PASSWORD_POLICY"},
 		{"all fields in form order", func(c *account.RegisterCommand) {
 			c.EmpNo, c.Name, c.Email, c.Password = "x", "a:b", "nope", ""
-		}, web.CodeValidationFailed, "empNo:INVALID_FORMAT name:INVALID_NAME_CHARS email:INVALID_FORMAT password:REQUIRED"},
+		}, web.CodeValidationFailed, "empNo:INVALID_FORMAT name:INVALID_NAME_CHARS email:INVALID_FORMAT password:PASSWORD_POLICY password:PASSWORD_POLICY"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -143,7 +143,7 @@ func TestTopCodeIsPasswordPolicyWhenFirst(t *testing.T) {
 
 func handlerFor(got *error) http.Handler {
 	h := account.Handler{
-		Service: &account.Service{Policy: account.StubPolicy{}},
+		Service: &account.Service{Policy: account.DefaultPolicy()},
 		Fail:    func(_ http.ResponseWriter, _ *http.Request, err error) { *got = err },
 	}
 	return http.HandlerFunc(h.Register)

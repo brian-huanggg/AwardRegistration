@@ -259,6 +259,7 @@ components:
         field: { type: string }
         code: { type: string }
         expected: { type: string }
+        rule: { type: string, description: 'PASSWORD_POLICY only, the violated rule id (PRD 6.4)' }
     Deadline:
       type: object
       required: [deadline, state, serverTime]

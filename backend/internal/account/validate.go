@@ -9,10 +9,9 @@ import (
 
 // Field limits (PRD §6.3).
 const (
-	empNoLen     = 6
-	maxNameLen   = 50
-	maxEmailLen  = 254
-	maxPassBytes = 72 // bcrypt silently ignores (x/crypto: rejects) anything longer
+	empNoLen    = 6
+	maxNameLen  = 50
+	maxEmailLen = 254
 )
 
 // Field names as they appear in errors[]; the order is the form order.
@@ -65,26 +64,10 @@ func checkEmail(s string) (string, text.Problem) {
 }
 
 // PasswordPolicy checks a candidate password and lists every violation, in
-// PRD §6.4 table order. empNo is the submitted employee ID when it is
+// PRD §6.4 table order (see Policy). empNo is the submitted employee ID when it is
 // well-formed and "" otherwise (the CONTAINS_EMP_NO rule is then skipped).
 type PasswordPolicy interface {
 	Check(password, empNo string) []web.FieldError
-}
-
-// StubPolicy is the placeholder until B1b-01 delivers the §6.4 rules. It only
-// refuses what the account cannot store: an empty password and one bcrypt
-// cannot hash (longer than 72 bytes). Everything else is accepted.
-type StubPolicy struct{}
-
-// Check implements PasswordPolicy.
-func (StubPolicy) Check(password, _ string) []web.FieldError {
-	switch {
-	case password == "":
-		return []web.FieldError{{Field: fieldPassword, Code: web.CodeRequired}}
-	case len(password) > maxPassBytes:
-		return []web.FieldError{{Field: fieldPassword, Code: web.CodeOutOfRange}}
-	}
-	return nil
 }
 
 // topCode is the response code of a 422: the first field error's code when it

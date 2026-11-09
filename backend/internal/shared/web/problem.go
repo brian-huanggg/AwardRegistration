@@ -17,6 +17,7 @@ type FieldError struct {
 	Field    string    `json:"field"`
 	Code     ErrorCode `json:"code"`
 	Expected string    `json:"expected,omitempty"`
+	Rule     string    `json:"rule,omitempty"` // PASSWORD_POLICY only: the violated rule id (PRD §6.4)
 }
 
 // Error is the one error type handlers and services return. The central

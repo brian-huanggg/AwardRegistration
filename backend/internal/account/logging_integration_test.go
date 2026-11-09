@@ -43,7 +43,7 @@ func TestRegisterLogsNeverContainPassword(t *testing.T) {
 	auditSvc := audit.New(db, log)
 	errs := server.ErrorAdapter{Audit: auditSvc, Log: log}
 	api := server.API{Account: account.Handler{
-		Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.StubPolicy{}},
+		Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.DefaultPolicy()},
 		Fail:    errs.Write,
 	}}
 	e := env{db: db, h: apispec.Load(t).Validate(t, server.NewPublic(log, server.Mount(api)))}
