@@ -39,12 +39,13 @@ type Rule struct {
 type Policy struct{ Rules []Rule }
 
 // DefaultPolicy returns the rules implemented so far, in table order.
-// KEYBOARD_RUN, SEQUENCE and COMMON_PASSWORD arrive with B1b-02/03.
+// SEQUENCE and COMMON_PASSWORD arrive with B1b-03 and later.
 func DefaultPolicy() *Policy {
 	return &Policy{Rules: []Rule{
 		{RuleLength, violatesLength},
 		{RuleCharset, violatesCharset},
 		{RuleComplexity, violatesComplexity},
+		{RuleKeyboardRun, violatesKeyboardRun},
 		{RuleRepeat, violatesRepeat},
 		{RuleContainsEmpNo, violatesEmpNo},
 	}}
