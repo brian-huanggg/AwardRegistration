@@ -42,7 +42,13 @@ const (
 // Ideas is the part of the idea module team needs.
 type Ideas interface {
 	FindByLeader(ctx context.Context, leaderEmpNo, name string) (idea.Idea, error)
+	Get(ctx context.Context, id uuid.UUID, caller security.Principal) (idea.Idea, error)
+	LockLeader(ctx context.Context, tx *sql.Tx, id uuid.UUID) (uuid.UUID, error)
 }
+
+// maxMembers is the capacity of a team: approved Members, the Leader not
+// counted (PRD 6.7).
+const maxMembers = 3
 
 // Service owns join requests and Members.
 type Service struct {

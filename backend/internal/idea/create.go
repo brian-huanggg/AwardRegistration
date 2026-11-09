@@ -346,7 +346,7 @@ func (h Handler) CreateIdea(w http.ResponseWriter, r *http.Request) {
 		h.Fail(w, r, err)
 		return
 	}
-	body, err := h.toDetail(got, p)
+	body, err := h.toDetail(r.Context(), got, p)
 	if err != nil {
 		h.Fail(w, r, err)
 		return

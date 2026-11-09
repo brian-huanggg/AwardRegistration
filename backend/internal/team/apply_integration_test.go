@@ -287,3 +287,11 @@ func (s stale) FindByLeader(ctx context.Context, emp, name string) (idea.Idea, e
 	s.onFind()
 	return got, err
 }
+
+func (s stale) Get(ctx context.Context, id uuid.UUID, caller security.Principal) (idea.Idea, error) {
+	return s.real.Get(ctx, id, caller)
+}
+
+func (s stale) LockLeader(ctx context.Context, tx *sql.Tx, id uuid.UUID) (uuid.UUID, error) {
+	return s.real.LockLeader(ctx, tx, id)
+}

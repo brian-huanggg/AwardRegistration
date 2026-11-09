@@ -179,9 +179,8 @@ type AuditLogTargetType string
 
 // AuditLogPage defines model for AuditLogPage.
 type AuditLogPage struct {
-	Items           []AuditLog `json:"items"`
-	NextCursor      *string    `json:"nextCursor"`
-	SlidesUpdatedAt *time.Time `json:"slidesUpdatedAt,omitempty"`
+	Items      []AuditLog `json:"items"`
+	NextCursor *string    `json:"nextCursor"`
 }
 
 // CreateIdeaForm defines model for CreateIdeaForm.
@@ -292,9 +291,10 @@ type IdeaSummary struct {
 	MemberCount int                `json:"memberCount"`
 
 	// MyRelation null for Admin
-	MyRelation *IdeaSummaryMyRelation `json:"myRelation"`
-	Name       string                 `json:"name"`
-	Org        string                 `json:"org"`
+	MyRelation      *IdeaSummaryMyRelation `json:"myRelation"`
+	Name            string                 `json:"name"`
+	Org             string                 `json:"org"`
+	SlidesUpdatedAt time.Time              `json:"slidesUpdatedAt"`
 }
 
 // IdeaSummaryMyRelation null for Admin
@@ -406,6 +406,9 @@ type ReplaceSlidesForm struct {
 // CsrfToken defines model for CsrfToken.
 type CsrfToken = string
 
+// EmpNo defines model for EmpNo.
+type EmpNo = string
+
 // IdeaId defines model for IdeaId.
 type IdeaId = openapi_types.UUID
 
@@ -510,6 +513,12 @@ type UpdateIdeaParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// ApproveMemberParams defines parameters for ApproveMember.
+type ApproveMemberParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // ReplaceSlidesParams defines parameters for ReplaceSlides.
 type ReplaceSlidesParams struct {
 	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
@@ -584,6 +593,9 @@ type ServerInterface interface {
 	// UpdateIdea Edit the Idea's text fields (Leader only, full replacement)
 	// (PUT /ideas/{id})
 	UpdateIdea(w http.ResponseWriter, r *http.Request, id IdeaId, params UpdateIdeaParams)
+	// ApproveMember Approve a pending join request (Leader only)
+	// (POST /ideas/{id}/members/{empNo}/approve)
+	ApproveMember(w http.ResponseWriter, r *http.Request, id IdeaId, empNo EmpNo, params ApproveMemberParams)
 	// DownloadSlides Download the Idea's slides (Leader, Member, Admin)
 	// (GET /ideas/{id}/slides)
 	DownloadSlides(w http.ResponseWriter, r *http.Request, id IdeaId)
@@ -677,6 +689,12 @@ func (_ Unimplemented) GetIdea(w http.ResponseWriter, r *http.Request, id IdeaId
 // UpdateIdea Edit the Idea's text fields (Leader only, full replacement)
 // (PUT /ideas/{id})
 func (_ Unimplemented) UpdateIdea(w http.ResponseWriter, r *http.Request, id IdeaId, params UpdateIdeaParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ApproveMember Approve a pending join request (Leader only)
+// (POST /ideas/{id}/members/{empNo}/approve)
+func (_ Unimplemented) ApproveMember(w http.ResponseWriter, r *http.Request, id IdeaId, empNo EmpNo, params ApproveMemberParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1412,6 +1430,65 @@ func (siw *ServerInterfaceWrapper) UpdateIdea(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// ApproveMember operation middleware
+func (siw *ServerInterfaceWrapper) ApproveMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IdeaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "empNo" -------------
+	var empNo EmpNo
+
+	err = runtime.BindStyledParameterWithOptions("simple", "empNo", chi.URLParam(r, "empNo"), &empNo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "empNo", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ApproveMemberParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ApproveMember(w, r, id, empNo, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DownloadSlides operation middleware
 func (siw *ServerInterfaceWrapper) DownloadSlides(w http.ResponseWriter, r *http.Request) {
 
@@ -1700,6 +1777,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/ideas/{id}/slides", wrapper.ReplaceSlides)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ideas/{id}/members/{empNo}/approve", wrapper.ApproveMember)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/join-requests", wrapper.ListJoinRequests)

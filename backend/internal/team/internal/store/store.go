@@ -78,7 +78,7 @@ func ListPending(ctx context.Context, q interface {
 	if err != nil {
 		return nil, fmt.Errorf("select pending join requests: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := []PendingRow{}
 	for rows.Next() {
 		var p PendingRow
@@ -96,4 +96,55 @@ func ListPending(ctx context.Context, q interface {
 		return nil, fmt.Errorf("iterate pending join requests: %w", err)
 	}
 	return out, nil
+}
+
+// Locked is the idea_member row of an applicant addressed by employee ID.
+type Locked struct {
+	UserID uuid.UUID
+	Status string
+}
+
+// LockByEmpNo locks the row of the User with this employee ID on the Idea and
+// returns it, or ErrNoRow. The caller already holds the Idea row lock.
+func LockByEmpNo(ctx context.Context, tx *sql.Tx, ideaID uuid.UUID, empNo string) (Locked, error) {
+	var (
+		out Locked
+		uid string
+	)
+	err := tx.QueryRowContext(ctx,
+		`SELECT m.user_id, m.status FROM idea_member m JOIN app_user u ON u.id = m.user_id
+		  WHERE m.idea_id = ? AND u.emp_no = ? FOR UPDATE`, ideaID.String(), empNo).Scan(&uid, &out.Status)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Locked{}, ErrNoRow
+	}
+	if err != nil {
+		return Locked{}, fmt.Errorf("lock idea_member: %w", err)
+	}
+	if out.UserID, err = uuid.Parse(uid); err != nil {
+		return Locked{}, fmt.Errorf("idea_member user id: %w", err)
+	}
+	return out, nil
+}
+
+// CountAccepted returns the number of approved Members of the Idea.
+func CountAccepted(ctx context.Context, tx *sql.Tx, ideaID uuid.UUID) (int, error) {
+	var n int
+	if err := tx.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM idea_member WHERE idea_id = ? AND status = 'ACCEPTED'`,
+		ideaID.String()).Scan(&n); err != nil {
+		return 0, fmt.Errorf("count accepted members: %w", err)
+	}
+	return n, nil
+}
+
+// Accept turns a PENDING row into ACCEPTED and sets accepted_at (database
+// clock).
+func Accept(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.UUID) error {
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE idea_member SET status = 'ACCEPTED', accepted_at = CURRENT_TIMESTAMP(6)
+		  WHERE idea_id = ? AND user_id = ? AND status = 'PENDING'`,
+		ideaID.String(), userID.String()); err != nil {
+		return fmt.Errorf("accept idea_member: %w", err)
+	}
+	return nil
 }

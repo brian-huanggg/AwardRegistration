@@ -119,7 +119,7 @@ func (h Handler) GetIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId) 
 		h.Fail(w, r, err)
 		return
 	}
-	body, err := h.toDetail(got, p)
+	body, err := h.toDetail(r.Context(), got, p)
 	if err != nil {
 		h.Fail(w, r, err)
 		return
@@ -127,15 +127,14 @@ func (h Handler) GetIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId) 
 	web.WriteJSON(w, http.StatusOK, body)
 }
 
-func (h Handler) toDetail(i Idea, caller security.Principal) (detail, error) {
+func (h Handler) toDetail(ctx context.Context, i Idea, caller security.Principal) (detail, error) {
 	base, err := h.ExpectedFilename(i.Category, i.Org, i.LeaderName, i.LeaderEmpNo, i.Name)
 	if err != nil {
 		return detail{}, err
 	}
 	d := detail{
 		ID: i.ID, Category: i.Category, Org: i.Org, Direction: i.Direction, Name: i.Name, Summary: i.Summary,
-		Leader: person{EmpNo: i.LeaderEmpNo, Name: i.LeaderName},
-		// TODO(B5-01): approved Members and pending requests come from idea_member.
+		Leader:  person{EmpNo: i.LeaderEmpNo, Name: i.LeaderName},
 		Members: []member{},
 		Slides: slides{Ext: i.Slides.Ext, Size: i.Slides.Size, SHA256: i.Slides.SHA256,
 			UpdatedAt: web.FormatTime(i.SlidesUpdatedAt), DownloadFilename: base + "." + i.Slides.Ext},
@@ -144,8 +143,40 @@ func (h Handler) toDetail(i Idea, caller security.Principal) (detail, error) {
 		UpdatedAt:            web.FormatTime(i.UpdatedAt),
 		Version:              int64(i.Version),
 	}
+	members, err := h.Service.Members(ctx, i.ID)
+	if err != nil {
+		return detail{}, err
+	}
+	for _, m := range members {
+		d.Members = append(d.Members, member{EmpNo: m.EmpNo, Name: m.Name, JoinedAt: web.FormatTime(m.At)})
+	}
 	if caller.IsAdmin() || caller.UserID == i.LeaderID {
-		d.PendingRequests = &[]pending{}
+		reqs, err := h.Service.Pending(ctx, i.ID)
+		if err != nil {
+			return detail{}, err
+		}
+		list := make([]pending, 0, len(reqs))
+		for _, q := range reqs {
+			list = append(list, pending{EmpNo: q.EmpNo, Name: q.Name, RequestedAt: web.FormatTime(q.At)})
+		}
+		d.PendingRequests = &list
 	}
 	return d, nil
+}
+
+// WriteDetail answers 200 with the current IdeaDetail of an Idea the caller
+// may see. It is the response of the team actions that change an Idea's
+// roster (approve); no audit row, the action wrote its own.
+func (h Handler) WriteDetail(w http.ResponseWriter, r *http.Request, id uuid.UUID, caller security.Principal) {
+	got, err := h.Service.Get(r.Context(), id, caller)
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	body, err := h.toDetail(r.Context(), got, caller)
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	web.WriteJSON(w, http.StatusOK, body)
 }

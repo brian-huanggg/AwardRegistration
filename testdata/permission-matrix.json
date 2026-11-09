@@ -385,6 +385,48 @@
       }
     },
     {
+      "id": "approve-member",
+      "operation": "approve a pending request (${ideaId} has a PENDING applicant ${pendingEmpNo}; only its Leader may approve)",
+      "method": "POST",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}/approve",
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 200 },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "approve-member-not-open",
+      "operation": "approve before the contest opens (role is checked before state)",
+      "method": "POST",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}/approve",
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "approve-member-closed",
+      "operation": "approve after the deadline",
+      "method": "POST",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}/approve",
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
       "id": "list-join-requests",
       "operation": "my join requests: every logged-in caller gets 200 (Admin: empty). Member cells arrive with B5-04",
       "method": "GET",

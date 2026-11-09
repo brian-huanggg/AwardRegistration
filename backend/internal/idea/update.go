@@ -186,7 +186,7 @@ func (h Handler) UpdateIdea(w http.ResponseWriter, r *http.Request, id uuid.UUID
 		h.Fail(w, r, err)
 		return
 	}
-	body, err := h.toDetail(got, p)
+	body, err := h.toDetail(r.Context(), got, p)
 	if err != nil {
 		h.Fail(w, r, err)
 		return

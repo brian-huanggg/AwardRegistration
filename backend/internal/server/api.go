@@ -105,3 +105,8 @@ func (a API) CreateJoinRequest(w http.ResponseWriter, r *http.Request, _ api.Cre
 func (a API) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
 	a.Team.ListJoinRequests(w, r)
 }
+
+// ApproveMember serves POST /ideas/{id}/members/{empNo}/approve.
+func (a API) ApproveMember(w http.ResponseWriter, r *http.Request, id api.IdeaId, empNo api.EmpNo, _ api.ApproveMemberParams) {
+	a.Team.ApproveMember(w, r, uuid.UUID(id), empNo, a.Ideas.WriteDetail)
+}

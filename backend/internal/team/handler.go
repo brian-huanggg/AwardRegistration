@@ -3,6 +3,8 @@ package team
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/security"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
 )
@@ -93,4 +95,22 @@ func (h Handler) CreateJoinRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	web.WriteJSON(w, http.StatusCreated, toBody(got))
+}
+
+// ApproveMember serves POST /ideas/{id}/members/{empNo}/approve. On success
+// respond writes the 200 IdeaDetail of the Idea (the idea module renders it).
+func (h Handler) ApproveMember(w http.ResponseWriter, r *http.Request, id uuid.UUID, empNo string,
+	respond func(w http.ResponseWriter, r *http.Request, id uuid.UUID, caller security.Principal)) {
+	p, ok := security.PrincipalFrom(r.Context())
+	if !ok {
+		h.Fail(w, r, web.NewError(web.CodeUnauthenticated, "authentication required"))
+		return
+	}
+	err := h.Service.Approve(r.Context(), id, empNo, p,
+		Request{Method: r.Method, Route: web.RoutePattern(r), UserAgent: r.UserAgent(), IP: web.ClientIP(r)})
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	respond(w, r, id, p)
 }

@@ -68,3 +68,27 @@ func (s *Service) FindByLeader(ctx context.Context, leaderEmpNo, name string) (I
 	}
 	return got, err
 }
+
+// Person is a Member or an applicant of an Idea; At is the approval time of a
+// Member and the request time of an applicant.
+type Person = store.Person
+
+// Members returns the approved Members of an Idea, oldest approval first.
+func (s *Service) Members(ctx context.Context, id uuid.UUID) ([]Person, error) {
+	return store.Members(ctx, s.DB, id)
+}
+
+// Pending returns the pending applicants of an Idea, oldest request first.
+func (s *Service) Pending(ctx context.Context, id uuid.UUID) ([]Person, error) {
+	return store.Pending(ctx, s.DB, id)
+}
+
+// LockLeader locks the idea row inside the caller's transaction and returns
+// its Leader. A missing Idea is the uniform NOT_FOUND.
+func (s *Service) LockLeader(ctx context.Context, tx *sql.Tx, id uuid.UUID) (uuid.UUID, error) {
+	leader, err := store.LockLeader(ctx, tx, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return uuid.Nil, web.NewError(web.CodeNotFound, "")
+	}
+	return leader, err
+}

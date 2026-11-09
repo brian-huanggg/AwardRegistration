@@ -170,11 +170,12 @@ type actor struct {
 	name    string
 	session *http.Cookie
 	leader  bool // leads the Idea that ${ideaId} stands for
+	member  bool // is an approved Member of that Idea
 }
 
 // fixtures lists the actors the harness can build. The leader is a User who
-// leads the Idea that ${ideaId} stands for; the member arrives with B5-01.
-var fixtures = map[string]string{"visitor": "", "user": "USER", "leader": "USER", "admin": "ADMIN"}
+// leads the Idea that ${ideaId} stands for; the member is an approved Member of it.
+var fixtures = map[string]string{"visitor": "", "user": "USER", "member": "USER", "leader": "USER", "admin": "ADMIN"}
 
 // newActor creates a fresh account (logout and login change session state, so
 // no two cells share one) and logs in through the API.
@@ -199,7 +200,7 @@ func (e *env) newActor(t *testing.T, name string) actor {
 	if rec.Code != 200 {
 		t.Fatalf("login %s: %d %s", name, rec.Code, rec.Body)
 	}
-	return actor{empNo: empNo, name: "N " + empNo, session: cookie(rec, auth.SessionCookie), leader: name == "leader"}
+	return actor{empNo: empNo, name: "N " + empNo, session: cookie(rec, auth.SessionCookie), leader: name == "leader", member: name == "member"}
 }
 
 func cookie(rec *httptest.ResponseRecorder, name string) *http.Cookie {
@@ -245,7 +246,23 @@ func (e *env) seedIdea(t *testing.T, a actor) (id, leaderEmpNo string) {
 		id, leaderID, "slides/"+id+"/"+uuid.NewString()+".pdf", strings.Repeat("ab", 32)); err != nil {
 		t.Fatal(err)
 	}
+	if a.member {
+		e.addRow(t, id, a.empNo, "ACCEPTED")
+	}
 	return id, empNo
+}
+
+// addRow inserts an idea_member row for the User with this employee number.
+func (e *env) addRow(t *testing.T, ideaID, empNo, status string) {
+	t.Helper()
+	accepted := "NULL"
+	if status == "ACCEPTED" {
+		accepted = "NOW(6)"
+	}
+	if _, err := e.db.Exec(`INSERT INTO idea_member (idea_id, user_id, status, accepted_at)
+	        SELECT ?, id, ?, `+accepted+` FROM app_user WHERE emp_no = ?`, ideaID, status, empNo); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
@@ -255,6 +272,13 @@ func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 		var id string
 		id, seeded = e.seedIdea(t, a)
 		r.Path = strings.ReplaceAll(r.Path, "${ideaId}", id)
+		// ${pendingEmpNo} is a fresh applicant with a PENDING request on the seeded Idea.
+		if strings.Contains(r.Path, "${pendingEmpNo}") {
+			applicant := fmt.Sprintf("%06d", 800000+e.seq.Add(1))
+			e.addUser(t, applicant, "USER")
+			e.addRow(t, id, applicant, "PENDING")
+			r.Path = strings.ReplaceAll(r.Path, "${pendingEmpNo}", applicant)
+		}
 	}
 	// ${leaderEmpNo} in a JSON body names the Leader of the seeded Idea ("Matrix Seed").
 	var body *strings.Reader
