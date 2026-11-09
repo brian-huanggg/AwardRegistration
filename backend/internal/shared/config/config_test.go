@@ -18,16 +18,16 @@ func TestDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.Profile != "local" || c.PublicAddr != ":8080" || c.ManagementAddr != ":8081" ||
-		c.LogLevel != slog.LevelInfo || c.ShutdownTimeout != 20*time.Second || c.CSRFKey != config.DefaultCSRFKey {
+		c.LogLevel != slog.LevelInfo || c.ShutdownTimeout != 20*time.Second || c.CSRFKey != config.DefaultCSRFKey || c.ProxyHops != 1 {
 		t.Fatalf("%+v", c)
 	}
 }
 
 func TestOverrides(t *testing.T) {
 	c, err := config.Load(env(map[string]string{
-		"ESG_PROFILE": "dev", "ESG_CSRF_KEY": key, "ESG_CSRF_KEY_PREVIOUS": key + "2", "ESG_LOG_LEVEL": "debug", "ESG_SHUTDOWN_TIMEOUT": "5s", "ESG_READY_DRAIN_DELAY": "1s",
+		"ESG_PROFILE": "dev", "ESG_CSRF_KEY": key, "ESG_CSRF_KEY_PREVIOUS": key + "2", "ESG_LOG_LEVEL": "debug", "ESG_SHUTDOWN_TIMEOUT": "5s", "ESG_READY_DRAIN_DELAY": "1s", "ESG_TRUSTED_PROXY_HOPS": "2",
 	}))
-	if err != nil || c.Profile != "dev" || c.LogLevel != slog.LevelDebug || c.ReadyDrainDelay != time.Second {
+	if err != nil || c.Profile != "dev" || c.LogLevel != slog.LevelDebug || c.ReadyDrainDelay != time.Second || c.ProxyHops != 2 {
 		t.Fatalf("%+v %v", c, err)
 	}
 }
@@ -43,6 +43,9 @@ func TestInvalid(t *testing.T) {
 		"short previous key": {"ESG_CSRF_KEY": key, "ESG_CSRF_KEY_PREVIOUS": "short"},
 		"dev needs csrf key": {"ESG_PROFILE": "dev"},
 		"k3s needs csrf key": {"ESG_PROFILE": "k3s"},
+		"hops text":          {"ESG_TRUSTED_PROXY_HOPS": "one"},
+		"negative hops":      {"ESG_TRUSTED_PROXY_HOPS": "-1"},
+		"too many hops":      {"ESG_TRUSTED_PROXY_HOPS": "11"},
 		"same address":       {"ESG_PUBLIC_ADDR": ":9", "ESG_MANAGEMENT_ADDR": ":9"},
 	} {
 		if _, err := config.Load(env(m)); err == nil {

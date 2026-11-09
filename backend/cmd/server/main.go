@@ -77,6 +77,7 @@ func run() error {
 
 	var ready atomic.Bool
 	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si),
+		web.TrustedProxies(cfg.ProxyHops),
 		auth.Middleware(sessions, server.IsPublic, log),
 		csrf.Middleware(errs.Write, server.ActionFor)), &ready, server.DBCheck(db))
 }

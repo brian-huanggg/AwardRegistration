@@ -16,6 +16,9 @@ const (
 	loginWindow      = 15 * time.Minute
 	loginLockFor     = 15 * time.Minute
 	loginKeyMax      = 32
+
+	ipMaxFailures = 30
+	ipWindow      = 15 * time.Minute
 )
 
 // DBThrottle is the Throttle over the login_lock table: 5 consecutive
@@ -24,7 +27,10 @@ const (
 // still answers 401; the lock shows from the 6th attempt. The counters live in
 // MariaDB so all replicas share them, and every time is database time.
 //
-// The per-IP window (B1b-05) is not part of this type yet: ip is ignored.
+// It also applies the per-IP limit: 30 failures from one address inside a
+// sliding 15-minute window answer 429 until the 30th newest failure leaves the
+// window (login_attempt). A throttled attempt is neither counted for the key
+// nor for the IP. An invalid (zero) ip skips the IP window.
 type DBThrottle struct{ DB *sql.DB }
 
 var lockPolicy = store.LockPolicy{
@@ -32,6 +38,8 @@ var lockPolicy = store.LockPolicy{
 	WindowSeconds: int(loginWindow / time.Second),
 	LockSeconds:   int(loginLockFor / time.Second),
 }
+
+var ipPolicy = store.IPPolicy{MaxFailures: ipMaxFailures, WindowSeconds: int(ipWindow / time.Second)}
 
 // LockKey normalises the submitted employee-ID string: control characters are
 // removed and the rest is cut to 32 characters.
@@ -48,17 +56,37 @@ func LockKey(s string) string {
 	return s
 }
 
-// Check implements Throttle.
-func (t DBThrottle) Check(ctx context.Context, key string, _ netip.Addr) (time.Duration, error) {
-	return store.LockRemaining(ctx, t.DB, LockKey(key))
+// Check implements Throttle. Both limits apply; the longer wait is returned.
+func (t DBThrottle) Check(ctx context.Context, key string, ip netip.Addr) (time.Duration, error) {
+	keyWait, err := store.LockRemaining(ctx, t.DB, LockKey(key))
+	if err != nil {
+		return 0, err
+	}
+	if !ip.IsValid() {
+		return keyWait, nil
+	}
+	ipWait, err := store.IPRetryAfter(ctx, t.DB, ipString(ip), ipPolicy)
+	if err != nil {
+		return 0, err
+	}
+	return max(keyWait, ipWait), nil
 }
 
 // Fail implements Throttle.
-func (t DBThrottle) Fail(ctx context.Context, key string, _ netip.Addr) error {
-	return store.RecordFailure(ctx, t.DB, LockKey(key), lockPolicy)
+func (t DBThrottle) Fail(ctx context.Context, key string, ip netip.Addr) error {
+	if err := store.RecordFailure(ctx, t.DB, LockKey(key), lockPolicy); err != nil {
+		return err
+	}
+	if !ip.IsValid() {
+		return nil
+	}
+	return store.RecordIPFailure(ctx, t.DB, ipString(ip))
 }
 
-// Succeed implements Throttle.
+// Succeed implements Throttle. The IP window is not cleared: its failures stay
+// until they leave the window.
 func (t DBThrottle) Succeed(ctx context.Context, key string) error {
 	return store.ClearFailures(ctx, t.DB, LockKey(key))
 }
+
+func ipString(ip netip.Addr) string { return ip.Unmap().WithZone("").String() }

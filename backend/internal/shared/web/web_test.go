@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"os"
 	"sort"
 	"strings"
@@ -179,5 +180,40 @@ func TestFieldErrorsRendered(t *testing.T) {
 	web.WriteProblem(rec, httptest.NewRequest(http.MethodGet, "/", nil), e)
 	if !strings.Contains(rec.Body.String(), `"errors":[{"field":"name","code":"REQUIRED"}]`) || rec.Code != 422 {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestClientIPTrustedProxies(t *testing.T) {
+	for name, tc := range map[string]struct {
+		hops int
+		xff  []string
+		want string
+	}{
+		"hops 0 ignores header":     {0, []string{"198.51.100.1"}, "192.0.2.9"},
+		"one hop takes last entry":  {1, []string{"203.0.113.7, 198.51.100.1"}, "198.51.100.1"},
+		"spoofed prefix is ignored": {1, []string{"10.0.0.1, 198.51.100.1"}, "198.51.100.1"},
+		"two hops":                  {2, []string{"203.0.113.7, 198.51.100.1, 10.1.1.1"}, "198.51.100.1"},
+		"several header lines":      {1, []string{"203.0.113.7", "198.51.100.1"}, "198.51.100.1"},
+		"too few entries":           {2, []string{"198.51.100.1"}, "192.0.2.9"},
+		"no header":                 {1, nil, "192.0.2.9"},
+		"garbage entry":             {1, []string{"198.51.100.1, nope"}, "192.0.2.9"},
+		"ipv4-mapped and zone":      {1, []string{"::ffff:198.51.100.1"}, "198.51.100.1"},
+		"ipv6":                      {1, []string{"2001:db8::1"}, "2001:db8::1"},
+		"empty entry":               {1, []string{"198.51.100.1,"}, "192.0.2.9"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/", nil)
+			r.RemoteAddr = "192.0.2.9:4000"
+			for _, v := range tc.xff {
+				r.Header.Add("X-Forwarded-For", v)
+			}
+			var got netip.Addr
+			web.TrustedProxies(tc.hops)(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+				got = web.ClientIP(r)
+			})).ServeHTTP(httptest.NewRecorder(), r)
+			if got.String() != tc.want {
+				t.Fatalf("got %s want %s", got, tc.want)
+			}
+		})
 	}
 }

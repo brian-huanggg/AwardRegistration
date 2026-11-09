@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -20,13 +21,17 @@ type Config struct {
 	ReadyDrainDelay time.Duration // time readiness stays false before Shutdown starts
 	CSRFKey         string        // HMAC key that signs CSRF tokens (>= 32 bytes)
 	CSRFKeyPrevious string        // optional: still verifies for 8 h after a rotation
+	ProxyHops       int           // X-Forwarded-For proxies to trust for the client IP; 0 = TCP peer (PRD §6.5)
 }
 
 // DefaultCSRFKey is the throwaway key of the local profile only; every other
 // profile must set ESG_CSRF_KEY.
 const DefaultCSRFKey = "local-dev-csrf-key-not-a-secret-0000"
 
-const minCSRFKeyBytes = 32
+const (
+	minCSRFKeyBytes = 32
+	maxProxyHops    = 10
+)
 
 // DefaultDSN matches docker-compose.yml (throwaway local credentials). The query
 // pins UTC and matched-row counts (Backend.md §2.3).
@@ -66,6 +71,9 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("ESG_LOG_LEVEL: %w", err)
 	}
 	var err error
+	if c.ProxyHops, err = strconv.Atoi(get("ESG_TRUSTED_PROXY_HOPS", "1")); err != nil || c.ProxyHops < 0 || c.ProxyHops > maxProxyHops {
+		return Config{}, fmt.Errorf("ESG_TRUSTED_PROXY_HOPS: want an integer 0..%d", maxProxyHops)
+	}
 	if c.ShutdownTimeout, err = time.ParseDuration(get("ESG_SHUTDOWN_TIMEOUT", "20s")); err != nil {
 		return Config{}, fmt.Errorf("ESG_SHUTDOWN_TIMEOUT: %w", err)
 	}
