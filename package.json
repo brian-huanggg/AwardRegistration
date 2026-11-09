@@ -1,6 +1,6 @@
 {
   "name": "@johnnyboy11234/esg-idea-contest",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "ESG Idea Contest registration system: Go backend, React frontend and design documents (source distribution).",
   "license": "MIT",
   "author": "Brian Huang",
