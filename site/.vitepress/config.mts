@@ -8,15 +8,18 @@ export default defineConfig({
     // https://vitepress.dev/reference/default-theme-config
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Examples', link: '/markdown-examples' }
+      { text: 'Audit Log', link: '/audit-log/' },
     ],
 
     sidebar: [
       {
-        text: 'Examples',
+        text: 'Audit Log',
         items: [
-          { text: 'Markdown Examples', link: '/markdown-examples' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
+          { text: 'Concepts', link: '/audit-log/' },
+          { text: 'Architecture', link: '/audit-log/architecture' },
+          { text: 'Implementation', link: '/audit-log/implementation' },
+          { text: 'Decision Thinking', link: '/audit-log/decisions' },
+          { text: 'Technical FAQ', link: '/audit-log/faq' }
         ]
       }
     ],
