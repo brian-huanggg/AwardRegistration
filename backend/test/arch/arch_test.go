@@ -36,6 +36,9 @@ const (
 // may import. A module directory missing from this table fails the test, so adding a module forces
 // a conscious decision about its edges. Facts it encodes:
 //   - D29: storage has no dependency on idea; slides sits on idea + storage.
+//   - idea -> storage is allowed only for Idea delete (Sequence.md §5): idea inserts
+//     pending_file_deletion in its tx and deletes the object after commit. idea should depend on
+//     a small interface it declares itself, not on storage's concrete types (bd 1ve).
 //   - D30: account never imports auth (SessionRevoker is injected from main.go).
 //   - D53: audit is reached by business modules; audit itself imports no module.
 //   - admin holds HTTP entry points only and may call any service.
@@ -45,7 +48,7 @@ var allowedEdges = map[string][]string{
 	"account":  {"audit"},
 	"auth":     {"account", "audit"},
 	"storage":  {"audit"},
-	"idea":     {"audit", "deadline"},
+	"idea":     {"audit", "deadline", "storage"},
 	"team":     {"audit", "deadline", "idea"},
 	"slides":   {"audit", "deadline", "idea", "storage"},
 	"admin":    {"account", "audit", "auth", "deadline", "idea", "slides", "storage", "team"},
@@ -284,6 +287,7 @@ func TestChecksDetectViolations(t *testing.T) {
 
 	allowed := []imp{
 		{File: "a.go", Pkg: "slides", Target: "storage"},
+		{File: "a.go", Pkg: "idea", Target: "storage"},
 		{File: "a.go", Pkg: "idea", Target: "shared/web"},
 		{File: "a.go", Pkg: "idea", Target: "api"},
 		{File: "a.go", Pkg: "server", Target: "idea"},

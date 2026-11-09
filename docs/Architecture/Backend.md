@@ -52,6 +52,7 @@ Same graph and rules as `Backend.md` §2.1. Go mechanics:
 - **`SubmissionGate`** (D34, OI-18):
   - `Precheck(ctx, actor) error` — read-only;
   - `AssertOpenInTx(ctx, tx *sql.Tx, actor) error` — the `tx` parameter makes it impossible to call outside a write transaction [ADR G9].
+- **`idea → storage`** (allowed; bd 1ve): `DELETE /ideas/{id}` (`Sequence.md` §5) inserts `pending_file_deletion` in its own transaction and deletes the object after commit, so `idea` needs `storage`. `idea` declares a small interface (for example `ObjectDeleter { Delete(ctx, key string) error }`) that `storage` implements, and `main.go` injects it. `storage` still imports no `idea` (D29), so the graph stays acyclic.
 - Allowed edges are listed once in a table inside the import-graph test (§2.4) and compared with the real graph.
 ### 2.2 Package layout inside a module **[ADR G6]**
  

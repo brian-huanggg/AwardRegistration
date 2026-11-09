@@ -149,7 +149,7 @@ Next deliverables: ADR drafts for the decisions below; Flyway migration plan for
 | D26 | No `job_lease` table in v1 | Idempotent operations and `SKIP LOCKED` are enough | Decided |
 | D27 | MariaDB 10.8 LTS with native `UUID` and `INET6` | Version confirmed by the owner | **Reopened** (D45) |
 | D28 | No dedicated Spring Boot 4 compatibility spike | Owner decision; risk accepted | **Superseded: no Spring in the Go backend (OI-31 closed)** (was: Decided (OI-31)) |
-| D29 | Split `slides` into `storage` (no dependency on `idea`) and `slides` (HTTP orchestration on top of `idea` + `storage`) | Removes the `idea` ↔ `slides` cycle | Decided |
+| D29 | Split `slides` into `storage` (no dependency on `idea`) and `slides` (HTTP orchestration on top of `idea` + `storage`) | Removes the `idea` ↔ `slides` cycle. `idea → storage` is allowed (Idea delete, `Sequence.md` §5); the forbidden direction is `storage → idea` | Decided |
 | D30 | Split `auth` into `account` and `auth`; `account` defines `SessionRevoker`, `auth` implements it | Smaller modules; Vault uncertainty isolated; no cycle | Decided |
 | D31 | Repositories use `JdbcClient`, hand-written SQL owned by each module, no JPA | Locking, upserts, atomic session statement and visibility query are SQL by design | **Superseded by ADR G1 (sqlc, hand-written SQL per module; intent unchanged)** (was: Decided) |
 | D32 | `shared` depends on no business module and contains no business concept | Reusable, trivially testable kernel | Decided |
