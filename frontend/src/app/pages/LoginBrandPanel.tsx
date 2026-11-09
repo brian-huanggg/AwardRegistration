@@ -1,15 +1,18 @@
-import { Leaf } from "lucide-react";
+import landing from "assets/landing.jpg";
 import { useTranslation } from "react-i18next";
-import { useDeadline, type SubmissionState } from "@/features/deadline/useDeadline";
+import {
+  useDeadline,
+  type SubmissionState,
+} from "@/features/deadline/useDeadline";
 import { cn } from "@/shared/ui/utils";
 
 /** Dot per state. It only repeats the state text, so colour never carries meaning alone. */
 const DOT: Record<SubmissionState | "loading" | "error", string> = {
   OPEN: "bg-brand-panel-state",
-  NOT_OPEN: "border-2 border-brand-panel-accent",
-  CLOSED: "bg-brand-panel-muted/60",
-  loading: "border-2 border-brand-panel-muted/60",
-  error: "border-2 border-brand-panel-muted/60",
+  NOT_OPEN: "border-2 border-brand-panel",
+  CLOSED: "bg-brand-panel/50",
+  loading: "border-2 border-brand-panel/50",
+  error: "border-2 border-brand-panel/50",
 };
 
 /** "Mon, Nov 30, 2026, 18:00 GMT+8" in the user's own time zone (UI-02 "Design vs contract"). */
@@ -55,7 +58,7 @@ function DeadlineBlock() {
       role="region"
       aria-label={t("deadlineBanner.label")}
       data-state={key}
-      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-brand-panel-foreground/10 bg-brand-panel-foreground/5 p-4 text-[13px] lg:p-6"
+      className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border border-brand-panel/15 bg-white/70 backdrop-blur-sm p-4 text-[13px] lg:p-6"
     >
       <p className="flex items-center gap-2 font-semibold">
         <span
@@ -65,7 +68,7 @@ function DeadlineBlock() {
         {state}
       </p>
       {/* Below 1024 px the stacked panel keeps the state only (UI-02 "Responsive behaviour"). */}
-      {when && <p className="hidden text-brand-panel-muted lg:block">{when}</p>}
+      {when && <p className="hidden text-brand-panel/80 lg:block">{when}</p>}
     </div>
   );
 }
@@ -74,25 +77,26 @@ function DeadlineBlock() {
 export function LoginBrandPanel() {
   const { t } = useTranslation();
   return (
-    <div className="flex flex-col justify-between gap-6 bg-brand-panel bg-[radial-gradient(ellipse_140%_100%_at_85%_10%,color-mix(in_oklch,var(--brand-panel-glow)_40%,transparent),transparent)] p-6 text-brand-panel-foreground md:p-10 lg:min-h-screen lg:gap-10 lg:p-14">
+    <div
+      className="flex flex-col justify-between gap-6 bg-cover bg-center p-6 text-brand-panel md:p-10 lg:min-h-screen lg:gap-10 lg:p-14"
+      // The illustration is light, so the panel text uses the dark brand green.
+      style={{ backgroundImage: `url(${landing})` }}
+    >
       <div className="flex items-center gap-2.5">
-        <div
+        <img
+          src="/favicon.png"
+          alt=""
           aria-hidden="true"
-          className="flex size-9 items-center justify-center rounded-[10px] bg-brand-panel-logo text-brand-panel"
-        >
-          <Leaf className="size-5" />
-        </div>
+          className="size-9 rounded-full bg-white"
+        />
         <p className="font-semibold">{t("app.name")}</p>
       </div>
       <div className="flex flex-col gap-5">
-        <p className="hidden text-xs font-semibold tracking-[0.17em] text-brand-panel-accent uppercase lg:block">
+        <p className="hidden text-xs font-semibold tracking-[0.17em] text-brand-panel/80 uppercase lg:block">
           {t("pages.login.brand.eyebrow")}
         </p>
         <p className="text-3xl leading-[1.05] font-bold tracking-tight whitespace-pre-line text-balance lg:text-[56px] lg:tracking-[-0.027em]">
           {t("pages.login.brand.headline")}
-        </p>
-        <p className="hidden max-w-[460px] leading-relaxed text-brand-panel-muted lg:block">
-          {t("pages.login.brand.body")}
         </p>
       </div>
       <DeadlineBlock />

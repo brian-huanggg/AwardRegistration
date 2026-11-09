@@ -102,7 +102,6 @@ export const en = {
       brand: {
         eyebrow: '2026 ESG Award · IT Division',
         headline: 'Small teams.\nReal impact.',
-        body: 'Form a team of up to four, submit one Idea with your slides, and help shape how we build a greener, fairer company.',
         state: { NOT_OPEN: 'Submissions not open yet', OPEN: 'Submissions open', CLOSED: 'Submissions closed' },
         closes: 'Closes {{date}}',
         closed: 'Closed {{date}}',

@@ -99,7 +99,6 @@ export const zhTW: Dictionary = {
       brand: {
         eyebrow: '2026 ESG 大獎 · 資訊處',
         headline: '小團隊，\n大影響。',
-        body: '最多四人組隊，提交一份創意與簡報，一起打造更綠色、更公平的公司。',
         state: { NOT_OPEN: '尚未開放提案', OPEN: '開放提案中', CLOSED: '提案已截止' },
         closes: '截止時間 {{date}}',
         closed: '已於 {{date}} 截止',

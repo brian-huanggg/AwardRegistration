@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, ChartColumn, CirclePlus, Leaf, Lightbulb, LogOut, UserPlus, type LucideIcon } from 'lucide-react';
+import { CalendarClock, ChartColumn, CirclePlus, Lightbulb, LogOut, UserPlus, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { NavLink, matchPath, useLocation, useNavigate } from 'react-router';
 import { logout } from '@/features/auth/login';
@@ -40,9 +40,7 @@ export function Sidebar({ me, onNavigate, className }: { me: Me; onNavigate?: ()
   return (
     <div className={cn('flex h-full flex-col gap-4 bg-sidebar p-2 text-sidebar-foreground', className)}>
       <div className="flex items-center gap-2 p-2">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-          <Leaf aria-hidden="true" className="size-4" />
-        </span>
+        <img src="/favicon.png" alt="" aria-hidden="true" className="size-8 shrink-0" />
         <span className="truncate text-sm font-medium">{t('app.name')}</span>
       </div>
       <nav aria-label={t('nav.main')} className="flex-1 overflow-y-auto">
