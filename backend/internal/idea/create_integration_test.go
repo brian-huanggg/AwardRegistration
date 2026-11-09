@@ -138,10 +138,19 @@ func newCreateEnv(t *testing.T) *createEnv {
 // example a fault-injecting pool) and every other access on d.
 func newCreateEnvOn(t *testing.T, d, svcDB *sql.DB) *createEnv {
 	t.Helper()
-	aud := audit.New(d, nil)
 	objs := newFakeObjects()
+	e := newEnvWithStore(t, d, svcDB, objs)
+	e.objects = objs
+	return e
+}
+
+// newEnvWithStore wires the service to any storage.SlideStore (the fake, or
+// real MinIO for the fault-tolerance demo). e.objects is left nil.
+func newEnvWithStore(t *testing.T, d, svcDB *sql.DB, objs storage.SlideStore) *createEnv {
+	t.Helper()
+	aud := audit.New(d, nil)
 	errs := server.ErrorAdapter{Audit: aud}
-	e := &createEnv{db: d, objects: objs, h: idea.Handler{
+	e := &createEnv{db: d, h: idea.Handler{
 		Service: &idea.Service{
 			DB: svcDB, Audit: aud,
 			Gate:     deadline.Gate{Store: deadline.SQLStore{DB: d}},
