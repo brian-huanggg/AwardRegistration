@@ -108,7 +108,7 @@ func run() error {
 	checks := []server.Check{server.DBCheck(db)}
 	if cfg.AdminFile != "" {
 		sync := &account.AdminSync{
-			DB: db, Dir: account.FileAdminDirectory{Path: cfg.AdminFile}, Audit: auditSvc, Log: log,
+			DB: db, Dir: account.FileAdminDirectory{Path: cfg.AdminFile}, Audit: auditSvc, Revoker: sessions, Log: log,
 		}
 		checks = append(checks, sync.ReadyCheck)
 		jobs.Go(func() {

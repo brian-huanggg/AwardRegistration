@@ -37,6 +37,12 @@ const (
 // has succeeded (OI-40).
 var ErrNotReady = errors.New("admin sync: first read has not succeeded yet")
 
+// SessionRevoker ends every session of one account. auth.Sessions implements
+// it; main.go passes it in, so account never imports auth (D30).
+type SessionRevoker interface {
+	RevokeAll(ctx context.Context, userID uuid.UUID) error
+}
+
 // AdminRecorder writes ADMIN_SYNC rows. *audit.Service implements it.
 type AdminRecorder interface {
 	Recorder
@@ -61,19 +67,24 @@ type AdminRecorder interface {
 //     the directory rejected (bad cost, …) does not count as missing;
 //   - directory unreadable: change nothing, count a failure, keep the Admins.
 //
-// Session revocation on a hash change or disable is B2-03.
+// A hash change or a disable also revokes that Admin's sessions (PRD §4.2).
+// The revoke runs after the commit by the replica whose write changed the row.
+// A disabled account is refused by session validation anyway; a failed revoke
+// after a hash change is kept in memory and retried at the start of each run.
 type AdminSync struct {
-	DB    *sql.DB
-	Dir   AdminDirectory
-	Audit AdminRecorder
-	Log   *slog.Logger // nil discards
+	DB      *sql.DB
+	Dir     AdminDirectory
+	Audit   AdminRecorder
+	Revoker SessionRevoker
+	Log     *slog.Logger // nil discards
 
 	ready    atomic.Bool
 	failures atomic.Uint64
 	skipped  atomic.Uint64
 
-	mu       sync.Mutex
-	reported map[string]struct{} // skips already audited, so a standing conflict is not re-audited every 60 s
+	mu        sync.Mutex
+	revokeDue map[uuid.UUID]struct{} // revokes that failed, retried next run
+	reported  map[string]struct{}    // skips already audited, so a standing conflict is not re-audited every 60 s
 }
 
 // Ready reports whether the first complete sync has succeeded. It never goes
@@ -114,6 +125,7 @@ func (s *AdminSync) Run(ctx context.Context) error {
 		log = slog.New(slog.DiscardHandler)
 	}
 	ctx = security.WithSystem(ctx)
+	s.retryRevokes(ctx)
 
 	snap, err := s.Dir.List(ctx)
 	if err != nil {
@@ -179,7 +191,9 @@ var errUserConflict = errors.New("admin sync: emp_no belongs to a User")
 
 // apply brings one directory entry into app_user.
 func (s *AdminSync) apply(ctx context.Context, e AdminEntry) error {
+	var revoke uuid.UUID
 	_, err := db.InTx(ctx, s.DB, func(ctx context.Context, tx *sql.Tx) error {
+		revoke = uuid.Nil
 		cur, found, err := lockByEmpNo(ctx, tx, e.EmpNo)
 		if err != nil {
 			return err
@@ -219,9 +233,14 @@ func (s *AdminSync) apply(ctx context.Context, e AdminEntry) error {
 		}
 		if hashChanged {
 			after["hashChanged"] = true // the hash itself is never logged
+			after["sessionsRevoked"] = true
+			revoke = cur.id
 		}
 		return s.record(ctx, tx, cur.id, e.EmpNo, after)
 	})
+	if err == nil && revoke != uuid.Nil {
+		s.revoke(ctx, revoke)
+	}
 	if key, dup := db.DuplicateKey(err); dup && strings.Contains(key, "emp_no") {
 		// Another replica inserted it between our SELECT and INSERT; it
 		// wrote the audit row.
@@ -258,19 +277,25 @@ func (s *AdminSync) disableMissing(ctx context.Context, known map[string]struct{
 
 	var errs error
 	for _, empNo := range gone {
+		var revoke uuid.UUID
 		_, err := db.InTx(ctx, s.DB, func(ctx context.Context, tx *sql.Tx) error {
 			cur, found, err := lockByEmpNo(ctx, tx, empNo)
 			if err != nil {
 				return err
 			}
+			revoke = uuid.Nil
 			if !found || cur.role != "ADMIN" || !cur.enabled {
 				return errNoChange // another replica was first
 			}
 			if _, err := tx.ExecContext(ctx, `UPDATE app_user SET enabled = FALSE WHERE id = ?`, cur.id.String()); err != nil {
 				return fmt.Errorf("disable admin: %w", err)
 			}
-			return s.record(ctx, tx, cur.id, empNo, map[string]any{"change": "disabled"})
+			revoke = cur.id
+			return s.record(ctx, tx, cur.id, empNo, map[string]any{"change": "disabled", "sessionsRevoked": true})
 		})
+		if err == nil && revoke != uuid.Nil {
+			s.revoke(ctx, revoke)
+		}
 		if err != nil && !errors.Is(err, errNoChange) {
 			errs = errors.Join(errs, fmt.Errorf("disable admin %s: %w", empNo, err))
 		}
@@ -314,4 +339,39 @@ func failedEvent(empNo, reason string) audit.Event {
 		ErrorCode: reason,
 		After:     b,
 	}
+}
+
+// revoke ends the sessions of id; a failure is logged and queued for retry.
+func (s *AdminSync) revoke(ctx context.Context, id uuid.UUID) {
+	if s.Revoker == nil {
+		return
+	}
+	if err := s.Revoker.RevokeAll(ctx, id); err != nil {
+		if ctx.Err() == nil {
+			s.logger().ErrorContext(ctx, "admin sync: session revoke failed; will retry", "userId", id.String(), "error", err.Error())
+		}
+		s.mu.Lock()
+		if s.revokeDue == nil {
+			s.revokeDue = make(map[uuid.UUID]struct{})
+		}
+		s.revokeDue[id] = struct{}{}
+		s.mu.Unlock()
+	}
+}
+
+func (s *AdminSync) retryRevokes(ctx context.Context) {
+	s.mu.Lock()
+	due := s.revokeDue
+	s.revokeDue = nil
+	s.mu.Unlock()
+	for id := range due {
+		s.revoke(ctx, id)
+	}
+}
+
+func (s *AdminSync) logger() *slog.Logger {
+	if s.Log == nil {
+		return slog.New(slog.DiscardHandler)
+	}
+	return s.Log
 }

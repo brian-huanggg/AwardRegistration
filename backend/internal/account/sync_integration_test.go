@@ -11,10 +11,12 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 )
 
 type fakeDir struct {
@@ -263,5 +265,136 @@ func TestAdminSyncSkipsEntryTheTableRefuses(t *testing.T) {
 	}
 	if _, ok := e.admin(t, "900002"); !ok || !s.Ready() {
 		t.Fatal("good entry must sync and the service must be ready")
+	}
+}
+
+// flakyRevoker wraps the real session store and fails the first n calls.
+type flakyRevoker struct {
+	real  account.SessionRevoker
+	mu    sync.Mutex
+	fails int
+	calls int
+}
+
+func (r *flakyRevoker) RevokeAll(ctx context.Context, id uuid.UUID) error {
+	r.mu.Lock()
+	r.calls++
+	fail := r.fails > 0
+	if fail {
+		r.fails--
+	}
+	r.mu.Unlock()
+	if fail {
+		return errors.New("revoke down")
+	}
+	return r.real.RevokeAll(ctx, id)
+}
+
+func (e env) adminID(t *testing.T, empNo string) uuid.UUID {
+	t.Helper()
+	var id string
+	if err := e.db.QueryRow(`SELECT id FROM app_user WHERE emp_no = ?`, empNo).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	return uuid.MustParse(id)
+}
+
+func TestAdminSyncRevokesSessions(t *testing.T) {
+	e := newEnv(t)
+	sessions := auth.New(e.db)
+	h1, h2 := hash10(t, "one"), hash10(t, "two")
+	dir := &fakeDir{snap: account.AdminSnapshot{Entries: []account.AdminEntry{{EmpNo: "900001", Name: "Ada", Hash: h1}}}}
+	rev := &flakyRevoker{real: sessions}
+	s := newSync(e, dir)
+	s.Revoker = rev
+	ctx := context.Background()
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	id := e.adminID(t, "900001")
+	live := func(sid string) bool {
+		t.Helper()
+		_, ok, err := sessions.Validate(ctx, sid)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	newSession := func() string {
+		t.Helper()
+		sid, err := sessions.Create(ctx, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return sid
+	}
+
+	// Unchanged directory and a name-only change keep the session.
+	sid := newSession()
+	dir.set(account.AdminSnapshot{Entries: []account.AdminEntry{{EmpNo: "900001", Name: "Ada L", Hash: h1}}}, nil)
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !live(sid) || rev.calls != 0 {
+		t.Fatalf("name change revoked sessions (calls=%d)", rev.calls)
+	}
+
+	// Hash change revokes.
+	dir.set(account.AdminSnapshot{Entries: []account.AdminEntry{{EmpNo: "900001", Name: "Ada L", Hash: h2}}}, nil)
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if live(sid) {
+		t.Fatal("session survived a hash change")
+	}
+	if rows := e.syncRows(t); !strings.Contains(rows[len(rows)-1].After.String, `"sessionsRevoked":true`) {
+		t.Fatalf("audit row = %+v", rows[len(rows)-1])
+	}
+
+	// Removal: the next request is refused.
+	sid = newSession()
+	dir.set(account.AdminSnapshot{}, nil)
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if live(sid) {
+		t.Fatal("removed Admin's session still valid")
+	}
+	var n int
+	if err := e.db.QueryRow(`SELECT COUNT(*) FROM session WHERE user_id = ?`, id.String()).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("session rows after disable = %d, err %v", n, err)
+	}
+}
+
+func TestAdminSyncRetriesFailedRevoke(t *testing.T) {
+	e := newEnv(t)
+	sessions := auth.New(e.db)
+	h1, h2 := hash10(t, "one"), hash10(t, "two")
+	dir := &fakeDir{snap: account.AdminSnapshot{Entries: []account.AdminEntry{{EmpNo: "900001", Name: "Ada", Hash: h1}}}}
+	rev := &flakyRevoker{real: sessions, fails: 1}
+	s := newSync(e, dir)
+	s.Revoker = rev
+	ctx := context.Background()
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sid, err := sessions.Create(ctx, e.adminID(t, "900001"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir.set(account.AdminSnapshot{Entries: []account.AdminEntry{{EmpNo: "900001", Name: "Ada", Hash: h2}}}, nil)
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err) // a failed revoke does not fail the run
+	}
+	if _, ok, _ := sessions.Validate(ctx, sid); !ok {
+		t.Fatal("test setup: first revoke should have failed")
+	}
+	// The hash is already stored, so only the retry can revoke now.
+	if err := s.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := sessions.Validate(ctx, sid); ok {
+		t.Fatal("failed revoke was not retried")
 	}
 }
