@@ -25,9 +25,12 @@ interface Props {
   /** The Leader's link to the edit page, above the details. */
   editAction?: (idea: Idea) => React.ReactNode;
   slideActions?: (idea: Idea) => React.ReactNode;
+  /** Per-row controls: remove an approved Member, approve or reject a pending request, leave (own row). */
+  memberActions?: (idea: Idea, member: Idea['members'][number]) => React.ReactNode;
+  pendingActions?: (idea: Idea, request: NonNullable<Idea['pendingRequests']>[number]) => React.ReactNode;
 }
 
-export function IdeaDetail({ id, admin, notFound, heading, editAction, slideActions }: Props) {
+export function IdeaDetail({ id, admin, notFound, heading, editAction, slideActions, memberActions, pendingActions }: Props) {
   const { t, i18n } = useTranslation();
   // An Admin's GET writes an IDEA_VIEW audit row (Frontend.md §6.7): no refocus refetch, no polling.
   const { data, isPending, error, refetch } = useQuery({
@@ -115,7 +118,10 @@ export function IdeaDetail({ id, admin, notFound, heading, editAction, slideActi
         ) : (
           <ul className="text-sm">
             {data.members.map((m) => (
-              <li key={m.empNo}>{person(m)}</li>
+              <li key={m.empNo} className="flex flex-wrap items-center gap-2 py-1">
+                <span>{person(m)}</span>
+                {memberActions?.(data, m)}
+              </li>
             ))}
           </ul>
         )}
@@ -127,8 +133,11 @@ export function IdeaDetail({ id, admin, notFound, heading, editAction, slideActi
           ) : (
             <ul className="text-sm">
               {data.pendingRequests.map((r) => (
-                <li key={r.empNo}>
-                  {person(r)} · {when(r.requestedAt)}
+                <li key={r.empNo} className="flex flex-wrap items-center gap-2 py-1">
+                  <span>
+                    {person(r)} · {when(r.requestedAt)}
+                  </span>
+                  {pendingActions?.(data, r)}
                 </li>
               ))}
             </ul>

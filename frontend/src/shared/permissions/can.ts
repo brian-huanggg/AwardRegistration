@@ -4,7 +4,14 @@
  * handled like any other error.
  */
 export type Action =
-  "createIdea" | "editIdea" | "replaceSlides" | "deleteIdea" | "downloadSlides";
+  | "createIdea"
+  | "editIdea"
+  | "replaceSlides"
+  | "deleteIdea"
+  | "downloadSlides"
+  | "approveMember"
+  | "removeMember"
+  | "leaveTeam";
 
 export interface Actor {
   empNo: string;
@@ -54,6 +61,10 @@ export function can(action: Action, { me, idea, state }: Context): Decision {
     case "editIdea":
     case "replaceSlides":
     case "deleteIdea":
+    case "approveMember":
+    case "removeMember": // also covers rejecting a pending request
       return leader ? { visible: true, enabled: open } : HIDDEN;
+    case "leaveTeam": // a Leader dissolves the team by deleting the Idea
+      return member && !leader ? { visible: true, enabled: open } : HIDDEN;
   }
 }

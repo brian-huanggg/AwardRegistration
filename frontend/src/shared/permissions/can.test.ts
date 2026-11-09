@@ -19,6 +19,9 @@ describe("can()", () => {
     ["replaceSlides", "on", "on", "hidden", "hidden"],
     ["deleteIdea", "on", "on", "hidden", "hidden"],
     ["downloadSlides", "on", "on", "on", "hidden"],
+    ["approveMember", "hidden", "on", "hidden", "hidden"],
+    ["removeMember", "hidden", "on", "hidden", "hidden"],
+    ["leaveTeam", "hidden", "hidden", "on", "hidden"],
   ] as const)("%s while OPEN", (a, admin, leader, member, other) => {
     expect(
       [ADMIN, LEADER, MEMBER, OTHER].map((m) => cell(a, m, "OPEN")),
@@ -28,6 +31,9 @@ describe("can()", () => {
   it("closes Leader writes but never the Admin ones", () => {
     expect(cell("replaceSlides", LEADER, "CLOSED")).toBe("disabled");
     expect(cell("deleteIdea", LEADER, "CLOSED")).toBe("disabled");
+    expect(cell("approveMember", LEADER, "CLOSED")).toBe("disabled");
+    expect(cell("removeMember", LEADER, "CLOSED")).toBe("disabled");
+    expect(cell("leaveTeam", MEMBER, "CLOSED")).toBe("disabled");
     expect(cell("replaceSlides", ADMIN, "CLOSED")).toBe("on");
     expect(cell("deleteIdea", ADMIN, "CLOSED")).toBe("on");
     expect(cell("downloadSlides", LEADER, "CLOSED")).toBe("on");

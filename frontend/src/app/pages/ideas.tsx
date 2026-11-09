@@ -9,6 +9,8 @@ import { ReplaceSlides } from "@/features/idea/ReplaceSlides";
 import { IdeaForm } from "@/features/idea/IdeaForm";
 import { IdeaDetail as IdeaDetailView } from "@/features/idea/IdeaDetail";
 import { IdeaList as IdeaListView } from "@/features/idea/IdeaList";
+import { ApproveButton, ConfirmAction } from "@/features/team/MemberActions";
+import { approveMember, leaveTeam, removeMember } from "@/features/team/members";
 import { can } from "@/shared/permissions";
 import { Button } from "@/shared/ui/button";
 import { PageHeading } from "../layouts";
@@ -130,6 +132,109 @@ export function IdeaDetail() {
                       void client.invalidateQueries({ queryKey: ["ideas"] });
                       void navigate("/ideas", { replace: true });
                     }}
+                  />
+                )}
+              </>
+            );
+          }}
+          memberActions={(idea, m) => {
+            const ctx = { me, idea, state: deadline?.state };
+            const own = m.empNo === me.empNo;
+            const gone = () => void client.invalidateQueries({ queryKey: ideaKey(idea.id) });
+            const stale = (e: ApiError) => {
+              gone();
+              if (e.code.startsWith("SUBMISSION_")) void client.invalidateQueries({ queryKey: deadlineKey });
+            };
+            const label = `${m.name} (${m.empNo})`;
+            if (own) {
+              const leave = can("leaveTeam", ctx);
+              if (!leave.visible) return null;
+              return (
+                <ConfirmAction
+                  trigger={t("pages.ideaDetail.leave")}
+                  triggerLabel={t("pages.ideaDetail.leave")}
+                  title={t("pages.ideaDetail.leaveTitle")}
+                  body={t("pages.ideaDetail.leaveBody", { name: idea.name })}
+                  confirm={t("pages.ideaDetail.leaveConfirm")}
+                  busy={t("pages.ideaDetail.leaving")}
+                  disabled={!leave.enabled}
+                  run={async () => {
+                    await leaveTeam(idea.id);
+                    // the Idea is no longer visible to the caller: forget it and go to the list
+                    client.removeQueries({ queryKey: ideaKey(idea.id) });
+                    void client.invalidateQueries({ queryKey: ["ideas"] });
+                    void navigate("/ideas", { replace: true });
+                  }}
+                  onGone={() => {
+                    client.removeQueries({ queryKey: ideaKey(idea.id) });
+                    void client.invalidateQueries({ queryKey: ["ideas"] });
+                    void navigate("/ideas", { replace: true });
+                  }}
+                  onStale={stale}
+                />
+              );
+            }
+            const remove = can("removeMember", ctx);
+            if (!remove.visible) return null;
+            return (
+              <ConfirmAction
+                trigger={t("pages.ideaDetail.remove")}
+                triggerLabel={t("pages.ideaDetail.removeNamed", { name: label })}
+                title={t("pages.ideaDetail.removeTitle")}
+                body={t("pages.ideaDetail.removeBody", { name: label })}
+                confirm={t("pages.ideaDetail.removeConfirm")}
+                busy={t("pages.ideaDetail.removing")}
+                disabled={!remove.enabled}
+                run={async () => {
+                  await removeMember(idea.id, m.empNo);
+                  gone();
+                }}
+                onGone={gone}
+                onStale={stale}
+              />
+            );
+          }}
+          pendingActions={(idea, r) => {
+            const ctx = { me, idea, state: deadline?.state };
+            const approve = can("approveMember", ctx);
+            const reject = can("removeMember", ctx);
+            const gone = () => void client.invalidateQueries({ queryKey: ideaKey(idea.id) });
+            const stale = (e: ApiError) => {
+              gone();
+              if (e.code.startsWith("SUBMISSION_")) void client.invalidateQueries({ queryKey: deadlineKey });
+            };
+            const label = `${r.name} (${r.empNo})`;
+            return (
+              <>
+                {approve.visible && (
+                  <ApproveButton
+                    name={label}
+                    disabled={!approve.enabled}
+                    run={async () => {
+                      const saved = await approveMember(idea.id, r.empNo);
+                      // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)
+                      client.setQueryData(ideaKey(saved.id), saved);
+                      void client.invalidateQueries({ queryKey: ["ideas"] });
+                    }}
+                    onGone={gone}
+                    onStale={stale}
+                  />
+                )}
+                {reject.visible && (
+                  <ConfirmAction
+                    trigger={t("pages.ideaDetail.reject")}
+                    triggerLabel={t("pages.ideaDetail.rejectNamed", { name: label })}
+                    title={t("pages.ideaDetail.rejectTitle")}
+                    body={t("pages.ideaDetail.rejectBody", { name: label })}
+                    confirm={t("pages.ideaDetail.rejectConfirm")}
+                    busy={t("pages.ideaDetail.rejecting")}
+                    disabled={!reject.enabled}
+                    run={async () => {
+                      await removeMember(idea.id, r.empNo);
+                      gone();
+                    }}
+                    onGone={gone}
+                    onStale={stale}
                   />
                 )}
               </>
