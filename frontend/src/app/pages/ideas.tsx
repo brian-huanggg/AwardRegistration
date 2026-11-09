@@ -1,13 +1,15 @@
-import type { FormEvent, ReactNode } from 'react';
+import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { deadlineKey, useDeadline } from '@/features/deadline/useDeadline';
 import { CreateIdeaForm } from '@/features/idea/CreateIdeaForm';
+import { IdeaDetail as IdeaDetailView } from '@/features/idea/IdeaDetail';
 import { IdeaList as IdeaListView } from '@/features/idea/IdeaList';
 import { Button } from '@/shared/ui/button';
 import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
+import { NotFound } from './NotFound';
 import { useMe } from '../session';
 
 const noSubmit = (e: FormEvent) => e.preventDefault();
@@ -100,43 +102,15 @@ export function IdeaCreate() {
   );
 }
 
-function Section({ title, children }: { title: string; children?: ReactNode }) {
-  return (
-    <section className="mb-4 rounded-xl border bg-card p-6">
-      <h2 className="mb-3 text-lg font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
-
 export function IdeaDetail() {
   const { t } = useTranslation();
+  const { id = '' } = useParams();
+  const { data: me } = useMe();
   return (
     <>
-      <PageHeading title={t('pages.ideaDetail.title')} />
-      <Section title={t('pages.ideaDetail.details')}>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-          {(['ideaName', 'category', 'org', 'direction', 'leader', 'summary'] as const).map((k) => (
-            <div key={k} className="contents">
-              <dt className="font-medium">{t(`fields.${k}`)}</dt>
-              <dd>–</dd>
-            </div>
-          ))}
-        </dl>
-      </Section>
-      <Section title={t('pages.ideaDetail.members')}>
-        <p className="text-sm">{t('pages.ideaDetail.noMembers')}</p>
-      </Section>
-      <Section title={t('pages.ideaDetail.pending')}>
-        <p className="text-sm">{t('pages.ideaDetail.noPending')}</p>
-      </Section>
-      <Section title={t('pages.ideaDetail.slides')}>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline">{t('pages.ideaDetail.download')}</Button>
-          <Button variant="outline">{t('pages.ideaDetail.replace')}</Button>
-          <Button variant="destructive">{t('pages.ideaDetail.delete')}</Button>
-        </div>
-      </Section>
+      {me && (
+        <IdeaDetailView id={id} admin={me.role === 'ADMIN'} notFound={<NotFound />} heading={<PageHeading title={t('pages.ideaDetail.title')} />} />
+      )}
       <Link to="/ideas" className="font-medium text-primary underline underline-offset-4">
         {t('pages.ideaDetail.back')}
       </Link>
