@@ -24,7 +24,9 @@ import {
   NAME_MAX,
   ORGS,
   precheck,
+  precheckText,
   SUMMARY_MAX,
+  updateIdea,
   type FieldProblems,
   type IdeaDetail,
   type IdeaField,
@@ -41,29 +43,37 @@ const OPTIONS = {
 } as const;
 
 /**
- * The create form (Frontend.md §5.5, §5.6, §8): code-point counters, the expected
- * filename with copy buttons, a pre-check in the server's order, an error summary
- * that takes focus, and server errors mapped to fields. The file is never renamed
- * (OI-21): the user names it.
+ * The Idea form (Frontend.md §5.5, §5.6, §8), shared by create and edit: code-point counters,
+ * a pre-check in the server's order, an error summary that takes focus, and server errors
+ * mapped to fields. Create adds the expected filename with copy buttons and the slide file
+ * (never renamed, OI-21: the user names it). Edit sends the five text fields only (PUT).
  */
-export function CreateIdeaForm({
+export function IdeaForm({
   leader,
+  edit,
   canSubmit,
-  onCreated,
+  onSaved,
+  onCancel,
   onSubmissionRejected,
   onOutcomeUnknown,
 }: {
   leader: Leader;
+  /** Present = edit mode: starts from this Idea, has no slide file, submits with PUT. */
+  edit?: IdeaDetail;
   /** False outside the submission window; the server still decides (Frontend.md §6.3 rule 6). */
   canSubmit: boolean;
-  onCreated: (idea: IdeaDetail) => void;
+  onSaved: (idea: IdeaDetail) => void;
+  /** Edit mode: where Cancel goes. */
+  onCancel?: ReactNode;
   /** A 403 SUBMISSION_* answer: the caller refetches the deadline (Frontend.md §5.3). */
   onSubmissionRejected?: () => void;
   /** The create may have succeeded although no answer arrived (Frontend.md §5.2, F12): the caller refreshes the list. */
   onOutcomeUnknown?: () => void;
 }) {
   const { t, i18n } = useTranslation();
-  const [values, setValues] = useState<IdeaText>(EMPTY);
+  const [values, setValues] = useState<IdeaText>(
+    edit ? { category: edit.category, org: edit.org, direction: edit.direction, name: edit.name, summary: edit.summary } : EMPTY,
+  );
   const [files, setFiles] = useState<File[]>([]);
   const [problems, setProblems] = useState<FieldProblems>({});
   const [serverExpected, setServerExpected] = useState<string | undefined>();
@@ -102,7 +112,7 @@ export function CreateIdeaForm({
     e.preventDefault();
     if (pending || !canSubmit) return;
     setServerExpected(undefined);
-    const { values: body, problems: local } = await precheck(values, files, leader);
+    const { values: body, problems: local } = edit ? precheckText(values, leader) : await precheck(values, files, leader);
     if (Object.keys(local).length > 0) {
       fail(local, null);
       return;
@@ -112,13 +122,18 @@ export function CreateIdeaForm({
     setProblems({});
     setFormError(null);
     try {
-      onCreated(await createIdea(body, files[0]!, (loaded, total) => setProgress(Math.round((loaded / total) * 100))));
+      onSaved(
+        edit
+          ? await updateIdea(edit.id, body)
+          : await createIdea(body, files[0]!, (loaded, total) => setProgress(Math.round((loaded / total) * 100))),
+      );
     } catch (err) {
       const { problems: p, rest, expected } = mapServerError(err);
       setServerExpected(expected);
       if (rest?.code === "SUBMISSION_CLOSED" || rest?.code === "SUBMISSION_NOT_OPEN") onSubmissionRejected?.();
       // 503 SERVICE_UNAVAILABLE or a lost answer: the commit may have happened. Do not claim failure.
-      const unknown = rest !== null && (rest.code === "SERVICE_UNAVAILABLE" || rest.status === 0);
+      // (A repeated PUT is harmless, so edit shows the plain error and the user simply saves again.)
+      const unknown = !edit && rest !== null && (rest.code === "SERVICE_UNAVAILABLE" || rest.status === 0);
       if (unknown) {
         setEarlierUncertain(true);
         onOutcomeUnknown?.();
@@ -218,7 +233,7 @@ export function CreateIdeaForm({
           <p>
             {leader.name} ({leader.empNo})
           </p>
-          <p className="text-muted-foreground">{t("pages.ideaForm.leaderHint")}</p>
+          {!edit && <p className="text-muted-foreground">{t("pages.ideaForm.leaderHint")}</p>}
         </div>
 
         {(["category", "org", "direction"] as const).map((f) =>
@@ -250,6 +265,7 @@ export function CreateIdeaForm({
           counter("summary", summaryCount, SUMMARY_MAX),
         )}
 
+        {!edit && (
         <section aria-labelledby="expected-title" className="rounded-md border bg-muted/40 p-3 text-sm">
           <h2 id="expected-title" className="font-medium">
             {t("pages.ideaForm.expectedTitle")}
@@ -278,8 +294,10 @@ export function CreateIdeaForm({
             </>
           )}
         </section>
+        )}
 
-        {wrap(
+        {!edit &&
+          wrap(
           "slides",
           <Input
             {...aria("slides", "slides-hint")}
@@ -288,7 +306,7 @@ export function CreateIdeaForm({
             onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           />,
           <FieldDescription id="slides-hint">{t("pages.ideaForm.slidesHint")}</FieldDescription>,
-        )}
+          )}
 
         <Field>
           {progress !== null && (
@@ -302,10 +320,19 @@ export function CreateIdeaForm({
               <span aria-hidden="true">{progress}%</span>
             </div>
           )}
-          {!canSubmit && <FieldDescription>{t("pages.ideaCreate.closedHint")}</FieldDescription>}
-          <Button type="submit" disabled={pending || !canSubmit} aria-busy={pending || undefined}>
-            {pending ? t("pages.ideaCreate.submitting") : t("pages.ideaCreate.submit")}
-          </Button>
+          {!canSubmit && <FieldDescription>{t(edit ? "pages.ideaEdit.closedHint" : "pages.ideaCreate.closedHint")}</FieldDescription>}
+          <div className="flex gap-2">
+            <Button type="submit" disabled={pending || !canSubmit} aria-busy={pending || undefined}>
+              {edit
+                ? pending
+                  ? t("pages.ideaEdit.saving")
+                  : t("common.save")
+                : pending
+                  ? t("pages.ideaCreate.submitting")
+                  : t("pages.ideaCreate.submit")}
+            </Button>
+            {edit && onCancel}
+          </div>
         </Field>
       </FieldGroup>
     </form>

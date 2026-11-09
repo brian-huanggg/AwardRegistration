@@ -138,7 +138,13 @@ export const en = {
       uncertain: 'The result is uncertain: the Idea may already have been created. Check your Idea list before you submit again.',
       duplicateAfterUncertain: 'You already have an Idea with this name. An earlier attempt may have succeeded; check your Idea list.',
     },
-    ideaEdit: { title: 'Edit Idea' },
+    ideaEdit: {
+      title: 'Edit Idea',
+      saving: 'Saving…',
+      closedHint: 'Submissions are not open, so the Idea cannot be changed now.',
+      slidesNote: 'Slides are changed from the Idea page. After you change the category, organization or name, the expected slide file name changes too.',
+      edit: 'Edit',
+    },
     ideaDetail: {
       title: 'Idea',
       details: 'Details',

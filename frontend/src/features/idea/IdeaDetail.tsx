@@ -22,10 +22,12 @@ interface Props {
   /** The page heading; left out for the 404 page, which has its own (one h1). */
   heading: React.ReactNode;
   /** Extra controls in the slides section (replace, delete: later PRs). */
+  /** The Leader's link to the edit page, above the details. */
+  editAction?: (idea: Idea) => React.ReactNode;
   slideActions?: (idea: Idea) => React.ReactNode;
 }
 
-export function IdeaDetail({ id, admin, notFound, heading, slideActions }: Props) {
+export function IdeaDetail({ id, admin, notFound, heading, editAction, slideActions }: Props) {
   const { t, i18n } = useTranslation();
   // An Admin's GET writes an IDEA_VIEW audit row (Frontend.md §6.7): no refocus refetch, no polling.
   const { data, isPending, error, refetch } = useQuery({
@@ -96,6 +98,7 @@ export function IdeaDetail({ id, admin, notFound, heading, slideActions }: Props
   return (
     <>
       {heading}
+      {editAction && <div className="mb-4">{editAction(data)}</div>}
       <Section title={t('pages.ideaDetail.details')}>
         <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
           {rows.map(([k, v]) => (

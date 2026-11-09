@@ -135,7 +135,13 @@ export const zhTW: Dictionary = {
       uncertain: '結果不確定：提案可能已建立。再次送出前，請先查看您的提案列表。',
       duplicateAfterUncertain: '您已有同名提案，先前的嘗試可能已成功，請查看您的提案列表。',
     },
-    ideaEdit: { title: '編輯提案' },
+    ideaEdit: {
+      title: '編輯提案',
+      saving: '儲存中…',
+      closedHint: '目前不在收件期間，暫時無法修改提案。',
+      slidesNote: '簡報請在提案頁面更換。變更類別、單位或提案名稱後，預期的簡報檔名也會跟著改變。',
+      edit: '編輯',
+    },
     ideaDetail: {
       title: '提案',
       details: '詳細資料',

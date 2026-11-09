@@ -98,6 +98,12 @@ export async function createIdea(values: IdeaText, file: File, onProgress?: (loa
   return (await res.json()) as IdeaDetail;
 }
 
+/** PUT /ideas/{id}: full replacement of the five text fields; slides change through their own endpoint (PRD §6.6). */
+export async function updateIdea(id: string, values: IdeaText): Promise<IdeaDetail> {
+  const res = await apiFetch(`/ideas/${encodeURIComponent(id)}`, { method: 'PUT', body: { ...values } });
+  return (await res.json()) as IdeaDetail;
+}
+
 /** File errors that carry no `errors[]` entry; they belong to the slides field. */
 const SLIDES_CODES = new Set(['FILE_TOO_LARGE', 'EMPTY_FILE', 'UNSUPPORTED_FILE_TYPE', 'FILENAME_MISMATCH']);
 

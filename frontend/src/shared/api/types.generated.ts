@@ -142,7 +142,11 @@ export interface paths {
         };
         /** Idea detail */
         get: operations["getIdea"];
-        put?: never;
+        /**
+         * Edit the Idea's text fields (Leader only, full replacement)
+         * @description Replaces category, org, direction, name and summary. Slides change through the slides endpoint. Check order before the body is read: 404 (hidden or missing) -> 403 FORBIDDEN (Admin, Member) -> 403 SUBMISSION_* (state). Then 400/413/415, 422 (incl. FILENAME_TOO_LONG), 409 IDEA_DUPLICATE. The IDEA_UPDATE audit row lists the changed fields only; a request that changes nothing writes the row with empty documents and does not bump the version. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        put: operations["updateIdea"];
         post?: never;
         delete?: never;
         options?: never;
@@ -162,7 +166,11 @@ export interface paths {
          * @description The SLIDES_DOWNLOAD audit row is committed before the first byte is sent (PRD 6.11). The file is named by the current expected filename (PRD 6.6). Range is not supported; HEAD answers 405 (no audit row). The Accept header is not checked on this route. MinIO unavailable before the first byte answers 503 STORAGE_UNAVAILABLE; a storage failure after the headers are sent aborts the connection (the body is shorter than Content-Length). A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE and serves nothing.
          */
         get: operations["downloadSlides"];
-        put?: never;
+        /**
+         * Replace the Idea's slides (Leader, Admin)
+         * @description One multipart part `slides`. Check order before the body is read: 404 (hidden or missing) -> 403 FORBIDDEN (Member) -> 403 SUBMISSION_* (state; Admin is exempt). Then 400 (missing or repeated part), 413, 422 EMPTY_FILE, 415, 422 FILENAME_MISMATCH against the CURRENT Idea data, then upload (503 STORAGE_UNAVAILABLE). The transaction locks the row, switches the pointer, records the old key as REPLACED, adds 1 to version and writes SLIDES_REPLACE; the old object is deleted after commit and never fails the request. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE. The body is read by the handler, so the generated wrapper does not bind it.
+         */
+        put: operations["replaceSlides"];
         post?: never;
         delete?: never;
         options?: never;
@@ -281,6 +289,25 @@ export interface components {
             page: number;
             size: number;
             total: number;
+        };
+        ReplaceSlidesForm: {
+            /**
+             * Format: binary
+             * @description One PDF or PPTX, at most 5 MiB, named by the Idea's current expected filename
+             */
+            slides: string;
+        };
+        IdeaUpdateRequest: {
+            /** @description Category code; compared exactly (PRD 6.6) */
+            category: string;
+            /** @description Org code; compared exactly */
+            org: string;
+            /** @description Direction code; compared exactly */
+            direction: string;
+            /** @description 1-75 code points after clean-up */
+            name: string;
+            /** @description 1-300 code points after clean-up */
+            summary: string;
         };
         IdeaDetail: {
             /** Format: uuid */
@@ -617,6 +644,46 @@ export interface operations {
             500: components["responses"]["Problem"];
         };
     };
+    updateIdea: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IdeaUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description IdeaDetail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     downloadSlides: {
         parameters: {
             query?: never;
@@ -646,6 +713,45 @@ export interface operations {
             };
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    replaceSlides: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ReplaceSlidesForm"];
+            };
+        };
+        responses: {
+            /** @description IdeaDetail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

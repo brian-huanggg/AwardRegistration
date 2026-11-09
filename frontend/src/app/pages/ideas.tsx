@@ -1,54 +1,16 @@
-import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQueryClient } from '@tanstack/react-query';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import { ApiError } from '@/shared/api';
 import { deadlineKey, useDeadline } from '@/features/deadline/useDeadline';
-import { CreateIdeaForm } from '@/features/idea/CreateIdeaForm';
+import { fetchIdea, ideaKey } from '@/features/idea/detail';
+import { IdeaForm } from '@/features/idea/IdeaForm';
 import { IdeaDetail as IdeaDetailView } from '@/features/idea/IdeaDetail';
 import { IdeaList as IdeaListView } from '@/features/idea/IdeaList';
 import { Button } from '@/shared/ui/button';
-import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
 import { NotFound } from './NotFound';
 import { useMe } from '../session';
-
-const noSubmit = (e: FormEvent) => e.preventDefault();
-
-function IdeaFields({ withSlides }: { withSlides: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <Field label={t('fields.ideaName')}>{(p) => <input {...p} name="name" required />}</Field>
-      <Field label={t('fields.category')}>
-        {(p) => (
-          <select {...p} name="category" required>
-            <option value="" />
-          </select>
-        )}
-      </Field>
-      <Field label={t('fields.org')}>
-        {(p) => (
-          <select {...p} name="org" required>
-            <option value="" />
-          </select>
-        )}
-      </Field>
-      <Field label={t('fields.direction')}>
-        {(p) => (
-          <select {...p} name="direction" required>
-            <option value="" />
-          </select>
-        )}
-      </Field>
-      <Field label={t('fields.summary')}>{(p) => <textarea {...p} name="summary" rows={6} required />}</Field>
-      {withSlides && (
-        <Field label={t('fields.slides')} hint={t('pages.ideaForm.slidesHint')}>
-          {(p) => <input {...p} name="slides" type="file" accept=".pdf,.pptx" required />}
-        </Field>
-      )}
-    </>
-  );
-}
 
 export function IdeaList() {
   const { t } = useTranslation();
@@ -84,12 +46,12 @@ export function IdeaCreate() {
       <PageHeading title={t('pages.ideaCreate.title')} />
       <div className="max-w-2xl rounded-xl border bg-card p-6">
         {me && (
-          <CreateIdeaForm
+          <IdeaForm
             leader={{ name: me.name, empNo: me.empNo }}
             canSubmit={open}
             onOutcomeUnknown={() => void client.invalidateQueries({ queryKey: ['ideas'] })}
             onSubmissionRejected={() => void client.invalidateQueries({ queryKey: deadlineKey })}
-            onCreated={(idea) => {
+            onSaved={(idea) => {
               // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)
               client.setQueryData(['idea', idea.id], idea);
               void client.invalidateQueries({ queryKey: ['ideas'] });
@@ -109,7 +71,17 @@ export function IdeaDetail() {
   return (
     <>
       {me && (
-        <IdeaDetailView id={id} admin={me.role === 'ADMIN'} notFound={<NotFound />} heading={<PageHeading title={t('pages.ideaDetail.title')} />} />
+        <IdeaDetailView
+          id={id}
+          admin={me.role === 'ADMIN'}
+          notFound={<NotFound />}
+          editAction={(idea) =>
+            me.role === 'USER' && idea.leader.empNo === me.empNo ? (
+              <Button asChild variant="outline">
+                <Link to={`/ideas/${idea.id}/edit`}>{t('pages.ideaEdit.edit')}</Link>
+              </Button>
+            ) : null
+          } heading={<PageHeading title={t('pages.ideaDetail.title')} />} />
       )}
       <Link to="/ideas" className="font-medium text-primary underline underline-offset-4">
         {t('pages.ideaDetail.back')}
@@ -119,19 +91,68 @@ export function IdeaDetail() {
 }
 
 export function IdeaEdit() {
-  const { t } = useTranslation();
-  return (
-    <>
-      <PageHeading title={t('pages.ideaEdit.title')} />
-      <form onSubmit={noSubmit} className="max-w-2xl rounded-xl border bg-card p-6">
-        <IdeaFields withSlides={false} />
-        <div className="flex gap-2">
-          <Button type="submit">{t('common.save')}</Button>
-          <Button type="button" variant="outline" disabled>
-            {t('common.cancel')}
+  const { t, i18n } = useTranslation();
+  const { id = '' } = useParams();
+  const { data: me } = useMe();
+  const { data: deadline } = useDeadline();
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const { data: idea, isPending, error, refetch } = useQuery({
+    queryKey: ideaKey(id),
+    queryFn: ({ signal }) => fetchIdea(id, signal),
+    retry: false,
+    staleTime: 30_000,
+  });
+  const heading = <PageHeading title={t('pages.ideaEdit.title')} />;
+  if (error instanceof ApiError && error.status === 404) return <NotFound />;
+  if (isPending && !error)
+    return (
+      <>
+        {heading}
+        <p role="status">{t('common.loading')}</p>
+      </>
+    );
+  if (!idea || !me) {
+    const key = error instanceof ApiError && i18n.exists(`errors.${error.code}`) ? error.code : 'UNKNOWN';
+    return (
+      <>
+        {heading}
+        <div role="alert">
+          <p className="mb-2">{t(`errors.${key}`)}</p>
+          <Button variant="outline" onClick={() => void refetch()}>
+            {t('common.retry')}
           </Button>
         </div>
-      </form>
+      </>
+    );
+  }
+  // A Member who is not the Leader may see the Idea but not edit it (Frontend.md §6.2).
+  if (idea.leader.empNo !== me.empNo) return <Navigate to={`/ideas/${id}`} replace />;
+  const back = `/ideas/${id}`;
+  return (
+    <>
+      {heading}
+      <div className="max-w-2xl rounded-xl border bg-card p-6">
+        <p className="mb-4 text-sm text-muted-foreground">{t('pages.ideaEdit.slidesNote')}</p>
+        <IdeaForm
+          key={`${idea.id}-${idea.version}`}
+          leader={{ name: idea.leader.name, empNo: idea.leader.empNo }}
+          edit={idea}
+          canSubmit={deadline?.state === 'OPEN'}
+          onSubmissionRejected={() => void client.invalidateQueries({ queryKey: deadlineKey })}
+          onCancel={
+            <Button asChild variant="outline">
+              <Link to={back}>{t('common.cancel')}</Link>
+            </Button>
+          }
+          onSaved={(saved) => {
+            // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)
+            client.setQueryData(ideaKey(saved.id), saved);
+            void client.invalidateQueries({ queryKey: ['ideas'] });
+            void navigate(back);
+          }}
+        />
+      </div>
     </>
   );
 }
