@@ -140,6 +140,38 @@ paths:
               schema: { $ref: '#/components/schemas/Deadline' }
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
+  /admin/deadline:
+    put:
+      operationId: putDeadline
+      tags: [deadline]
+      summary: Set the submission deadline (Admin only)
+      description: >
+        Check order before the body is read: 401 -> 403 CSRF_INVALID -> 403 FORBIDDEN (not an Admin,
+        audited DENIED). Then 400 (missing or null deadline, wrong type), 413, 415, 422
+        VALIDATION_FAILED with INVALID_FORMAT (not ISO 8601 with offset or Z) or OUT_OF_RANGE (UTC year
+        outside 2000-2099). Any instant in range is allowed, including the past. Stored in UTC at second
+        precision (fractions truncated). The DEADLINE_UPDATE audit row carries before and after.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DeadlineRequest' }
+      responses:
+        '200':
+          description: The new deadline state, same body as GET /deadline
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Deadline' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /ideas:
     get:
       operationId: listIdeas
@@ -462,6 +494,11 @@ components:
         deadline: { type: string, format: date-time, nullable: true }
         state: { type: string, enum: [NOT_OPEN, OPEN, CLOSED] }
         serverTime: { type: string, format: date-time, description: Millisecond precision }
+    DeadlineRequest:
+      type: object
+      required: [deadline]
+      properties:
+        deadline: { type: string, description: 'ISO 8601 with offset or Z; null or missing is 400' }
     PersonRef:
       type: object
       required: [empNo, name]

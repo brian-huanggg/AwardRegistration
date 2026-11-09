@@ -68,7 +68,11 @@ func newEnv(t *testing.T) *env {
 			Service: &account.Service{DB: db, Audit: auditSvc, Policy: account.DefaultPolicy()},
 			Fail:    errs.Write,
 		},
-		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},
+		Deadline: deadline.Handler{
+			Store:  deadline.SQLStore{DB: db},
+			Setter: deadline.Setter{DB: db, Audit: auditSvc},
+			Fail:   errs.Write,
+		},
 		Ideas: idea.Handler{
 			Service: &idea.Service{
 				DB: db, Audit: auditSvc,

@@ -61,8 +61,14 @@ func (s SQLStore) Snapshot(ctx context.Context) (Snapshot, error) {
 	return snap, nil
 }
 
-// Handler serves GET /deadline.
-type Handler struct{ Store Store }
+// Handler serves GET /deadline and PUT /admin/deadline.
+type Handler struct {
+	Store  Store
+	Setter Setter
+	// Fail writes errors (the central adapter, which also records DENIED
+	// rows). Nil falls back to a plain problem response.
+	Fail func(w http.ResponseWriter, r *http.Request, err error)
+}
 
 // body is written by hand: the generated api.Deadline marshals time.Time with
 // RFC 3339 nanoseconds, the contract wants truncated milliseconds.
@@ -82,10 +88,14 @@ func (h Handler) GetDeadline(w http.ResponseWriter, r *http.Request) {
 		web.WriteProblem(w, r, e)
 		return
 	}
+	web.WriteJSON(w, http.StatusOK, render(snap))
+}
+
+func render(snap Snapshot) body {
 	out := body{State: snap.State(), ServerTime: web.FormatTime(snap.Now)}
 	if snap.Deadline != nil {
 		s := web.FormatTime(*snap.Deadline)
 		out.Deadline = &s
 	}
-	web.WriteJSON(w, http.StatusOK, out)
+	return out
 }

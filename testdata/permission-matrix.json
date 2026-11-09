@@ -23,6 +23,19 @@
       }
     },
     {
+      "id": "set-deadline",
+      "operation": "setDeadline",
+      "method": "PUT",
+      "path": "/api/v1/admin/deadline",
+      "body": { "deadline": "2090-01-01T00:00:00Z" },
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "FORBIDDEN" },
+        "admin": { "status": 200 }
+      }
+    },
+    {
       "id": "register",
       "operation": "register",
       "method": "POST",

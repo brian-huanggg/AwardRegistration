@@ -28,6 +28,11 @@ type API struct {
 // GetDeadline serves GET /deadline.
 func (a API) GetDeadline(w http.ResponseWriter, r *http.Request) { a.Deadline.GetDeadline(w, r) }
 
+// PutDeadline serves PUT /admin/deadline.
+func (a API) PutDeadline(w http.ResponseWriter, r *http.Request, _ api.PutDeadlineParams) {
+	a.Deadline.PutDeadline(w, r)
+}
+
 // Register serves POST /auth/register.
 func (a API) Register(w http.ResponseWriter, r *http.Request, _ api.RegisterParams) {
 	a.Account.Register(w, r)

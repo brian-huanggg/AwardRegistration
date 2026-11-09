@@ -35,6 +35,7 @@ var WriteActions = map[string]string{
 	http.MethodPost + " /api/v1/auth/register": "AUTH_REGISTER",
 	http.MethodPost + " /api/v1/auth/logout":   "AUTH_LOGOUT",
 	http.MethodPost + " /api/v1/ideas":         "IDEA_CREATE",
+	http.MethodPut + " /api/v1/admin/deadline": "DEADLINE_UPDATE",
 }
 
 // ideaPrefix is the path of an Idea resource without its ID.

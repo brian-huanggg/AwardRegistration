@@ -109,6 +109,12 @@ type Deadline struct {
 // DeadlineState defines model for Deadline.State.
 type DeadlineState string
 
+// DeadlineRequest defines model for DeadlineRequest.
+type DeadlineRequest struct {
+	// Deadline ISO 8601 with offset or Z; null or missing is 400
+	Deadline string `json:"deadline"`
+}
+
 // FieldError defines model for FieldError.
 type FieldError struct {
 	Code     string  `json:"code"`
@@ -271,6 +277,12 @@ type CsrfToken = string
 // IdeaId defines model for IdeaId.
 type IdeaId = openapi_types.UUID
 
+// PutDeadlineParams defines parameters for PutDeadline.
+type PutDeadlineParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // LoginParams defines parameters for Login.
 type LoginParams struct {
 	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
@@ -340,6 +352,9 @@ type ReplaceSlidesParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// PutDeadlineJSONRequestBody defines body for PutDeadline for application/json ContentType.
+type PutDeadlineJSONRequestBody = DeadlineRequest
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -357,6 +372,9 @@ type ReplaceSlidesMultipartRequestBody = ReplaceSlidesForm
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// PutDeadline Set the submission deadline (Admin only)
+	// (PUT /admin/deadline)
+	PutDeadline(w http.ResponseWriter, r *http.Request, params PutDeadlineParams)
 	// GetCsrfToken Session-bound CSRF token (anonymous before login)
 	// (GET /auth/csrf)
 	GetCsrfToken(w http.ResponseWriter, r *http.Request)
@@ -401,6 +419,12 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// PutDeadline Set the submission deadline (Admin only)
+// (PUT /admin/deadline)
+func (_ Unimplemented) PutDeadline(w http.ResponseWriter, r *http.Request, params PutDeadlineParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // GetCsrfToken Session-bound CSRF token (anonymous before login)
 // (GET /auth/csrf)
@@ -488,6 +512,47 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// PutDeadline operation middleware
+func (siw *ServerInterfaceWrapper) PutDeadline(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params PutDeadlineParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PutDeadline(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetCsrfToken operation middleware
 func (siw *ServerInterfaceWrapper) GetCsrfToken(w http.ResponseWriter, r *http.Request) {
@@ -1190,6 +1255,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/deadline", wrapper.GetDeadline)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/admin/deadline", wrapper.PutDeadline)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ideas", wrapper.ListIdeas)
