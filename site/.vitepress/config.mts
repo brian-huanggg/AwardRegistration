@@ -10,6 +10,7 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Audit Log', link: '/audit-log/' },
       { text: 'File Upload', link: '/file-upload/' },
+      { text: 'Authentication', link: '/authentication/' },
     ],
 
     sidebar: [
@@ -31,6 +32,16 @@ export default defineConfig({
           { text: 'Implementation', link: '/file-upload/implementation' },
           { text: 'Decision Thinking', link: '/file-upload/decisions' },
           { text: 'Technical FAQ', link: '/file-upload/faq' }
+        ]
+      },
+      {
+        text: 'Authentication',
+        items: [
+          { text: 'Concepts', link: '/authentication/' },
+          { text: 'Architecture', link: '/authentication/architecture' },
+          { text: 'Implementation', link: '/authentication/implementation' },
+          { text: 'Decision Thinking', link: '/authentication/decisions' },
+          { text: 'Technical FAQ', link: '/authentication/faq' }
         ]
       }
     ],
