@@ -39,6 +39,35 @@ type joinRequest struct {
 	RequestedAt string `json:"requestedAt"`
 }
 
+func toBody(j JoinRequest) joinRequest {
+	return joinRequest{
+		IdeaID: j.IdeaID.String(), IdeaName: j.IdeaName, Category: j.Category, Org: j.Org, Direction: j.Direction,
+		Leader:      person{EmpNo: j.LeaderEmpNo, Name: j.LeaderName},
+		RequestedAt: web.FormatTime(j.RequestedAt),
+	}
+}
+
+// ListJoinRequests serves GET /join-requests: {items: JoinRequest[]}.
+func (h Handler) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
+	p, ok := security.PrincipalFrom(r.Context())
+	if !ok {
+		h.Fail(w, r, web.NewError(web.CodeUnauthenticated, "authentication required"))
+		return
+	}
+	got, err := h.Service.ListMine(r.Context(), p)
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	items := make([]joinRequest, 0, len(got))
+	for _, j := range got {
+		items = append(items, toBody(j))
+	}
+	web.WriteJSON(w, http.StatusOK, struct {
+		Items []joinRequest `json:"items"`
+	}{items})
+}
+
 // CreateJoinRequest serves POST /join-requests: 201 + JoinRequest. Role and
 // state run before the body is read (Backend.md §3).
 func (h Handler) CreateJoinRequest(w http.ResponseWriter, r *http.Request) {
@@ -63,9 +92,5 @@ func (h Handler) CreateJoinRequest(w http.ResponseWriter, r *http.Request) {
 		h.Fail(w, r, err)
 		return
 	}
-	web.WriteJSON(w, http.StatusCreated, joinRequest{
-		IdeaID: got.IdeaID.String(), IdeaName: got.IdeaName, Category: got.Category, Org: got.Org, Direction: got.Direction,
-		Leader:      person{EmpNo: got.LeaderEmpNo, Name: got.LeaderName},
-		RequestedAt: web.FormatTime(got.RequestedAt),
-	})
+	web.WriteJSON(w, http.StatusCreated, toBody(got))
 }

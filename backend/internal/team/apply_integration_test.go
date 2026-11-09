@@ -222,6 +222,61 @@ func TestApplyIdeaDeletedAfterLookup(t *testing.T) {
 	}
 }
 
+// ListMine returns only the caller's PENDING rows, newest first, with slim Idea
+// info; Admin gets an empty (non-nil) list.
+func TestListMine(t *testing.T) {
+	d := dbtest.New(t)
+	setDeadline(t, d, "NOW(6) + INTERVAL 1 DAY")
+	leader := addUser(t, d, "100001", "USER")
+	applicant := addUser(t, d, "100002", "USER")
+	other := addUser(t, d, "100003", "USER")
+	admin := addUser(t, d, "900001", "ADMIN")
+	a := addIdea(t, d, leader.UserID, "Idea A")
+	b := addIdea(t, d, leader.UserID, "Idea B")
+	c := addIdea(t, d, leader.UserID, "Idea C")
+	for _, r := range []struct {
+		idea   uuid.UUID
+		user   security.Principal
+		status string
+		at     string
+	}{
+		{a, applicant, "PENDING", "NOW(6) - INTERVAL 2 HOUR"},
+		{b, applicant, "PENDING", "NOW(6) - INTERVAL 1 HOUR"},
+		{c, applicant, "ACCEPTED", "NOW(6)"}, // Member, not a request
+		{a, other, "PENDING", "NOW(6)"},      // someone else's
+	} {
+		accepted := "NULL"
+		if r.status == "ACCEPTED" {
+			accepted = "NOW(6)"
+		}
+		if _, err := d.Exec(`INSERT INTO idea_member (idea_id, user_id, status, created_at, accepted_at) VALUES (?,?,?,`+r.at+`,`+accepted+`)`,
+			r.idea.String(), r.user.UserID.String(), r.status); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s := newService(d)
+	ctx := context.Background()
+
+	got, err := s.ListMine(ctx, applicant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].IdeaID != b || got[1].IdeaID != a {
+		t.Fatalf("got %+v, want [B, A]", got)
+	}
+	if g := got[0]; g.IdeaName != "Idea B" || g.Category != "COOL_IDEA" || g.LeaderEmpNo != "100001" ||
+		g.LeaderName != "User 100001" || g.RequestedAt.IsZero() {
+		t.Errorf("slim info: %+v", g)
+	}
+
+	if got, err := s.ListMine(ctx, leader); err != nil || len(got) != 0 {
+		t.Errorf("leader: %v, %v", got, err)
+	}
+	if got, err := s.ListMine(ctx, admin); err != nil || got == nil || len(got) != 0 {
+		t.Errorf("admin: %#v, %v", got, err)
+	}
+}
+
 type stale struct {
 	real   team.Ideas
 	onFind func()

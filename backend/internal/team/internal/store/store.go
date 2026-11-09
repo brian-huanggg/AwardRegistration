@@ -53,3 +53,47 @@ func Status(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.UUID) (string, 
 	}
 	return st, nil
 }
+
+// PendingRow is one PENDING row of a user with the minimal Idea information a
+// JoinRequest carries (PRD 6.7).
+type PendingRow struct {
+	IdeaID                             uuid.UUID
+	IdeaName, Category, Org, Direction string
+	LeaderEmpNo, LeaderName            string
+	RequestedAt                        time.Time
+}
+
+// ListPending returns the user's PENDING rows, newest first. Reads only; the
+// row's created_at is the request time.
+func ListPending(ctx context.Context, q interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+}, userID uuid.UUID) ([]PendingRow, error) {
+	rows, err := q.QueryContext(ctx,
+		`SELECT i.id, i.name, i.category, i.org, i.direction, u.emp_no, u.name, m.created_at
+		   FROM idea_member m
+		   JOIN idea i ON i.id = m.idea_id
+		   JOIN app_user u ON u.id = i.leader_id
+		  WHERE m.user_id = ? AND m.status = 'PENDING'
+		  ORDER BY m.created_at DESC, i.id`, userID.String())
+	if err != nil {
+		return nil, fmt.Errorf("select pending join requests: %w", err)
+	}
+	defer rows.Close()
+	out := []PendingRow{}
+	for rows.Next() {
+		var p PendingRow
+		var id string
+		if err := rows.Scan(&id, &p.IdeaName, &p.Category, &p.Org, &p.Direction,
+			&p.LeaderEmpNo, &p.LeaderName, &p.RequestedAt); err != nil {
+			return nil, fmt.Errorf("scan pending join request: %w", err)
+		}
+		if p.IdeaID, err = uuid.Parse(id); err != nil {
+			return nil, fmt.Errorf("idea id: %w", err)
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate pending join requests: %w", err)
+	}
+	return out, nil
+}

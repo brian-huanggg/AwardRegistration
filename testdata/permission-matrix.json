@@ -373,6 +373,19 @@
       }
     },
     {
+      "id": "list-join-requests",
+      "operation": "my join requests: every logged-in caller gets 200 (Admin: empty). Member cells arrive with B5-04",
+      "method": "GET",
+      "path": "/api/v1/join-requests",
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 200 },
+        "leader": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

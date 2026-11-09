@@ -443,6 +443,9 @@ type ServerInterface interface {
 	// ReplaceSlides Replace the Idea's slides (Leader, Admin)
 	// (PUT /ideas/{id}/slides)
 	ReplaceSlides(w http.ResponseWriter, r *http.Request, id IdeaId, params ReplaceSlidesParams)
+	// ListJoinRequests The caller's own pending join requests (Admin gets an empty list)
+	// (GET /join-requests)
+	ListJoinRequests(w http.ResponseWriter, r *http.Request)
 	// CreateJoinRequest Ask to join an Idea (User only)
 	// (POST /join-requests)
 	CreateJoinRequest(w http.ResponseWriter, r *http.Request, params CreateJoinRequestParams)
@@ -533,6 +536,12 @@ func (_ Unimplemented) DownloadSlides(w http.ResponseWriter, r *http.Request, id
 // ReplaceSlides Replace the Idea's slides (Leader, Admin)
 // (PUT /ideas/{id}/slides)
 func (_ Unimplemented) ReplaceSlides(w http.ResponseWriter, r *http.Request, id IdeaId, params ReplaceSlidesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListJoinRequests The caller's own pending join requests (Admin gets an empty list)
+// (GET /join-requests)
+func (_ Unimplemented) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1163,6 +1172,20 @@ func (siw *ServerInterfaceWrapper) ReplaceSlides(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListJoinRequests operation middleware
+func (siw *ServerInterfaceWrapper) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJoinRequests(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateJoinRequest operation middleware
 func (siw *ServerInterfaceWrapper) CreateJoinRequest(w http.ResponseWriter, r *http.Request) {
 
@@ -1358,6 +1381,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/ideas/{id}/slides", wrapper.ReplaceSlides)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/join-requests", wrapper.ListJoinRequests)
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/join-requests", wrapper.CreateJoinRequest)

@@ -405,6 +405,28 @@ paths:
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
   /join-requests:
+    get:
+      operationId: listJoinRequests
+      tags: [team]
+      summary: The caller's own pending join requests (Admin gets an empty list)
+      description: >
+        Newest request first. Carries only minimal Idea information, including the Idea ID needed to
+        withdraw; GET /ideas/{id} stays 404 for an applicant (PRD 6.7).
+      responses:
+        '200':
+          description: Pending join requests
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/JoinRequest' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
     post:
       operationId: createJoinRequest
       tags: [team]

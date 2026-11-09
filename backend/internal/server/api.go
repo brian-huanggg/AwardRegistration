@@ -93,3 +93,8 @@ func (a API) DeleteIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId, _
 func (a API) CreateJoinRequest(w http.ResponseWriter, r *http.Request, _ api.CreateJoinRequestParams) {
 	a.Team.CreateJoinRequest(w, r)
 }
+
+// ListJoinRequests serves GET /join-requests.
+func (a API) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
+	a.Team.ListJoinRequests(w, r)
+}

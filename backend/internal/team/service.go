@@ -205,3 +205,20 @@ func (s *Service) existing(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.
 	e.Cause = cause
 	return e
 }
+
+// ListMine serves GET /join-requests: the caller's own PENDING requests, newest
+// first. An Admin never has any and gets an empty list (PRD 6.7, 6.1).
+func (s *Service) ListMine(ctx context.Context, caller security.Principal) ([]JoinRequest, error) {
+	if caller.IsAdmin() {
+		return []JoinRequest{}, nil
+	}
+	rows, err := store.ListPending(ctx, s.DB, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]JoinRequest, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, JoinRequest(r))
+	}
+	return out, nil
+}
