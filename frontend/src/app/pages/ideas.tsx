@@ -9,6 +9,8 @@ import { ReplaceSlides } from "@/features/idea/ReplaceSlides";
 import { IdeaForm } from "@/features/idea/IdeaForm";
 import { IdeaDetail as IdeaDetailView } from "@/features/idea/IdeaDetail";
 import { IdeaList as IdeaListView } from "@/features/idea/IdeaList";
+import { IdeaRowActions } from "@/features/idea/IdeaRowActions";
+import { Plus, UserPlus } from "lucide-react";
 import { ApproveButton, ConfirmAction } from "@/features/team/MemberActions";
 import { approveMember, leaveTeam, removeMember } from "@/features/team/members";
 import { can } from "@/shared/permissions";
@@ -20,19 +22,57 @@ import { useMe } from "../session";
 export function IdeaList() {
   const { t } = useTranslation();
   const { data: me } = useMe();
+  const client = useQueryClient();
+  const admin = me?.role === "ADMIN";
+  // Both header actions are User-only (UI-03); "Join a team" has no `can()` action of its own and follows "createIdea".
+  const userActions = me ? can("createIdea", { me }).visible : false;
   return (
     <>
-      <PageHeading title={t("nav.ideas")} />
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-2xl space-y-1">
+          <PageHeading title={t(admin ? "nav.allIdeas" : "nav.myIdeas")} />
+          <p className="text-sm text-muted-foreground">
+            {t(admin ? "pages.ideaList.descriptionAdmin" : "pages.ideaList.descriptionUser")}
+          </p>
+        </div>
+        {userActions && (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link to="/join-requests">
+                <UserPlus aria-hidden="true" />
+                {t("pages.ideaList.joinTeam")}
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link to="/ideas/new">
+                <Plus aria-hidden="true" />
+                {t("pages.ideaList.create")}
+              </Link>
+            </Button>
+          </div>
+        )}
+      </div>
       {me && (
         <IdeaListView
-          admin={me.role === "ADMIN"}
-          actions={
-            can("createIdea", { me }).visible && (
-              <Button asChild variant="outline">
-                <Link to="/ideas/new">{t("pages.ideaList.create")}</Link>
-              </Button>
-            )
-          }
+          admin={admin}
+          rowActions={(idea) => {
+            // F6-01: Admin actions on the shared list; a User's summary has no members, so `can()` hides them.
+            const download = can("downloadSlides", { me }).visible;
+            const replace = can("replaceSlides", { me }).visible;
+            const remove = can("deleteIdea", { me }).visible;
+            return (
+              <IdeaRowActions
+                idea={idea}
+                download={download}
+                replace={replace}
+                remove={remove}
+                onDeleted={() => {
+                  client.removeQueries({ queryKey: ideaKey(idea.id) });
+                  void client.invalidateQueries({ queryKey: ["ideas"] });
+                }}
+              />
+            );
+          }}
         />
       )}
     </>
