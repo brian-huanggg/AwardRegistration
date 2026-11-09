@@ -500,6 +500,27 @@ paths:
         '409': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
+  /ideas/{id}/members/{empNo}:
+    delete:
+      operationId: removeMember
+      tags: [team]
+      summary: Reject a pending request or remove a Member (Leader only)
+      description: >
+        Works on PENDING and ACCEPTED rows. Check order (PRD 6.1): 404 (missing or hidden Idea) -> 403
+        FORBIDDEN (Admin, Member) -> 403 SUBMISSION_* (state) -> 404 (no row for this employee ID,
+        including the Leader's own). Deletes the row and writes JOIN_REQUEST_REJECT (was PENDING) or
+        MEMBER_REMOVE (was ACCEPTED). A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+        - $ref: '#/components/parameters/EmpNo'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': { description: Rejected or removed }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /join-requests:
     get:
       operationId: listJoinRequests

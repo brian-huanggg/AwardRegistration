@@ -513,6 +513,12 @@ type UpdateIdeaParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// RemoveMemberParams defines parameters for RemoveMember.
+type RemoveMemberParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // ApproveMemberParams defines parameters for ApproveMember.
 type ApproveMemberParams struct {
 	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
@@ -593,6 +599,9 @@ type ServerInterface interface {
 	// UpdateIdea Edit the Idea's text fields (Leader only, full replacement)
 	// (PUT /ideas/{id})
 	UpdateIdea(w http.ResponseWriter, r *http.Request, id IdeaId, params UpdateIdeaParams)
+	// RemoveMember Reject a pending request or remove a Member (Leader only)
+	// (DELETE /ideas/{id}/members/{empNo})
+	RemoveMember(w http.ResponseWriter, r *http.Request, id IdeaId, empNo EmpNo, params RemoveMemberParams)
 	// ApproveMember Approve a pending join request (Leader only)
 	// (POST /ideas/{id}/members/{empNo}/approve)
 	ApproveMember(w http.ResponseWriter, r *http.Request, id IdeaId, empNo EmpNo, params ApproveMemberParams)
@@ -689,6 +698,12 @@ func (_ Unimplemented) GetIdea(w http.ResponseWriter, r *http.Request, id IdeaId
 // UpdateIdea Edit the Idea's text fields (Leader only, full replacement)
 // (PUT /ideas/{id})
 func (_ Unimplemented) UpdateIdea(w http.ResponseWriter, r *http.Request, id IdeaId, params UpdateIdeaParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// RemoveMember Reject a pending request or remove a Member (Leader only)
+// (DELETE /ideas/{id}/members/{empNo})
+func (_ Unimplemented) RemoveMember(w http.ResponseWriter, r *http.Request, id IdeaId, empNo EmpNo, params RemoveMemberParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1430,6 +1445,65 @@ func (siw *ServerInterfaceWrapper) UpdateIdea(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveMember operation middleware
+func (siw *ServerInterfaceWrapper) RemoveMember(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IdeaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "empNo" -------------
+	var empNo EmpNo
+
+	err = runtime.BindStyledParameterWithOptions("simple", "empNo", chi.URLParam(r, "empNo"), &empNo, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "empNo", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RemoveMemberParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveMember(w, r, id, empNo, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ApproveMember operation middleware
 func (siw *ServerInterfaceWrapper) ApproveMember(w http.ResponseWriter, r *http.Request) {
 
@@ -1780,6 +1854,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/ideas/{id}/members/{empNo}/approve", wrapper.ApproveMember)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/ideas/{id}/members/{empNo}", wrapper.RemoveMember)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/join-requests", wrapper.ListJoinRequests)

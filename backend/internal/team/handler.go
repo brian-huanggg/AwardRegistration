@@ -114,3 +114,19 @@ func (h Handler) ApproveMember(w http.ResponseWriter, r *http.Request, id uuid.U
 	}
 	respond(w, r, id, p)
 }
+
+// RemoveMember serves DELETE /ideas/{id}/members/{empNo}: 204 on success.
+func (h Handler) RemoveMember(w http.ResponseWriter, r *http.Request, id uuid.UUID, empNo string) {
+	p, ok := security.PrincipalFrom(r.Context())
+	if !ok {
+		h.Fail(w, r, web.NewError(web.CodeUnauthenticated, "authentication required"))
+		return
+	}
+	err := h.Service.Remove(r.Context(), id, empNo, p,
+		Request{Method: r.Method, Route: web.RoutePattern(r), UserAgent: r.UserAgent(), IP: web.ClientIP(r)})
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

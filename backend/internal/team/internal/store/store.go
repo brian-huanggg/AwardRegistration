@@ -148,3 +148,14 @@ func Accept(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.UUID) error {
 	}
 	return nil
 }
+
+// Delete removes the pair's row (reject, remove, withdraw and leave delete the
+// row; history lives in the Audit Log).
+func Delete(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.UUID) error {
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM idea_member WHERE idea_id = ? AND user_id = ?`,
+		ideaID.String(), userID.String()); err != nil {
+		return fmt.Errorf("delete idea_member: %w", err)
+	}
+	return nil
+}

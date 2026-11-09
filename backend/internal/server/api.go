@@ -106,6 +106,11 @@ func (a API) ListJoinRequests(w http.ResponseWriter, r *http.Request) {
 	a.Team.ListJoinRequests(w, r)
 }
 
+// RemoveMember serves DELETE /ideas/{id}/members/{empNo}.
+func (a API) RemoveMember(w http.ResponseWriter, r *http.Request, id api.IdeaId, empNo api.EmpNo, _ api.RemoveMemberParams) {
+	a.Team.RemoveMember(w, r, uuid.UUID(id), empNo)
+}
+
 // ApproveMember serves POST /ideas/{id}/members/{empNo}/approve.
 func (a API) ApproveMember(w http.ResponseWriter, r *http.Request, id api.IdeaId, empNo api.EmpNo, _ api.ApproveMemberParams) {
 	a.Team.ApproveMember(w, r, uuid.UUID(id), empNo, a.Ideas.WriteDetail)

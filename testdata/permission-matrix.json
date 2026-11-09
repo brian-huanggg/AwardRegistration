@@ -427,6 +427,48 @@
       }
     },
     {
+      "id": "reject-member",
+      "operation": "reject a pending request (${ideaId} has a PENDING applicant ${pendingEmpNo}; only its Leader may reject or remove)",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}",
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 204 },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "reject-member-not-open",
+      "operation": "reject before the contest opens (role is checked before state)",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}",
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "reject-member-closed",
+      "operation": "reject after the deadline",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}/members/${pendingEmpNo}",
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "member": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
       "id": "list-join-requests",
       "operation": "my join requests: every logged-in caller gets 200 (Admin: empty). Member cells arrive with B5-04",
       "method": "GET",
