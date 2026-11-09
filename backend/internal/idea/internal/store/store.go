@@ -79,16 +79,22 @@ func InsertIdea(ctx context.Context, tx *sql.Tx, n NewIdea) error {
 // VisibleWhere is the one visibility predicate (PRD 6.6: an Idea is visible to
 // its Leader, its approved Members and Admins). Every read of an Idea, single
 // or list, is built on it; no other code decides who may see an Idea.
-// Arguments, in order: is_admin (0/1),
-// viewer user id. It assumes the idea table is aliased i.
-//
-// TODO(B5-01): add the approved-Member branch
-//
-//	OR EXISTS (SELECT 1 FROM idea_member m WHERE m.idea_id = i.id
-//	           AND m.user_id = ? AND m.status = 'ACCEPTED')
-//
-// when the idea_member table exists. Until then Members cannot exist.
-const VisibleWhere = `(? = 1 OR i.leader_id = ?)`
+// Arguments, in order: is_admin (0/1), viewer user id, viewer user id
+// (see VisibleArgs). A PENDING applicant does not see the Idea (PRD 6.7).
+// It assumes the idea table is aliased i.
+const VisibleWhere = `(? = 1 OR i.leader_id = ?
+	OR EXISTS (SELECT 1 FROM idea_member m WHERE m.idea_id = i.id
+	           AND m.user_id = ? AND m.status = 'ACCEPTED'))`
+
+// VisibleArgs returns the arguments of VisibleWhere, in order.
+func VisibleArgs(viewer uuid.UUID, isAdmin bool) []any {
+	admin := 0
+	if isAdmin {
+		admin = 1
+	}
+	v := viewer.String()
+	return []any{admin, v, v}
+}
 
 const selectIdea = `
 SELECT i.id, i.category, i.org, i.direction, i.name, i.summary,
@@ -102,17 +108,11 @@ SELECT i.id, i.category, i.org, i.direction, i.name, i.summary,
 // an Idea the viewer may not see both return ErrNotFound.
 func GetVisible(ctx context.Context, q Querier, id, viewer uuid.UUID, isAdmin bool) (Idea, error) {
 	var (
-		out           Idea
-		sid, lid, vid string
-		admin         int
+		out      Idea
+		sid, lid string
 	)
-	admin = 0
-	if isAdmin {
-		admin = 1
-	}
-	vid = viewer.String()
 	err := q.QueryRowContext(ctx, selectIdea+` WHERE i.id = ? AND `+VisibleWhere,
-		id.String(), admin, vid).Scan(
+		append([]any{id.String()}, VisibleArgs(viewer, isAdmin)...)...).Scan(
 		&sid, &out.Category, &out.Org, &out.Direction, &out.Name, &out.Summary,
 		&lid, &out.LeaderEmpNo, &out.LeaderName,
 		&out.Slides.ObjectKey, &out.Slides.Ext, &out.Slides.Size, &out.Slides.SHA256, &out.SlidesUpdatedAt,

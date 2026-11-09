@@ -72,12 +72,8 @@ func ListVisible(ctx context.Context, q interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }, viewer uuid.UUID, isAdmin bool, f ListFilter, limit, offset int) ([]Summary, int, error) {
-	admin := 0
-	if isAdmin {
-		admin = 1
-	}
 	where := []string{VisibleWhere}
-	args := []any{admin, viewer.String()}
+	args := VisibleArgs(viewer, isAdmin)
 	add := func(cond string, v any) {
 		where = append(where, cond)
 		args = append(args, v)
@@ -111,10 +107,11 @@ func ListVisible(ctx context.Context, q interface {
 		return nil, 0, fmt.Errorf("count ideas: %w", err)
 	}
 
-	// TODO(B5-01): memberCount counts ACCEPTED idea_member rows (Leader excluded).
+	// memberCount counts ACCEPTED idea_member rows (the Leader has no row).
 	rows, err := q.QueryContext(ctx,
 		`SELECT i.id, i.name, i.category, i.org, i.direction, i.leader_id, u.emp_no, u.name,
-		        0, i.created_at, i.slides_updated_at
+		        (SELECT COUNT(*) FROM idea_member m WHERE m.idea_id = i.id AND m.status = 'ACCEPTED'),
+		        i.created_at, i.slides_updated_at
 		   FROM idea i JOIN app_user u ON u.id = i.leader_id
 		  WHERE `+cond+`
 		  ORDER BY `+f.orderBy()+`

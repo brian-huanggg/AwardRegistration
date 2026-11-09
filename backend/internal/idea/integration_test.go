@@ -94,6 +94,41 @@ func TestVisibilityPerRole(t *testing.T) {
 	}
 }
 
+// An ACCEPTED Member sees the Idea; a PENDING applicant does not (PRD 6.7).
+func TestVisibilityOfMembers(t *testing.T) {
+	d := dbtest.New(t)
+	leader := addUser(t, d, "100001", "USER")
+	member := addUser(t, d, "100002", "USER")
+	applicant := addUser(t, d, "100003", "USER")
+	n := newIdea(leader.UserID, "Idea A")
+	if err := insert(d, n); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Exec(`INSERT INTO idea_member (idea_id, user_id, status, accepted_at) VALUES (?,?,'ACCEPTED',NOW(6))`,
+		n.ID.String(), member.UserID.String()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Exec(`INSERT INTO idea_member (idea_id, user_id) VALUES (?,?)`,
+		n.ID.String(), applicant.UserID.String()); err != nil {
+		t.Fatal(err)
+	}
+	svc := &idea.Service{DB: d}
+	ctx := context.Background()
+	if _, err := svc.Get(ctx, n.ID, member); err != nil {
+		t.Errorf("accepted member: %v", err)
+	}
+	if _, err := svc.Get(ctx, n.ID, applicant); !isNotFound(err) {
+		t.Errorf("pending applicant: want NOT_FOUND, got %v", err)
+	}
+	rows, total, err := svc.List(ctx, member, store.ListFilter{}, 20, 0)
+	if err != nil || total != 1 || len(rows) != 1 || rows[0].MemberCount != 1 {
+		t.Errorf("member list: total %d rows %+v err %v", total, rows, err)
+	}
+	if _, total, _ = svc.List(ctx, applicant, store.ListFilter{}, 20, 0); total != 0 {
+		t.Errorf("applicant list total = %d, want 0", total)
+	}
+}
+
 func isNotFound(err error) bool {
 	var we *web.Error
 	return errors.As(err, &we) && we.Error() == "NOT_FOUND"

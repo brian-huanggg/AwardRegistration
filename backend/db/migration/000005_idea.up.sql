@@ -1,5 +1,5 @@
 -- V005 (B3-01): idea, one row per team (PRD 6.6). There is no Idea without slides, so the slide metadata
--- lives on this row as NOT NULL columns (D22). Members are added by V006 (B5-01, idea_member).
+-- lives on this row as NOT NULL columns (D22). Members are added by V010 (B5-01, idea_member).
 --   category / org / direction  closed value sets (VARCHAR + CHECK, never ENUM)
 --   name     1-75 code points, utf8mb4_bin: case-sensitive, unique per leader (D20), not globally
 --   summary  1-300 code points
