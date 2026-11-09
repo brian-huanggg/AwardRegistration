@@ -72,10 +72,11 @@ func newEnv(t *testing.T) *env {
 		Ideas: idea.Handler{
 			Service: &idea.Service{
 				DB: db, Audit: auditSvc,
-				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
-				Slides:  server.IdeaSlideRules(),
-				Objects: discardObjects{},
-				Aborter: discardObjects{},
+				Gate:     deadline.Gate{Store: deadline.SQLStore{DB: db}},
+				Slides:   server.IdeaSlideRules(),
+				Objects:  discardObjects{},
+				Aborter:  discardObjects{},
+				Replaced: discardObjects{},
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
@@ -102,6 +103,10 @@ func (discardObjects) Get(context.Context, string) (io.ReadCloser, int64, error)
 }
 
 func (discardObjects) AbortUpload(context.Context, string, shareddb.Outcome) {}
+
+func (discardObjects) RecordReplaced(context.Context, *sql.Tx, string) (int64, error) { return 0, nil }
+
+func (discardObjects) DeleteAfterCommit(context.Context, int64, string) {}
 
 // stateDeadline is the deadline expression that puts the contest in a state.
 var stateDeadline = map[string]string{
@@ -149,11 +154,12 @@ type actor struct {
 	empNo   string
 	name    string
 	session *http.Cookie
+	leader  bool // leads the Idea that ${ideaId} stands for
 }
 
-// fixtures lists the actors the harness can build. Idea-related actors (member,
-// leader) arrive with the PRs that create Ideas.
-var fixtures = map[string]string{"visitor": "", "user": "USER", "admin": "ADMIN"}
+// fixtures lists the actors the harness can build. The leader is a User who
+// leads the Idea that ${ideaId} stands for; the member arrives with B5-01.
+var fixtures = map[string]string{"visitor": "", "user": "USER", "leader": "USER", "admin": "ADMIN"}
 
 // newActor creates a fresh account (logout and login change session state, so
 // no two cells share one) and logs in through the API.
@@ -178,7 +184,7 @@ func (e *env) newActor(t *testing.T, name string) actor {
 	if rec.Code != 200 {
 		t.Fatalf("login %s: %d %s", name, rec.Code, rec.Body)
 	}
-	return actor{empNo: empNo, name: "N " + empNo, session: cookie(rec, auth.SessionCookie)}
+	return actor{empNo: empNo, name: "N " + empNo, session: cookie(rec, auth.SessionCookie), leader: name == "leader"}
 }
 
 func cookie(rec *httptest.ResponseRecorder, name string) *http.Cookie {
@@ -204,8 +210,37 @@ func (e *env) csrf(t *testing.T, session *http.Cookie) (string, *http.Cookie) {
 	return b.Token, cookie(rec, auth.CSRFCookie)
 }
 
+// seedIdea inserts an Idea for ${ideaId}. It is led by the actor when the actor
+// is the leader, otherwise by a fresh User, so every cell has its own Idea.
+func (e *env) seedIdea(t *testing.T, a actor) (id, leaderEmpNo string) {
+	t.Helper()
+	empNo := a.empNo
+	if !a.leader {
+		empNo = fmt.Sprintf("%06d", 700000+e.seq.Add(1))
+		e.addUser(t, empNo, "USER")
+	}
+	var leaderID string
+	if err := e.db.QueryRow(`SELECT id FROM app_user WHERE emp_no = ?`, empNo).Scan(&leaderID); err != nil {
+		t.Fatal(err)
+	}
+	id = uuid.NewString()
+	if _, err := e.db.Exec(`INSERT INTO idea (id, leader_id, category, org, direction, name, summary,
+	        slides_object_key, slides_ext, slides_size, slides_sha256)
+	        VALUES (?, ?, 'COOL_IDEA', 'BSID', 'TALENT_DEVELOPMENT', 'Matrix Seed', 'Seed summary', ?, 'pdf', 1024, ?)`,
+		id, leaderID, "slides/"+id+"/"+uuid.NewString()+".pdf", strings.Repeat("ab", 32)); err != nil {
+		t.Fatal(err)
+	}
+	return id, empNo
+}
+
 func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 	t.Helper()
+	var seeded string // employee number of the seeded Idea's Leader
+	if strings.Contains(r.Path, "${ideaId}") {
+		var id string
+		id, seeded = e.seedIdea(t, a)
+		r.Path = strings.ReplaceAll(r.Path, "${ideaId}", id)
+	}
 	var body *strings.Reader
 	if r.Body != nil {
 		s := string(r.Body)
@@ -216,7 +251,7 @@ func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 	}
 	var req *http.Request
 	if r.Multipart != nil {
-		buf, ct := multipartBody(t, r.Multipart, a)
+		buf, ct := multipartBody(t, r.Multipart, a, seeded)
 		req = httptest.NewRequest(r.Method, r.Path, buf)
 		req.Header.Set("Content-Type", ct)
 	} else if body != nil {
@@ -238,9 +273,11 @@ func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 	return req
 }
 
-func multipartBody(t *testing.T, m *Multipart, a actor) (*bytes.Buffer, string) {
+func multipartBody(t *testing.T, m *Multipart, a actor, leaderEmpNo string) (*bytes.Buffer, string) {
 	t.Helper()
-	sub := strings.NewReplacer("${actorEmpNo}", a.empNo, "${actorName}", a.name)
+	// ${leaderName}/${leaderEmpNo} name the Leader of the seeded ${ideaId} Idea.
+	sub := strings.NewReplacer("${actorEmpNo}", a.empNo, "${actorName}", a.name,
+		"${leaderEmpNo}", leaderEmpNo, "${leaderName}", "N "+leaderEmpNo)
 	var buf bytes.Buffer
 	mw := multipart.NewWriter(&buf)
 	for k, v := range m.Fields {

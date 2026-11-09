@@ -164,3 +164,79 @@ func NameTaken(ctx context.Context, q Querier, leader uuid.UUID, name string) (b
 	}
 	return true, nil
 }
+
+// Text is the five editable fields of an Idea (PRD 6.6).
+type Text struct {
+	Category, Org, Direction, Name, Summary string
+}
+
+// LockText locks the idea row and returns its leader and current text fields.
+// It is the first statement of an edit transaction, so concurrent edits and a
+// concurrent delete serialize here. A row deleted in the meantime is
+// ErrNotFound (the uniform 404). Only the idea row is locked, never the Leader's
+// account row, which is why this is not built on the joined selectIdea.
+func LockText(ctx context.Context, tx *sql.Tx, id uuid.UUID) (leader uuid.UUID, cur Text, err error) {
+	var lid string
+	err = tx.QueryRowContext(ctx,
+		`SELECT leader_id, category, org, direction, name, summary FROM idea WHERE id = ? FOR UPDATE`,
+		id.String()).Scan(&lid, &cur.Category, &cur.Org, &cur.Direction, &cur.Name, &cur.Summary)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, Text{}, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, Text{}, fmt.Errorf("lock idea: %w", err)
+	}
+	if leader, err = uuid.Parse(lid); err != nil {
+		return uuid.Nil, Text{}, fmt.Errorf("idea leader id: %w", err)
+	}
+	return leader, cur, nil
+}
+
+// UpdateText replaces the five text fields of a locked idea row and adds 1 to
+// version (V005). A unique-key violation on uq_idea_leader_name is returned as
+// the driver error; the service maps it with db.DuplicateKey.
+func UpdateText(ctx context.Context, tx *sql.Tx, id uuid.UUID, t Text) error {
+	_, err := tx.ExecContext(ctx,
+		`UPDATE idea SET category = ?, org = ?, direction = ?, name = ?, summary = ?, version = version + 1
+		  WHERE id = ?`,
+		t.Category, t.Org, t.Direction, t.Name, t.Summary, id.String())
+	if err != nil {
+		return fmt.Errorf("update idea: %w", err)
+	}
+	return nil
+}
+
+// LockSlides locks the idea row and returns its leader and current slide
+// pointer. It is the first statement of a replace transaction, so two
+// concurrent replacements cannot read the same old key and orphan one object
+// (Sequence.md §4). A row deleted in the meantime is ErrNotFound.
+func LockSlides(ctx context.Context, tx *sql.Tx, id uuid.UUID) (leader uuid.UUID, cur Slides, err error) {
+	var lid string
+	err = tx.QueryRowContext(ctx,
+		`SELECT leader_id, slides_object_key, slides_ext, slides_size, slides_sha256 FROM idea WHERE id = ? FOR UPDATE`,
+		id.String()).Scan(&lid, &cur.ObjectKey, &cur.Ext, &cur.Size, &cur.SHA256)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, Slides{}, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, Slides{}, fmt.Errorf("lock idea slides: %w", err)
+	}
+	if leader, err = uuid.Parse(lid); err != nil {
+		return uuid.Nil, Slides{}, fmt.Errorf("idea leader id: %w", err)
+	}
+	return leader, cur, nil
+}
+
+// SwitchSlides points a locked idea row at a new object, stamps
+// slides_updated_at with the database clock and adds 1 to version.
+func SwitchSlides(ctx context.Context, tx *sql.Tx, id uuid.UUID, s Slides) error {
+	_, err := tx.ExecContext(ctx,
+		`UPDATE idea SET slides_object_key = ?, slides_ext = ?, slides_size = ?, slides_sha256 = ?,
+		                 slides_updated_at = CURRENT_TIMESTAMP(6), version = version + 1
+		  WHERE id = ?`,
+		s.ObjectKey, s.Ext, s.Size, s.SHA256, id.String())
+	if err != nil {
+		return fmt.Errorf("switch idea slides: %w", err)
+	}
+	return nil
+}

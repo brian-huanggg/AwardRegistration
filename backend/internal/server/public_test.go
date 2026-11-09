@@ -71,3 +71,27 @@ func TestActionForCoversPublicWrites(t *testing.T) {
 		}
 	}
 }
+
+func TestActionForIdeaEdit(t *testing.T) {
+	const id = "/api/v1/ideas/6f1d3c1e-0000-4000-8000-000000000000"
+	tests := []struct {
+		method, path, want string
+	}{
+		{http.MethodPut, id, "IDEA_UPDATE"},
+		{http.MethodPut, "/api/v1/ideas/not-a-uuid", "IDEA_UPDATE"}, // CSRF is checked before the ID is parsed
+		{http.MethodPut, "/api/v1/ideas/", ""},
+		{http.MethodPut, id + "/slides", "SLIDES_REPLACE"},
+		{http.MethodPut, "/api/v1/ideas//slides", ""},
+		{http.MethodPut, id + "/x/slides", ""},
+		{http.MethodPut, id + "/other", ""},
+		{http.MethodGet, id + "/slides", ""},
+		{http.MethodGet, id, ""},
+		{http.MethodPost, id, ""},
+	}
+	for _, tc := range tests {
+		r := httptest.NewRequest(tc.method, tc.path, nil)
+		if got := server.ActionFor(r); got != tc.want {
+			t.Errorf("%s %s = %q, want %q", tc.method, tc.path, got, tc.want)
+		}
+	}
+}

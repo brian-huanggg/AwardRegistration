@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+	"database/sql"
+
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 )
@@ -18,4 +21,18 @@ func IdeaSlideRules() idea.SlideRules {
 			return string(kind), err
 		},
 	}
+}
+
+// IdeaReplacedKeys adapts storage.PendingDeletion to idea.ReplacedKeys.
+type IdeaReplacedKeys struct{ P *storage.PendingDeletion }
+
+// RecordReplaced records key as REPLACED inside tx.
+func (r IdeaReplacedKeys) RecordReplaced(ctx context.Context, tx *sql.Tx, key string) (int64, error) {
+	id, err := r.P.RecordInTx(ctx, tx, key, storage.ReasonReplaced)
+	return int64(id), err
+}
+
+// DeleteAfterCommit deletes the old object and its pending row, best effort.
+func (r IdeaReplacedKeys) DeleteAfterCommit(ctx context.Context, id int64, key string) {
+	r.P.DeleteAfterCommit(ctx, storage.PendingID(id), key)
 }

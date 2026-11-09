@@ -246,6 +246,41 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: updateIdea
+      tags: [ideas]
+      summary: Edit the Idea's text fields (Leader only, full replacement)
+      description: >
+        Replaces category, org, direction, name and summary. Slides change through the slides endpoint.
+        Check order before the body is read: 404 (hidden or missing) -> 403 FORBIDDEN (Admin, Member)
+        -> 403 SUBMISSION_* (state). Then 400/413/415, 422 (incl. FILENAME_TOO_LONG), 409 IDEA_DUPLICATE.
+        The IDEA_UPDATE audit row lists the changed fields only; a request that changes nothing writes the
+        row with empty documents and does not bump the version. A transaction whose outcome is unknown
+        answers 503 SERVICE_UNAVAILABLE.
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdeaUpdateRequest' }
+      responses:
+        '200':
+          description: IdeaDetail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetail' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /ideas/{id}/slides:
     get:
       operationId: downloadSlides
@@ -280,6 +315,41 @@ paths:
               schema: { type: string, format: binary }
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
+    put:
+      operationId: replaceSlides
+      tags: [ideas]
+      summary: Replace the Idea's slides (Leader, Admin)
+      description: >
+        One multipart part `slides`. Check order before the body is read: 404 (hidden or missing) ->
+        403 FORBIDDEN (Member) -> 403 SUBMISSION_* (state; Admin is exempt). Then 400 (missing or
+        repeated part), 413, 422 EMPTY_FILE, 415, 422 FILENAME_MISMATCH against the CURRENT Idea data,
+        then upload (503 STORAGE_UNAVAILABLE). The transaction locks the row, switches the pointer,
+        records the old key as REPLACED, adds 1 to version and writes SLIDES_REPLACE; the old object is
+        deleted after commit and never fails the request. A transaction whose outcome is unknown answers
+        503 SERVICE_UNAVAILABLE. The body is read by the handler, so the generated wrapper does not bind it.
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/ReplaceSlidesForm' }
+      responses:
+        '200':
+          description: IdeaDetail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetail' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
 components:
@@ -415,6 +485,23 @@ components:
         page: { type: integer }
         size: { type: integer }
         total: { type: integer }
+    ReplaceSlidesForm:
+      type: object
+      required: [slides]
+      properties:
+        slides:
+          type: string
+          format: binary
+          description: 'One PDF or PPTX, at most 5 MiB, named by the Idea''s current expected filename'
+    IdeaUpdateRequest:
+      type: object
+      required: [category, org, direction, name, summary]
+      properties:
+        category: { type: string, description: 'Category code; compared exactly (PRD 6.6)' }
+        org: { type: string, description: 'Org code; compared exactly' }
+        direction: { type: string, description: 'Direction code; compared exactly' }
+        name: { type: string, description: '1-75 code points after clean-up' }
+        summary: { type: string, description: '1-300 code points after clean-up' }
     IdeaDetail:
       type: object
       required: [id, category, org, direction, name, summary, leader, members, pendingRequests, slides, expectedFilenameBase, createdAt, updatedAt, version]

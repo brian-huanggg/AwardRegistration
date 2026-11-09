@@ -144,10 +144,11 @@ func newCreateEnvOn(t *testing.T, d, svcDB *sql.DB) *createEnv {
 	e := &createEnv{db: d, objects: objs, h: idea.Handler{
 		Service: &idea.Service{
 			DB: svcDB, Audit: aud,
-			Gate:    deadline.Gate{Store: deadline.SQLStore{DB: d}},
-			Slides:  server.IdeaSlideRules(),
-			Objects: objs,
-			Aborter: storage.NewPendingDeletion(d, objs, nil),
+			Gate:     deadline.Gate{Store: deadline.SQLStore{DB: d}},
+			Slides:   server.IdeaSlideRules(),
+			Objects:  objs,
+			Aborter:  storage.NewPendingDeletion(d, objs, nil),
+			Replaced: server.IdeaReplacedKeys{P: storage.NewPendingDeletion(d, objs, nil)},
 		},
 		ExpectedFilename: storage.ExpectedFilenameBase,
 		Fail:             errs.Write,

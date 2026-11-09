@@ -140,6 +140,117 @@
       }
     },
     {
+      "id": "edit-idea",
+      "operation": "edit text fields (${ideaId} is an Idea led by a fresh Leader; the leader actor leads it itself). Member cells arrive with B5-01",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}",
+      "body": {
+        "category": "OUTSTANDING_IMPACT",
+        "org": "ICSD",
+        "direction": "GREEN_MANUFACTURING",
+        "name": "Matrix Edited",
+        "summary": "Matrix edited summary"
+      },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 200 },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "edit-idea-not-open",
+      "operation": "edit text fields before the contest opens (role is checked before state)",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}",
+      "body": {
+        "category": "OUTSTANDING_IMPACT",
+        "org": "ICSD",
+        "direction": "GREEN_MANUFACTURING",
+        "name": "Matrix Edited",
+        "summary": "Matrix edited summary"
+      },
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "edit-idea-closed",
+      "operation": "edit text fields after the deadline",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}",
+      "body": {
+        "category": "OUTSTANDING_IMPACT",
+        "org": "ICSD",
+        "direction": "GREEN_MANUFACTURING",
+        "name": "Matrix Edited",
+        "summary": "Matrix edited summary"
+      },
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "replace-slides",
+      "operation": "replace slides (${ideaId} is led by a fresh Leader; the leader actor leads it itself). Member cells arrive with B5-01",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}/slides",
+      "multipart": {
+        "fields": {},
+        "file": { "field": "slides", "filename": "I_BSID_${leaderName}_${leaderEmpNo}_Matrix Seed.pdf", "content": "pdf" }
+      },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 200 },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "replace-slides-not-open",
+      "operation": "replace slides before the contest opens (Admin is exempt)",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}/slides",
+      "multipart": {
+        "fields": {},
+        "file": { "field": "slides", "filename": "I_BSID_${leaderName}_${leaderEmpNo}_Matrix Seed.pdf", "content": "pdf" }
+      },
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 200 }
+      }
+    },
+    {
+      "id": "replace-slides-closed",
+      "operation": "replace slides after the deadline (Admin is exempt)",
+      "method": "PUT",
+      "path": "/api/v1/ideas/${ideaId}/slides",
+      "multipart": {
+        "fields": {},
+        "file": { "field": "slides", "filename": "I_BSID_${leaderName}_${leaderEmpNo}_Matrix Seed.pdf", "content": "pdf" }
+      },
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 200 }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

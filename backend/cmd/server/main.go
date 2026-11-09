@@ -67,6 +67,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	pending := storage.NewPendingDeletion(db, slides, log)
 	si := server.API{
 		Auth:    auth.Handler{CSRF: csrf, Log: log},
 		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
@@ -80,10 +81,11 @@ func run() error {
 		Ideas: idea.Handler{
 			Service: &idea.Service{
 				DB: db, Audit: auditSvc,
-				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
-				Slides:  server.IdeaSlideRules(),
-				Objects: slides,
-				Aborter: storage.NewPendingDeletion(db, slides, log),
+				Gate:     deadline.Gate{Store: deadline.SQLStore{DB: db}},
+				Slides:   server.IdeaSlideRules(),
+				Objects:  slides,
+				Aborter:  pending,
+				Replaced: server.IdeaReplacedKeys{P: pending},
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,

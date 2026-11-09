@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/api"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
@@ -63,4 +65,14 @@ func (a API) ListIdeas(w http.ResponseWriter, r *http.Request, params api.ListId
 // DownloadSlides serves GET /ideas/{id}/slides.
 func (a API) DownloadSlides(w http.ResponseWriter, r *http.Request, id api.IdeaId) {
 	a.Ideas.DownloadSlides(w, r, id)
+}
+
+// UpdateIdea serves PUT /ideas/{id}.
+func (a API) UpdateIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId, _ api.UpdateIdeaParams) {
+	a.Ideas.UpdateIdea(w, r, uuid.UUID(id))
+}
+
+// ReplaceSlides serves PUT /ideas/{id}/slides.
+func (a API) ReplaceSlides(w http.ResponseWriter, r *http.Request, id api.IdeaId, _ api.ReplaceSlidesParams) {
+	a.Ideas.ReplaceSlides(w, r, uuid.UUID(id))
 }
