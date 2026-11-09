@@ -271,3 +271,54 @@ func TestPendingDeletionAroundLostCommit(t *testing.T) {
 		t.Errorf("after faults: %v, %v", out, err)
 	}
 }
+
+// AbortUpload (Sequence.md §2): known rollback deletes now and records only
+// when that fails; Unknown never deletes and records with the grace period.
+// A cancelled request context does not skip the compensation.
+func TestAbortUpload(t *testing.T) {
+	d := dbtest.New(t)
+	gone, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, tc := range []struct {
+		name      string
+		outcome   db.Outcome
+		deleteErr error
+		deleted   bool
+		rows      int
+		graced    bool
+	}{
+		{"rolled back", db.RolledBack, nil, true, 0, false},
+		{"rolled back, delete fails", db.RolledBack, errors.New("minio down"), false, 1, false},
+		{"unknown", db.Unknown, nil, false, 1, true},
+		{"committed is ignored", db.Committed, nil, false, 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := &fakeStore{deleteErr: tc.deleteErr}
+			p := storage.NewPendingDeletion(d, fs, nil)
+			key := "slides/abort/" + strings.ReplaceAll(tc.name, " ", "-") + ".pdf"
+			p.AbortUpload(gone, key, tc.outcome)
+
+			if got := len(fs.deleted) == 1; got != tc.deleted {
+				t.Errorf("deleted = %v, want %v", fs.deleted, tc.deleted)
+			}
+			for _, err := range fs.ctxErr {
+				if err != nil {
+					t.Errorf("Delete saw ctx error %v; the request's cancellation must be ignored", err)
+				}
+			}
+			if tc.outcome == db.Unknown && len(fs.ctxErr) != 0 {
+				t.Error("Unknown must never call Delete")
+			}
+			got := pendingRows(t, d, key)
+			if len(got) != tc.rows {
+				t.Fatalf("rows = %+v, want %d", got, tc.rows)
+			}
+			if tc.rows == 1 {
+				if got[0].Reason != string(storage.ReasonUploadAborted) || (got[0].DueInSec > 1) != tc.graced {
+					t.Errorf("row = %+v, graced %v", got[0], tc.graced)
+				}
+			}
+		})
+	}
+}

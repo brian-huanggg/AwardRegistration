@@ -32,14 +32,18 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 )
 
-// fakeObjects is an in-memory idea.ObjectStore. before runs inside Put, so a
+// fakeObjects is an in-memory storage.SlideStore. before runs inside Put, so a
 // test can change the database between the pre-checks and the transaction.
+// deleteErr makes Delete fail (MinIO down after the upload).
 type fakeObjects struct {
-	mu     sync.Mutex
-	puts   map[string][]byte
-	types  map[string]string
-	fail   error
-	before func()
+	mu        sync.Mutex
+	puts      map[string][]byte
+	types     map[string]string
+	fail      error
+	deleteErr error
+	deleted   []string
+	last      string // key of the last successful Put
+	before    func()
 }
 
 func newFakeObjects() *fakeObjects {
@@ -63,6 +67,22 @@ func (f *fakeObjects) Put(_ context.Context, key string, r io.Reader, size int64
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.puts[key], f.types[key] = b, ct
+	f.last = key
+	return nil
+}
+
+func (f *fakeObjects) Get(context.Context, string) (io.ReadCloser, int64, error) {
+	return nil, 0, storage.ErrObjectNotFound
+}
+
+func (f *fakeObjects) Delete(_ context.Context, key string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	delete(f.puts, key)
+	f.deleted = append(f.deleted, key)
 	return nil
 }
 
@@ -81,15 +101,23 @@ type createEnv struct {
 func newCreateEnv(t *testing.T) *createEnv {
 	t.Helper()
 	d := dbtest.New(t)
+	return newCreateEnvOn(t, d, d)
+}
+
+// newCreateEnvOn builds the env with the service's transactions on svcDB (for
+// example a fault-injecting pool) and every other access on d.
+func newCreateEnvOn(t *testing.T, d, svcDB *sql.DB) *createEnv {
+	t.Helper()
 	aud := audit.New(d, nil)
 	objs := newFakeObjects()
 	errs := server.ErrorAdapter{Audit: aud}
 	e := &createEnv{db: d, objects: objs, h: idea.Handler{
 		Service: &idea.Service{
-			DB: d, Audit: aud,
+			DB: svcDB, Audit: aud,
 			Gate:    deadline.Gate{Store: deadline.SQLStore{DB: d}},
 			Slides:  server.IdeaSlideRules(),
 			Objects: objs,
+			Aborter: storage.NewPendingDeletion(d, objs, nil),
 		},
 		ExpectedFilename: storage.ExpectedFilenameBase,
 		Fail:             errs.Write,
@@ -448,6 +476,10 @@ func TestCreateIdeaDuplicate(t *testing.T) {
 		e.count(t, `SELECT COUNT(*) FROM audit_log WHERE action = 'IDEA_CREATE' AND outcome = 'SUCCESS'`) != 3 {
 		t.Error("race: the losing create must leave no row and no audit row")
 	}
+	// Known rollback (B3-09): the losing upload is deleted at once, no row kept.
+	if len(e.objects.deleted) != 1 || e.objects.count() != 3 || e.pendingCount(t) != 0 {
+		t.Errorf("race: deleted %v, %d objects, %d pending rows", e.objects.deleted, e.objects.count(), e.pendingCount(t))
+	}
 }
 
 func TestCreateIdeaDeadlinePassesBeforeTx(t *testing.T) {
@@ -466,6 +498,115 @@ func TestCreateIdeaDeadlinePassesBeforeTx(t *testing.T) {
 		AND error_code = 'SUBMISSION_CLOSED' AND JSON_VALUE(after_json, '$.reason') = 'STATE'`) != 1 {
 		t.Error("want one DENIED STATE row")
 	}
+	if len(e.objects.deleted) != 1 || e.objects.count() != 0 || e.pendingCount(t) != 0 {
+		t.Errorf("the rolled-back upload must be deleted: deleted %v, %d pending rows", e.objects.deleted, e.pendingCount(t))
+	}
+}
+
+// Known rollback while MinIO is down: the delete fails, so the key is
+// recorded as UPLOAD_ABORTED, due at once; the response is the rollback's.
+func TestCreateIdeaRollbackDeleteFails(t *testing.T) {
+	e := newCreateEnv(t)
+	user := addUser(t, e.db, "100001", "USER")
+	e.objects.deleteErr = web.NewError(web.CodeStorageUnavailable, "object storage is unavailable")
+	e.objects.before = func() { e.setDeadline(t, "NOW(6) - INTERVAL 1 SECOND") }
+
+	rec := e.post(t, user, validForm("Late"))
+	if rec.Code != 403 || decodeProblem(t, rec).Code != "SUBMISSION_CLOSED" {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if e.objects.count() != 1 {
+		t.Fatalf("%d objects, want the one kept upload", e.objects.count())
+	}
+	got := e.pending(t, e.objects.last)
+	if len(got) != 1 || got[0].reason != "UPLOAD_ABORTED" || got[0].dueInSec > 1 {
+		t.Errorf("pending rows %+v, want one UPLOAD_ABORTED due now", got)
+	}
+}
+
+// Lost-commit cases (Sequence.md §2, §3; Backend.md §4.4) through the
+// fault-injecting connector: Unknown keeps the object, records it with the
+// grace period and answers 503; a known rollback at COMMIT deletes it.
+func TestCreateIdeaLostCommit(t *testing.T) {
+	dsn := dbtest.Start(t)
+	d := dbtest.Open(t, dsn)
+	faulty, faults := dbtest.OpenFaulty(t, dsn)
+	e := newCreateEnvOn(t, d, faulty)
+	user := addUser(t, d, "100001", "USER")
+
+	for i, tc := range []struct {
+		name    string
+		fault   dbtest.CommitFault
+		applied bool // the idea row exists after the COMMIT
+		kept    bool // the object stays, recorded with the grace period
+	}{
+		{"commit applied, ack lost", dbtest.LostAckCommitted, true, true},
+		{"connection lost before commit", dbtest.LostAckNotCommitted, false, true},
+		{"deadlock at commit", dbtest.DeadlockAtCommit, false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			name := fmt.Sprintf("Lost %d", i)
+			before := len(e.objects.deleted)
+			faults.FailNextCommit(tc.fault)
+			f := validForm(name)
+			rec := e.post(t, user, f)
+			if rec.Code != 503 || decodeProblem(t, rec).Code != "SERVICE_UNAVAILABLE" {
+				t.Fatalf("%d %s", rec.Code, rec.Body)
+			}
+			key := e.objects.last
+			if n := e.count(t, `SELECT COUNT(*) FROM idea WHERE name = ?`, name); (n == 1) != tc.applied {
+				t.Errorf("idea rows = %d, applied %v", n, tc.applied)
+			}
+			_, stored := e.objects.puts[key]
+			got := e.pending(t, key)
+			if tc.kept {
+				grace := storage.UploadAbortedGrace.Seconds()
+				if !stored || len(got) != 1 || got[0].reason != "UPLOAD_ABORTED" ||
+					got[0].dueInSec < grace-30 || got[0].dueInSec > grace+1 {
+					t.Errorf("Unknown: stored %v, pending %+v; want kept and due after the grace", stored, got)
+				}
+				return
+			}
+			if stored || len(got) != 0 || len(e.objects.deleted) != before+1 {
+				t.Errorf("rollback: stored %v, pending %+v; want deleted now", stored, got)
+			}
+		})
+	}
+	if faults.Fired() != 3 {
+		t.Errorf("faults fired = %d, want 3", faults.Fired())
+	}
+}
+
+type pendingRow struct {
+	reason   string
+	dueInSec float64 // next_attempt_at - NOW(6), database time
+}
+
+func (e *createEnv) pending(t *testing.T, key string) []pendingRow {
+	t.Helper()
+	rows, err := e.db.Query(`SELECT reason, TIMESTAMPDIFF(MICROSECOND, NOW(6), next_attempt_at) / 1e6
+	                           FROM pending_file_deletion WHERE object_key = ? ORDER BY id`, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rows.Close() }()
+	var out []pendingRow
+	for rows.Next() {
+		var r pendingRow
+		if err := rows.Scan(&r.reason, &r.dueInSec); err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, r)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func (e *createEnv) pendingCount(t *testing.T) int {
+	t.Helper()
+	return e.count(t, `SELECT COUNT(*) FROM pending_file_deletion`)
 }
 
 func TestCreateIdeaStorageDown(t *testing.T) {

@@ -23,10 +23,11 @@ type Idea = store.Idea
 type Service struct {
 	DB    *sql.DB
 	Audit *audit.Service
-	// Gate, Slides and Objects are needed by Create only.
+	// Gate, Slides, Objects and Aborter are needed by Create only.
 	Gate    deadline.SubmissionGate
 	Slides  SlideRules
 	Objects ObjectStore
+	Aborter UploadAborter
 }
 
 // Get returns the Idea if the caller may see it. A missing Idea and a hidden

@@ -29,8 +29,8 @@ const (
 // the server is still finishing is never raced (D36). [Proposed] OI-19.
 const UploadAbortedGrace = 10 * time.Minute
 
-// bookkeepingTimeout bounds one write that runs outside the request's own
-// transaction (separate UPLOAD_ABORTED insert, post-commit delete).
+// bookkeepingTimeout bounds one database write that runs outside the request's
+// own transaction (separate UPLOAD_ABORTED insert, pending row removal).
 const bookkeepingTimeout = 5 * time.Second
 
 // PendingID identifies a pending_file_deletion row.
@@ -89,6 +89,38 @@ func (p *PendingDeletion) RecordUploadAborted(ctx context.Context, key string, o
 		return err
 	}
 	return nil
+}
+
+// AbortUpload compensates a newly uploaded key whose transaction did not
+// commit (Sequence.md §2). It never fails the request, which is failing
+// anyway; every failure is logged.
+//
+//   - RolledBack: delete the object now; if that fails, record UPLOAD_ABORTED
+//     due at once.
+//   - Unknown: keep the object (the COMMIT may have been applied) and record
+//     UPLOAD_ABORTED due after UploadAbortedGrace.
+//
+// The caller's cancellation is ignored, so a client that disconnects does not
+// skip it. Committed is a programming error and is only logged.
+func (p *PendingDeletion) AbortUpload(ctx context.Context, key string, outcome db.Outcome) {
+	switch outcome {
+	case db.RolledBack:
+		dctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), CallTimeout)
+		err := p.store.Delete(dctx, key)
+		cancel()
+		if err == nil {
+			return
+		}
+		p.log.WarnContext(ctx, "delete of a rolled-back upload failed; recording UPLOAD_ABORTED",
+			slog.String("objectKey", key), slog.Any("error", err))
+	case db.Unknown:
+	default:
+		p.log.ErrorContext(ctx, "AbortUpload called for a committed key; object kept",
+			slog.String("objectKey", key), slog.String("outcome", outcome.String()))
+		return
+	}
+	// RecordUploadAborted logs its own failure.
+	_ = p.RecordUploadAborted(ctx, key, outcome)
 }
 
 // DeleteAfterCommit deletes key from storage and then its pending row. It runs

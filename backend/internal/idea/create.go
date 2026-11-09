@@ -74,6 +74,14 @@ type ObjectStore interface {
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
 }
 
+// UploadAborter compensates an uploaded object whose transaction did not
+// commit (storage.PendingDeletion.AbortUpload, Sequence.md §2): delete it now
+// after a known rollback, keep it and record UPLOAD_ABORTED after an unknown
+// outcome. It is best effort and never fails the request.
+type UploadAborter interface {
+	AbortUpload(ctx context.Context, key string, outcome db.Outcome)
+}
+
 // CreateCommand is the raw, unvalidated form. The Leader is the caller.
 type CreateCommand struct {
 	Category, Org, Direction, Name, Summary string
@@ -96,6 +104,8 @@ type validText struct {
 // text 422 (incl. FILENAME_TOO_LONG) → file 413/422/415/422 → duplicate
 // pre-check 409 → upload (503) → transaction: AssertOpenInTx, INSERT,
 // IDEA_CREATE. The returned Idea is read back inside the same transaction.
+// A transaction that does not commit is compensated by its outcome (B3-09);
+// an unknown outcome answers 503 SERVICE_UNAVAILABLE.
 func (s *Service) Create(ctx context.Context, caller security.Principal, cmd CreateCommand, req Request) (Idea, error) {
 	leaderName, err := store.LeaderName(ctx, s.DB, caller.UserID)
 	if err != nil {
@@ -138,7 +148,7 @@ func (s *Service) Create(ctx context.Context, caller security.Principal, cmd Cre
 		return Idea{}, err
 	}
 	var got Idea
-	_, err = db.InTx(ctx, s.DB, func(ctx context.Context, tx *sql.Tx) error {
+	out, err := db.InTx(ctx, s.DB, func(ctx context.Context, tx *sql.Tx) error {
 		if err := s.Gate.AssertOpenInTx(ctx, tx, caller); err != nil {
 			return denied(err, auditReasonState)
 		}
@@ -157,15 +167,22 @@ func (s *Service) Create(ctx context.Context, caller security.Principal, cmd Cre
 		got, err = store.GetVisible(ctx, tx, n.ID, caller.UserID, caller.IsAdmin())
 		return err
 	})
-	// TODO(B3-09): compensate the uploaded object by outcome (known rollback →
-	// delete now, else UPLOAD_ABORTED; Unknown → keep and record UPLOAD_ABORTED).
-	if err != nil {
-		if _, dup := db.DuplicateKey(err); dup {
-			return Idea{}, duplicateErr(err)
-		}
-		return Idea{}, err
+	if out == db.Committed {
+		return got, nil
 	}
-	return got, nil
+	// Known rollback: the object is deleted now. Unknown: the COMMIT may have
+	// been applied, so the object stays and the clean-up job keeps it if an
+	// idea row references the key.
+	s.Aborter.AbortUpload(ctx, n.Slides.ObjectKey, out)
+	if out == db.Unknown {
+		e := web.NewError(web.CodeServiceUnavailable, "The result of the request is unknown; check your Ideas before retrying.")
+		e.Cause = err
+		return Idea{}, e
+	}
+	if _, dup := db.DuplicateKey(err); dup {
+		return Idea{}, duplicateErr(err)
+	}
+	return Idea{}, err
 }
 
 // validateText cleans and checks every text field, collecting each field's

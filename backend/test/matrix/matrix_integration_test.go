@@ -26,6 +26,7 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
+	shareddb "github.com/brian-huanggg/AwardRegistration/backend/internal/shared/db"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 	"github.com/brian-huanggg/AwardRegistration/backend/test/apispec"
@@ -73,6 +74,7 @@ func newEnv(t *testing.T) *env {
 				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
 				Slides:  server.IdeaSlideRules(),
 				Objects: discardObjects{},
+				Aborter: discardObjects{},
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
@@ -92,6 +94,8 @@ func (discardObjects) Put(_ context.Context, _ string, r io.Reader, _ int64, _ s
 	_, err := io.Copy(io.Discard, r)
 	return err
 }
+
+func (discardObjects) AbortUpload(context.Context, string, shareddb.Outcome) {}
 
 // stateDeadline is the deadline expression that puts the contest in a state.
 var stateDeadline = map[string]string{

@@ -81,6 +81,7 @@ func run() error {
 				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
 				Slides:  server.IdeaSlideRules(),
 				Objects: slides,
+				Aborter: storage.NewPendingDeletion(db, slides, log),
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,

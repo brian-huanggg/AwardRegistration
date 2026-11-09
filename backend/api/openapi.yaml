@@ -201,7 +201,8 @@ paths:
       description: >
         One atomic multipart request (PRD 6.6). Order: role 403, state 403, 400 (missing or repeated
         part), 422 text fields (incl. FILENAME_TOO_LONG), file 413 / 422 EMPTY_FILE / 415 /
-        422 FILENAME_MISMATCH, 409 IDEA_DUPLICATE, then upload (503 STORAGE_UNAVAILABLE). The Leader is
+        422 FILENAME_MISMATCH, 409 IDEA_DUPLICATE, then upload (503 STORAGE_UNAVAILABLE). A transaction
+        whose outcome is unknown answers 503 SERVICE_UNAVAILABLE (the Idea may exist). The Leader is
         the caller; any leader value in the form is ignored. The body is read by the handler, so the
         generated wrapper does not bind it.
       parameters:
