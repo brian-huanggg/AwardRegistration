@@ -42,6 +42,11 @@ type Throttle interface {
 	// key is the submitted employee-ID string as typed; implementations strip
 	// control characters and cut it to 32 characters.
 	Check(ctx context.Context, key string, ip netip.Addr) (retryAfter time.Duration, err error)
+	// AuditOnce is asked after Check reported a wait. It returns true for the
+	// first throttled attempt of a window and false for the rest, so a throttled
+	// key or address is audited once per window (PRD §6.11). Its error is not
+	// fatal: the attempt is audited anyway.
+	AuditOnce(ctx context.Context, key string, ip netip.Addr) (bool, error)
 	// Fail counts one failed attempt (also for unknown accounts).
 	Fail(ctx context.Context, key string, ip netip.Addr) error
 	// Succeed clears the key's counter.
@@ -53,6 +58,9 @@ type NoThrottle struct{}
 
 // Check implements Throttle.
 func (NoThrottle) Check(context.Context, string, netip.Addr) (time.Duration, error) { return 0, nil }
+
+// AuditOnce implements Throttle.
+func (NoThrottle) AuditOnce(context.Context, string, netip.Addr) (bool, error) { return true, nil }
 
 // Fail implements Throttle.
 func (NoThrottle) Fail(context.Context, string, netip.Addr) error { return nil }
@@ -122,7 +130,11 @@ func (l *Logins) Login(ctx context.Context, cmd LoginCommand, req Request) (Logg
 	if retry > 0 {
 		e := web.NewError(web.CodeLoginThrottled, "too many login attempts")
 		e.RetryAfter = retry
-		return LoggedIn{}, loginRefused(e, audit.Throttled, "throttled", cmd.EmpNo)
+		if first, err := l.Throttle.AuditOnce(ctx, cmd.EmpNo, req.IP); err != nil || first {
+			// An error audits anyway: a duplicate row beats a missing one.
+			return LoggedIn{}, loginRefused(e, audit.Throttled, "throttled", cmd.EmpNo)
+		}
+		return LoggedIn{}, e
 	}
 
 	var (

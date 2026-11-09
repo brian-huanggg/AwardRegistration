@@ -42,6 +42,9 @@ func (f *fakeThrottle) Check(_ context.Context, key string, _ netip.Addr) (time.
 	f.lastKey = key
 	return f.retry, f.err
 }
+func (f *fakeThrottle) AuditOnce(context.Context, string, netip.Addr) (bool, error) {
+	return true, nil
+}
 func (f *fakeThrottle) Fail(context.Context, string, netip.Addr) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()

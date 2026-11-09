@@ -72,6 +72,36 @@ func (t DBThrottle) Check(ctx context.Context, key string, ip netip.Addr) (time.
 	return max(keyWait, ipWait), nil
 }
 
+// AuditOnce implements Throttle: the first throttled attempt of a lock or IP
+// window claims the audit row; later ones in the same window do not. When both
+// limits apply, the attempt is audited if either window is new.
+func (t DBThrottle) AuditOnce(ctx context.Context, key string, ip netip.Addr) (bool, error) {
+	var first bool
+	if wait, err := store.LockRemaining(ctx, t.DB, LockKey(key)); err != nil {
+		return false, err
+	} else if wait > 0 {
+		won, err := store.ClaimThrottleAudit(ctx, t.DB, "key", LockKey(key), wait)
+		if err != nil {
+			return false, err
+		}
+		first = first || won
+	}
+	if ip.IsValid() {
+		wait, err := store.IPRetryAfter(ctx, t.DB, ipString(ip), ipPolicy)
+		if err != nil {
+			return false, err
+		}
+		if wait > 0 {
+			won, err := store.ClaimThrottleAudit(ctx, t.DB, "ip", ipString(ip), wait)
+			if err != nil {
+				return false, err
+			}
+			first = first || won
+		}
+	}
+	return first, nil
+}
+
 // Fail implements Throttle.
 func (t DBThrottle) Fail(ctx context.Context, key string, ip netip.Addr) error {
 	if err := store.RecordFailure(ctx, t.DB, LockKey(key), lockPolicy); err != nil {
