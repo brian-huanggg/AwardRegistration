@@ -145,7 +145,7 @@ describe('Idea list: content', () => {
     const menu = await screen.findByRole('menu');
     expect(within(menu).getByRole('menuitem', { name: 'Download' })).toBeInTheDocument();
     expect(within(menu).getByRole('menuitem', { name: 'Replace slides' })).toHaveAttribute('href', '/ideas/0193a1b2-0000-7000-8000-000000000001');
-    await user.click(within(menu).getByRole('menuitem', { name: 'Delete' }));
+    await user.click(within(menu).getByRole('menuitem', { name: 'Delete Idea' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete this Idea?' });
     const before = seen.length;
     await user.click(within(dialog).getByRole('button', { name: 'Delete Idea' }));
