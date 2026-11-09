@@ -12,6 +12,7 @@ export default defineConfig({
       { text: 'File Upload', link: '/file-upload/' },
       { text: 'Authentication', link: '/authentication/' },
       { text: 'Authorization', link: '/authorization/' },
+      { text: 'Team', link: '/team/' },
     ],
 
     sidebar: [
@@ -53,6 +54,16 @@ export default defineConfig({
           { text: 'Implementation', link: '/authorization/implementation' },
           { text: 'Decision Thinking', link: '/authorization/decisions' },
           { text: 'Technical FAQ', link: '/authorization/faq' }
+        ]
+      },
+      {
+        text: 'Team & Join Request',
+        items: [
+          { text: 'Concepts', link: '/team/' },
+          { text: 'Architecture', link: '/team/architecture' },
+          { text: 'Implementation', link: '/team/implementation' },
+          { text: 'Decision Thinking', link: '/team/decisions' },
+          { text: 'Technical FAQ', link: '/team/faq' }
         ]
       }
     ],
