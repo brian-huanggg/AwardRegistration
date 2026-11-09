@@ -104,9 +104,22 @@ func run() error {
 			auth.Purger{DB: db, Log: log}.Purge)
 	})
 
+	// Readiness also waits for the first successful Admin read (OI-40).
+	checks := []server.Check{server.DBCheck(db)}
+	if cfg.AdminFile != "" {
+		sync := &account.AdminSync{
+			DB: db, Dir: account.FileAdminDirectory{Path: cfg.AdminFile}, Audit: auditSvc, Log: log,
+		}
+		checks = append(checks, sync.ReadyCheck)
+		jobs.Go(func() {
+			job.Run(jobCtx, log, job.Spec{Name: "admin-sync", Interval: account.AdminSyncInterval, Jitter: account.AdminSyncJitter},
+				sync.Run)
+		})
+	}
+
 	var ready atomic.Bool
 	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si),
 		web.TrustedProxies(cfg.ProxyHops),
 		auth.Middleware(sessions, server.IsPublic, log),
-		csrf.Middleware(errs.Write, server.ActionFor)), &ready, server.DBCheck(db))
+		csrf.Middleware(errs.Write, server.ActionFor)), &ready, checks...)
 }

@@ -52,6 +52,7 @@ func TestInvalid(t *testing.T) {
 		"same address":         {"ESG_PUBLIC_ADDR": ":9", "ESG_MANAGEMENT_ADDR": ":9"},
 		"dev needs minio keys": {"ESG_PROFILE": "dev", "ESG_CSRF_KEY": key},
 		"minio secure":         {"ESG_MINIO_SECURE": "maybe"},
+		"admin file off local": {"ESG_PROFILE": "dev", "ESG_CSRF_KEY": key, "ESG_MINIO_ACCESS_KEY": "a", "ESG_MINIO_SECRET_KEY": "b", "ESG_ADMIN_FILE": "/x.json"},
 	} {
 		if _, err := config.Load(env(m)); err == nil {
 			t.Errorf("%s: want error", name)

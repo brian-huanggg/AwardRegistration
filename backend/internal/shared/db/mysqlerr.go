@@ -57,3 +57,19 @@ func DuplicateKey(err error) (key string, ok bool) {
 	}
 	return rest, true
 }
+
+// ER_CONSTRAINT_FAILED (MariaDB) and ER_CHECK_CONSTRAINT_VIOLATED (MySQL).
+const (
+	errConstraintFailed = 4025
+	errCheckViolated    = 3819
+)
+
+// IsCheckViolation reports whether err is a CHECK constraint failure: the
+// table refused a value the application did not catch.
+func IsCheckViolation(err error) bool {
+	var me *mysql.MySQLError
+	if !errors.As(err, &me) {
+		return false
+	}
+	return me.Number == errConstraintFailed || me.Number == errCheckViolated
+}

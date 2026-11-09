@@ -23,6 +23,7 @@ type Config struct {
 	CSRFKeyPrevious string        // optional: still verifies for 8 h after a rotation
 	ProxyHops       int           // X-Forwarded-For proxies to trust for the client IP; 0 = TCP peer (PRD §6.5)
 	MinIO           MinIO
+	AdminFile       string // JSON Admin directory; local profile only (PRD §4.2). Empty = no Admin sync until the Vault directory (B2-06)
 }
 
 // MinIO configures the slide store. The bucket must exist; the application
@@ -67,6 +68,7 @@ func Load(getenv func(string) string) (Config, error) {
 		DBDSN:           get("ESG_DB_DSN", DefaultDSN),
 		CSRFKey:         getenv("ESG_CSRF_KEY"),
 		CSRFKeyPrevious: getenv("ESG_CSRF_KEY_PREVIOUS"),
+		AdminFile:       getenv("ESG_ADMIN_FILE"),
 		MinIO: MinIO{
 			Endpoint:  get("ESG_MINIO_ENDPOINT", "localhost:9000"),
 			AccessKey: getenv("ESG_MINIO_ACCESS_KEY"),
@@ -78,6 +80,9 @@ func Load(getenv func(string) string) (Config, error) {
 	case "local", "k3s", "dev":
 	default:
 		return Config{}, fmt.Errorf("ESG_PROFILE %q: want local, k3s or dev", c.Profile)
+	}
+	if c.AdminFile != "" && c.Profile != "local" {
+		return Config{}, fmt.Errorf("ESG_ADMIN_FILE is for the local profile only")
 	}
 	if c.CSRFKey == "" && c.Profile == "local" {
 		c.CSRFKey = DefaultCSRFKey
