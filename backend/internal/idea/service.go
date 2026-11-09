@@ -56,3 +56,15 @@ type ListFilter = store.ListFilter
 func (s *Service) List(ctx context.Context, caller security.Principal, f ListFilter, limit, offset int) ([]Summary, int, error) {
 	return store.ListVisible(ctx, s.DB, caller.UserID, caller.IsAdmin(), f, limit, offset)
 }
+
+// FindByLeader resolves the Idea addressed by a join request: the Leader's
+// employee ID plus the cleaned Idea name. A missing match is the uniform
+// NOT_FOUND. The result is for the team module only, which exposes the
+// minimal JoinRequest fields (PRD 6.7).
+func (s *Service) FindByLeader(ctx context.Context, leaderEmpNo, name string) (Idea, error) {
+	got, err := store.FindByLeader(ctx, s.DB, leaderEmpNo, name)
+	if errors.Is(err, store.ErrNotFound) {
+		return Idea{}, web.NewError(web.CodeNotFound, "")
+	}
+	return got, err
+}

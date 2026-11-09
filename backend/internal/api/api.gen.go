@@ -206,6 +206,26 @@ type IdeaUpdateRequest struct {
 	Summary string `json:"summary"`
 }
 
+// JoinRequest defines model for JoinRequest.
+type JoinRequest struct {
+	Category    string             `json:"category"`
+	Direction   string             `json:"direction"`
+	IdeaId      openapi_types.UUID `json:"ideaId"`
+	IdeaName    string             `json:"ideaName"`
+	Leader      PersonRef          `json:"leader"`
+	Org         string             `json:"org"`
+	RequestedAt time.Time          `json:"requestedAt"`
+}
+
+// JoinRequestCreate defines model for JoinRequestCreate.
+type JoinRequestCreate struct {
+	// IdeaName 1-75 code points after clean-up
+	IdeaName string `json:"ideaName"`
+
+	// LeaderEmpNo Six ASCII digits
+	LeaderEmpNo string `json:"leaderEmpNo"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	// EmpNo Any string; a badly formatted ID is an ordinary login failure
@@ -352,6 +372,12 @@ type ReplaceSlidesParams struct {
 	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
 }
 
+// CreateJoinRequestParams defines parameters for CreateJoinRequest.
+type CreateJoinRequestParams struct {
+	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
+	XCSRFToken *CsrfToken `json:"X-CSRF-Token,omitempty"`
+}
+
 // PutDeadlineJSONRequestBody defines body for PutDeadline for application/json ContentType.
 type PutDeadlineJSONRequestBody = DeadlineRequest
 
@@ -369,6 +395,9 @@ type UpdateIdeaJSONRequestBody = IdeaUpdateRequest
 
 // ReplaceSlidesMultipartRequestBody defines body for ReplaceSlides for multipart/form-data ContentType.
 type ReplaceSlidesMultipartRequestBody = ReplaceSlidesForm
+
+// CreateJoinRequestJSONRequestBody defines body for CreateJoinRequest for application/json ContentType.
+type CreateJoinRequestJSONRequestBody = JoinRequestCreate
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -414,6 +443,9 @@ type ServerInterface interface {
 	// ReplaceSlides Replace the Idea's slides (Leader, Admin)
 	// (PUT /ideas/{id}/slides)
 	ReplaceSlides(w http.ResponseWriter, r *http.Request, id IdeaId, params ReplaceSlidesParams)
+	// CreateJoinRequest Ask to join an Idea (User only)
+	// (POST /join-requests)
+	CreateJoinRequest(w http.ResponseWriter, r *http.Request, params CreateJoinRequestParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -501,6 +533,12 @@ func (_ Unimplemented) DownloadSlides(w http.ResponseWriter, r *http.Request, id
 // ReplaceSlides Replace the Idea's slides (Leader, Admin)
 // (PUT /ideas/{id}/slides)
 func (_ Unimplemented) ReplaceSlides(w http.ResponseWriter, r *http.Request, id IdeaId, params ReplaceSlidesParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// CreateJoinRequest Ask to join an Idea (User only)
+// (POST /join-requests)
+func (_ Unimplemented) CreateJoinRequest(w http.ResponseWriter, r *http.Request, params CreateJoinRequestParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1125,6 +1163,47 @@ func (siw *ServerInterfaceWrapper) ReplaceSlides(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// CreateJoinRequest operation middleware
+func (siw *ServerInterfaceWrapper) CreateJoinRequest(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateJoinRequestParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-CSRF-Token" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-CSRF-Token")]; found {
+		var XCSRFToken CsrfToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-CSRF-Token", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-CSRF-Token", valueList[0], &XCSRFToken, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-CSRF-Token", Err: err})
+			return
+		}
+
+		params.XCSRFToken = &XCSRFToken
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateJoinRequest(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1279,6 +1358,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/ideas/{id}/slides", wrapper.ReplaceSlides)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/join-requests", wrapper.CreateJoinRequest)
 	})
 
 	return r

@@ -404,6 +404,40 @@ paths:
         '422': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
+  /join-requests:
+    post:
+      operationId: createJoinRequest
+      tags: [team]
+      summary: Ask to join an Idea (User only)
+      description: >
+        The Idea is resolved by exact match of the Leader's employee ID and the cleaned-up Idea name.
+        Check order (PRD 6.1): role 403 FORBIDDEN (Admin) -> 403 SUBMISSION_* (state) -> 400/413/415,
+        422 (body fields) -> 404 NOT_FOUND (no match, same as any hidden resource) -> 422 CANNOT_JOIN_OWN_IDEA
+        -> 409 ALREADY_MEMBER / JOIN_REQUEST_EXISTS. A full team may still be applied to. A transaction
+        whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/JoinRequestCreate' }
+      responses:
+        '201':
+          description: JoinRequest
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/JoinRequest' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
 components:
   securitySchemes:
     sessionCookie:
@@ -550,6 +584,23 @@ components:
           type: string
           format: binary
           description: 'One PDF or PPTX, at most 5 MiB, named by the Idea''s current expected filename'
+    JoinRequestCreate:
+      type: object
+      required: [leaderEmpNo, ideaName]
+      properties:
+        leaderEmpNo: { type: string, description: 'Six ASCII digits' }
+        ideaName: { type: string, description: '1-75 code points after clean-up' }
+    JoinRequest:
+      type: object
+      required: [ideaId, ideaName, category, org, direction, leader, requestedAt]
+      properties:
+        ideaId: { type: string, format: uuid }
+        ideaName: { type: string }
+        category: { type: string }
+        org: { type: string }
+        direction: { type: string }
+        leader: { $ref: '#/components/schemas/PersonRef' }
+        requestedAt: { type: string, format: date-time }
     IdeaUpdateRequest:
       type: object
       required: [category, org, direction, name, summary]

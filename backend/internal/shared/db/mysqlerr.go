@@ -73,3 +73,15 @@ func IsCheckViolation(err error) bool {
 	}
 	return me.Number == errConstraintFailed || me.Number == errCheckViolated
 }
+
+// errNoReferencedRow is ER_NO_REFERENCED_ROW_2: the parent row of a foreign
+// key does not exist (any more).
+const errNoReferencedRow = 1452
+
+// IsForeignKeyViolation reports whether err is an INSERT whose referenced
+// parent row is missing, for example a join request for an Idea deleted a
+// moment ago.
+func IsForeignKeyViolation(err error) bool {
+	var me *mysql.MySQLError
+	return errors.As(err, &me) && me.Number == errNoReferencedRow
+}

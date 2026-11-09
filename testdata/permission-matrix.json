@@ -303,6 +303,76 @@
       }
     },
     {
+      "id": "join-request",
+      "operation": "apply to join the seeded Idea (${leaderEmpNo} is its Leader; the leader actor leads it itself). Member cells arrive with B5-04",
+      "method": "POST",
+      "path": "/api/v1/join-requests",
+      "body": { "leaderEmpNo": "${leaderEmpNo}", "ideaName": "Matrix Seed" },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 201 },
+        "leader": { "status": 422, "code": "CANNOT_JOIN_OWN_IDEA" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "join-request-not-open",
+      "operation": "apply before the contest opens (role is checked before state)",
+      "method": "POST",
+      "path": "/api/v1/join-requests",
+      "body": { "leaderEmpNo": "${leaderEmpNo}", "ideaName": "Matrix Seed" },
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "join-request-closed",
+      "operation": "apply after the deadline",
+      "method": "POST",
+      "path": "/api/v1/join-requests",
+      "body": { "leaderEmpNo": "${leaderEmpNo}", "ideaName": "Matrix Seed" },
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "join-request-no-match",
+      "operation": "apply to an Idea that does not exist: the uniform 404",
+      "method": "POST",
+      "path": "/api/v1/join-requests",
+      "body": { "leaderEmpNo": "${leaderEmpNo}", "ideaName": "No Such Idea" },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 404, "code": "NOT_FOUND" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "join-request-bad-body",
+      "operation": "apply with an invalid employee ID: 422 comes after role and state, before the lookup",
+      "method": "POST",
+      "path": "/api/v1/join-requests",
+      "body": { "leaderEmpNo": "12", "ideaName": "Matrix Seed" },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 422, "code": "VALIDATION_FAILED" },
+        "leader": { "status": 422, "code": "VALIDATION_FAILED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

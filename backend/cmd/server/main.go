@@ -24,6 +24,7 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/job"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/team"
 )
 
 func main() {
@@ -68,6 +69,16 @@ func run() error {
 		return err
 	}
 	pending := storage.NewPendingDeletion(db, slides, log)
+	gate := deadline.Gate{Store: deadline.SQLStore{DB: db}}
+	ideaSvc := &idea.Service{
+		DB: db, Audit: auditSvc,
+		Gate:     gate,
+		Slides:   server.IdeaSlideRules(),
+		Objects:  slides,
+		Aborter:  pending,
+		Replaced: server.IdeaReplacedKeys{P: pending},
+		Deleted:  server.IdeaDeletedKeys{P: pending},
+	}
 	si := server.API{
 		Auth:    auth.Handler{CSRF: csrf, Log: log},
 		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
@@ -83,18 +94,14 @@ func run() error {
 			Fail:   errs.Write,
 		},
 		Ideas: idea.Handler{
-			Service: &idea.Service{
-				DB: db, Audit: auditSvc,
-				Gate:     deadline.Gate{Store: deadline.SQLStore{DB: db}},
-				Slides:   server.IdeaSlideRules(),
-				Objects:  slides,
-				Aborter:  pending,
-				Replaced: server.IdeaReplacedKeys{P: pending},
-				Deleted:  server.IdeaDeletedKeys{P: pending},
-			},
+			Service:          ideaSvc,
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
 			Log:              log,
+		},
+		Team: team.Handler{
+			Service: &team.Service{DB: db, Audit: auditSvc, Gate: gate, Ideas: ideaSvc},
+			Fail:    errs.Write,
 		},
 	}
 

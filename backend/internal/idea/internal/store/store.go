@@ -132,6 +132,28 @@ func GetVisible(ctx context.Context, q Querier, id, viewer uuid.UUID, isAdmin bo
 	return out, nil
 }
 
+// FindByLeader resolves an Idea by its Leader's employee ID and exact name, the
+// address of a join request (PRD 6.7). It is not a visibility query: the
+// applicant may not see the Idea, so the caller must expose only what a
+// JoinRequest carries. No match is ErrNotFound.
+func FindByLeader(ctx context.Context, q Querier, leaderEmpNo, name string) (Idea, error) {
+	var id string
+	err := q.QueryRowContext(ctx,
+		`SELECT i.id FROM idea i JOIN app_user u ON u.id = i.leader_id WHERE u.emp_no = ? AND i.name = ?`,
+		leaderEmpNo, name).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Idea{}, ErrNotFound
+	}
+	if err != nil {
+		return Idea{}, fmt.Errorf("select idea by leader: %w", err)
+	}
+	pid, err := uuid.Parse(id)
+	if err != nil {
+		return Idea{}, fmt.Errorf("idea id: %w", err)
+	}
+	return GetVisible(ctx, q, pid, uuid.Nil, true)
+}
+
 // ErrNoLeader is returned by LeaderName when the user row is gone, which a
 // valid session rules out; the caller treats it as an internal error.
 var ErrNoLeader = errors.New("leader account not found")

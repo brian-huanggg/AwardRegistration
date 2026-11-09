@@ -30,6 +30,7 @@ import (
 	shareddb "github.com/brian-huanggg/AwardRegistration/backend/internal/shared/db"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/team"
 	"github.com/brian-huanggg/AwardRegistration/backend/test/apispec"
 )
 
@@ -59,6 +60,16 @@ func newEnv(t *testing.T) *env {
 	if err != nil {
 		t.Fatal(err)
 	}
+	gate := deadline.Gate{Store: deadline.SQLStore{DB: db}}
+	ideaSvc := &idea.Service{
+		DB: db, Audit: auditSvc,
+		Gate:     gate,
+		Slides:   server.IdeaSlideRules(),
+		Objects:  discardObjects{},
+		Aborter:  discardObjects{},
+		Replaced: discardObjects{},
+		Deleted:  discardObjects{},
+	}
 	si := server.API{
 		Auth:    auth.Handler{CSRF: csrf, Log: log},
 		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
@@ -74,17 +85,13 @@ func newEnv(t *testing.T) *env {
 			Fail:   errs.Write,
 		},
 		Ideas: idea.Handler{
-			Service: &idea.Service{
-				DB: db, Audit: auditSvc,
-				Gate:     deadline.Gate{Store: deadline.SQLStore{DB: db}},
-				Slides:   server.IdeaSlideRules(),
-				Objects:  discardObjects{},
-				Aborter:  discardObjects{},
-				Replaced: discardObjects{},
-				Deleted:  discardObjects{},
-			},
+			Service:          ideaSvc,
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
+		},
+		Team: team.Handler{
+			Service: &team.Service{DB: db, Audit: auditSvc, Gate: gate, Ideas: ideaSvc},
+			Fail:    errs.Write,
 		},
 	}
 	chain := server.NewPublic(log, server.Mount(si),
@@ -243,16 +250,18 @@ func (e *env) seedIdea(t *testing.T, a actor) (id, leaderEmpNo string) {
 func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 	t.Helper()
 	var seeded string // employee number of the seeded Idea's Leader
-	if strings.Contains(r.Path, "${ideaId}") {
+	if strings.Contains(r.Path, "${ideaId}") || strings.Contains(string(r.Body), "${leaderEmpNo}") {
 		var id string
 		id, seeded = e.seedIdea(t, a)
 		r.Path = strings.ReplaceAll(r.Path, "${ideaId}", id)
 	}
+	// ${leaderEmpNo} in a JSON body names the Leader of the seeded Idea ("Matrix Seed").
 	var body *strings.Reader
 	if r.Body != nil {
 		s := string(r.Body)
 		s = strings.ReplaceAll(s, "${password}", password)
 		s = strings.ReplaceAll(s, "${actorEmpNo}", a.empNo)
+		s = strings.ReplaceAll(s, "${leaderEmpNo}", seeded)
 		s = strings.ReplaceAll(s, "${newEmpNo}", fmt.Sprintf("%06d", 500000+e.seq.Add(1)))
 		body = strings.NewReader(s)
 	}

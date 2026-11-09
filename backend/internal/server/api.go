@@ -10,6 +10,7 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/team"
 )
 
 // API composes the module handlers into api.ServerInterface. Operations whose
@@ -23,6 +24,7 @@ type API struct {
 	Account  account.Handler
 	Deadline deadline.Handler
 	Ideas    idea.Handler
+	Team     team.Handler
 }
 
 // GetDeadline serves GET /deadline.
@@ -85,4 +87,9 @@ func (a API) ReplaceSlides(w http.ResponseWriter, r *http.Request, id api.IdeaId
 // DeleteIdea serves DELETE /ideas/{id}.
 func (a API) DeleteIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId, _ api.DeleteIdeaParams) {
 	a.Ideas.DeleteIdea(w, r, uuid.UUID(id))
+}
+
+// CreateJoinRequest serves POST /join-requests.
+func (a API) CreateJoinRequest(w http.ResponseWriter, r *http.Request, _ api.CreateJoinRequestParams) {
+	a.Team.CreateJoinRequest(w, r)
 }
