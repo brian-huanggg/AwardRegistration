@@ -12,8 +12,10 @@ require (
 	github.com/minio/minio-go/v7 v7.4.1
 	github.com/oapi-codegen/runtime v1.8.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
+	github.com/testcontainers/testcontainers-go v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/mariadb v0.45.0
 	github.com/testcontainers/testcontainers-go/modules/minio v0.45.0
+	github.com/testcontainers/testcontainers-go/modules/toxiproxy v0.45.0
 	golang.org/x/crypto v0.58.0
 	golang.org/x/text v0.43.0
 )
@@ -72,7 +74,6 @@ require (
 	github.com/speakeasy-api/jsonpath v0.6.3 // indirect
 	github.com/speakeasy-api/openapi v1.24.0 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
-	github.com/testcontainers/testcontainers-go v0.45.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/tklauser/go-sysconf v0.4.0 // indirect
 	github.com/tklauser/numcpus v0.12.0 // indirect

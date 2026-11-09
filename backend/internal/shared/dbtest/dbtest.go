@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
@@ -42,14 +43,25 @@ func MigrationFiles() ([]string, error) {
 // the production DSN. The container is terminated when the test ends.
 func New(t testing.TB) *sql.DB {
 	t.Helper()
+	return Open(t, Start(t))
+}
+
+// Start starts MariaDB with every migration applied and returns the production
+// DSN for it. opts customise the container (for example a Docker network, so a
+// Toxiproxy container can reach it). The container is terminated when the test
+// ends.
+func Start(t testing.TB, opts ...testcontainers.ContainerCustomizer) string {
+	t.Helper()
 	ctx := context.Background()
 	scripts, err := MigrationFiles()
 	if err != nil || len(scripts) == 0 {
 		t.Fatalf("no migrations found: %v", err)
 	}
-	ctr, err := mariadb.Run(ctx, Image,
+	opts = append([]testcontainers.ContainerCustomizer{
 		mariadb.WithDatabase("esg"), mariadb.WithUsername("esg"), mariadb.WithPassword("esg"),
-		mariadb.WithScripts(scripts...))
+		mariadb.WithScripts(scripts...),
+	}, opts...)
+	ctr, err := mariadb.Run(ctx, Image, opts...)
 	if err != nil {
 		t.Fatalf("start mariadb: %v", err)
 	}
@@ -63,7 +75,13 @@ func New(t testing.TB) *sql.DB {
 	if u == nil {
 		t.Fatalf("unexpected connection string %q", cs)
 	}
-	db, err := sql.Open("mysql", DSN(u[1]))
+	return DSN(u[1])
+}
+
+// Open opens a pool on dsn, closed when the test ends.
+func Open(t testing.TB, dsn string) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
