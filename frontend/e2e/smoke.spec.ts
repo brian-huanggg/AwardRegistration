@@ -2,7 +2,7 @@ import { execSync } from 'node:child_process';
 import { randomInt } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
-// Q3-01: login -> create -> list -> download as a plain User. Delete joins after B4-03.
+// Q3-01 + F4-02: login -> create -> list -> download -> delete as a plain User.
 // A fresh User per run (a User belongs to at most one Idea), so reruns need no cleanup.
 
 const sha = process.env.GIT_SHA ?? safe(() => execSync('git rev-parse --short HEAD').toString().trim()) ?? 'nosha';
@@ -21,7 +21,7 @@ const ideaName = `smoke ${sha} ${Date.now()}`;
 const expectedBase = `I_AAID_${userName}_${empNo}_${ideaName}`;
 const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
 
-test('login → create → list → download', async ({ page, request }) => {
+test('login → create → list → download → delete', async ({ page, request }) => {
   const dl = await request.get('/api/v1/deadline');
   expect(dl.ok(), `GET /api/v1/deadline answered ${dl.status()}; is the backend up?`).toBe(true);
   const { state } = (await dl.json()) as { state: string };
@@ -61,4 +61,9 @@ test('login → create → list → download', async ({ page, request }) => {
   const path = await file.path();
   const { readFileSync } = await import('node:fs');
   expect(readFileSync(path).equals(pdf)).toBe(true);
+
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete Idea' }).click();
+  await expect(page).toHaveURL(/\/ideas$/);
+  await expect(page.getByRole('link', { name: ideaName })).toHaveCount(0);
 });

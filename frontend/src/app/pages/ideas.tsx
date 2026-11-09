@@ -4,6 +4,8 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { ApiError } from '@/shared/api';
 import { deadlineKey, useDeadline } from '@/features/deadline/useDeadline';
 import { fetchIdea, ideaKey } from '@/features/idea/detail';
+import { DeleteIdea } from '@/features/idea/DeleteIdea';
+import { ReplaceSlides } from '@/features/idea/ReplaceSlides';
 import { IdeaForm } from '@/features/idea/IdeaForm';
 import { IdeaDetail as IdeaDetailView } from '@/features/idea/IdeaDetail';
 import { IdeaList as IdeaListView } from '@/features/idea/IdeaList';
@@ -68,6 +70,9 @@ export function IdeaDetail() {
   const { t } = useTranslation();
   const { id = '' } = useParams();
   const { data: me } = useMe();
+  const { data: deadline } = useDeadline();
+  const client = useQueryClient();
+  const navigate = useNavigate();
   return (
     <>
       {me && (
@@ -81,7 +86,41 @@ export function IdeaDetail() {
                 <Link to={`/ideas/${idea.id}/edit`}>{t('pages.ideaEdit.edit')}</Link>
               </Button>
             ) : null
-          } heading={<PageHeading title={t('pages.ideaDetail.title')} />} />
+          }
+          slideActions={(idea) => {
+            const admin = me.role === 'ADMIN';
+            if (!admin && idea.leader.empNo !== me.empNo) return null;
+            // Frontend.md §5.4: a hint only; the Leader is limited to the submission window, an Admin is not.
+            const disabled = !admin && deadline?.state !== 'OPEN';
+            const rejected = () => void client.invalidateQueries({ queryKey: deadlineKey });
+            return (
+              <>
+                <ReplaceSlides
+                  idea={idea}
+                  disabled={disabled}
+                  onSubmissionRejected={rejected}
+                  onOutcomeUnknown={() => void client.invalidateQueries({ queryKey: ideaKey(idea.id) })}
+                  onReplaced={(saved) => {
+                    // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)
+                    client.setQueryData(ideaKey(saved.id), saved);
+                    void client.invalidateQueries({ queryKey: ['ideas'] });
+                  }}
+                />
+                <DeleteIdea
+                  idea={idea}
+                  disabled={disabled}
+                  onSubmissionRejected={rejected}
+                  onDeleted={() => {
+                    client.removeQueries({ queryKey: ideaKey(idea.id) });
+                    void client.invalidateQueries({ queryKey: ['ideas'] });
+                    void navigate('/ideas', { replace: true });
+                  }}
+                />
+              </>
+            );
+          }}
+          heading={<PageHeading title={t('pages.ideaDetail.title')} />}
+        />
       )}
       <Link to="/ideas" className="font-medium text-primary underline underline-offset-4">
         {t('pages.ideaDetail.back')}
