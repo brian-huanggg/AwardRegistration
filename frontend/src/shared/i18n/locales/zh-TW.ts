@@ -53,6 +53,18 @@ export const zhTW: Dictionary = {
     members: '成員',
     leaderEmpNo: '組長員工編號',
   },
+  // 正式名稱由負責人提供前的暫定標籤（OI-17）。
+  enums: {
+    category: { COOL_IDEA: '酷點子獎', OUTSTANDING_IMPACT: '卓越影響獎' },
+    org: { AAID: 'AAID', BSID: 'BSID', ICSD: 'ICSD', TSID: 'TSID', PLED: 'PLED', DEID: 'DEID' },
+    direction: {
+      GREEN_MANUFACTURING: '綠色製造',
+      RESPONSIBLE_SUPPLY_CHAIN: '打造負責任供應鏈',
+      INCLUSIVE_WORKPLACE: '營造健康共融職場',
+      TALENT_DEVELOPMENT: '人才培育',
+      CARING_FOR_DISADVANTAGED: '關懷弱勢',
+    },
+  },
   passwordRules: {
     title: '密碼必須：',
     LENGTH: '長度為 12–64 個字元',
@@ -81,8 +93,26 @@ export const zhTW: Dictionary = {
       success: '帳號已建立，請登入。',
     },
     ideaList: { search: '搜尋', apply: '套用篩選', create: '建立提案', empty: '目前沒有提案。' },
-    ideaForm: { slidesHint: 'PDF 或 PPTX，最大 5 MiB。' },
-    ideaCreate: { title: '建立提案', submit: '送出提案' },
+    ideaForm: {
+      slidesHint: 'PDF 或 PPTX，最大 5 MiB，檔名須與上方完全相同。',
+      choose: '請選擇…',
+      leaderHint: '您將成為所建立提案的組長。',
+      nameHint: '不可包含 / \\ : * ? " < > | 等字元。',
+      count: '{{n}} / {{max}} 字',
+      expectedTitle: '應使用的檔名',
+      expectedPending: '選擇獎項類別與單位並輸入提案名稱後，即會顯示應使用的檔名。',
+      expectedHint: '請在選擇檔案前，將簡報檔案命名為下列名稱。系統不會自動為您改名。',
+      copy: '複製 {{ext}} 檔名',
+      copied: '已複製檔名。',
+      copyFailed: '無法複製檔名，請手動選取後複製。',
+      expectedIs: '應為：{{name}}',
+    },
+    ideaCreate: {
+      title: '建立提案',
+      submit: '送出提案',
+      submitting: '送出中…',
+      closedHint: '目前不在收件期間，暫時無法送出提案。',
+    },
     ideaEdit: { title: '編輯提案' },
     ideaDetail: {
       title: '提案',

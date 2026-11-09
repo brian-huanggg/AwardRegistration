@@ -56,6 +56,18 @@ export const en = {
     members: 'Members',
     leaderEmpNo: 'Leader employee ID',
   },
+  // Working drafts until the owner supplies official labels and Org full names (OI-17).
+  enums: {
+    category: { COOL_IDEA: 'Cool Idea Award', OUTSTANDING_IMPACT: 'Outstanding Impact Award' },
+    org: { AAID: 'AAID', BSID: 'BSID', ICSD: 'ICSD', TSID: 'TSID', PLED: 'PLED', DEID: 'DEID' },
+    direction: {
+      GREEN_MANUFACTURING: 'Green Manufacturing',
+      RESPONSIBLE_SUPPLY_CHAIN: 'Building a Responsible Supply Chain',
+      INCLUSIVE_WORKPLACE: 'Creating a Healthy and Inclusive Workplace',
+      TALENT_DEVELOPMENT: 'Talent Development',
+      CARING_FOR_DISADVANTAGED: 'Caring for the Disadvantaged',
+    },
+  },
   passwordRules: {
     title: 'Your password must:',
     LENGTH: 'be 12–64 characters long',
@@ -84,8 +96,26 @@ export const en = {
       success: 'Your account was created. Sign in to continue.',
     },
     ideaList: { search: 'Search', apply: 'Apply filters', create: 'Create an Idea', empty: 'No Ideas yet.' },
-    ideaForm: { slidesHint: 'PDF or PPTX, up to 5 MiB.' },
-    ideaCreate: { title: 'Create an Idea', submit: 'Submit Idea' },
+    ideaForm: {
+      slidesHint: 'PDF or PPTX, up to 5 MiB, named exactly as shown above.',
+      choose: 'Choose…',
+      leaderHint: 'You are the Leader of the Idea you create.',
+      nameHint: 'The characters / \\ : * ? " < > | are not allowed.',
+      count: '{{n}} / {{max}} characters',
+      expectedTitle: 'Expected file name',
+      expectedPending: 'Choose a category and an organization and enter the Idea name to see the expected file name.',
+      expectedHint: 'Name your slide file exactly like this before you choose it. The file is not renamed for you.',
+      copy: 'Copy the {{ext}} file name',
+      copied: 'File name copied.',
+      copyFailed: 'The file name could not be copied. Select it and copy it by hand.',
+      expectedIs: 'Expected: {{name}}',
+    },
+    ideaCreate: {
+      title: 'Create an Idea',
+      submit: 'Submit Idea',
+      submitting: 'Submitting…',
+      closedHint: 'Submissions are not open, so the Idea cannot be submitted now.',
+    },
     ideaEdit: { title: 'Edit Idea' },
     ideaDetail: {
       title: 'Idea',

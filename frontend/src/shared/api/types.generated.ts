@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Log in with employee ID and password (issues a new session)
+         * @description Sets the session cookie and returns the caller. Unknown, malformed and disabled accounts and wrong passwords all answer the same 401. The CSRF token changes with the session, so the client refetches it.
+         */
+        post: operations["login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -32,6 +52,43 @@ export interface paths {
         put?: never;
         /** End the session */
         post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The caller (also the idle-timeout "continue" call) */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Self-service registration (no session is created)
+         * @description Validation order: format, password policy, uniqueness (PRD 6.3). Sets no cookie.
+         */
+        post: operations["register"];
         delete?: never;
         options?: never;
         head?: never;
@@ -65,7 +122,11 @@ export interface paths {
         /** List Ideas visible to the caller */
         get: operations["listIdeas"];
         put?: never;
-        post?: never;
+        /**
+         * Create an Idea with its slides (User only)
+         * @description One atomic multipart request (PRD 6.6). Order: role 403, state 403, 400 (missing or repeated part), 422 text fields (incl. FILENAME_TOO_LONG), file 413 / 422 EMPTY_FILE / 415 / 422 FILENAME_MISMATCH, 409 IDEA_DUPLICATE, then upload (503 STORAGE_UNAVAILABLE). A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE (the Idea may exist). The Leader is the caller; any leader value in the form is ignored. The body is read by the handler, so the generated wrapper does not bind it.
+         */
+        post: operations["createIdea"];
         delete?: never;
         options?: never;
         head?: never;
@@ -89,12 +150,61 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ideas/{id}/slides": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the Idea's slides (Leader, Member, Admin)
+         * @description The SLIDES_DOWNLOAD audit row is committed before the first byte is sent (PRD 6.11). The file is named by the current expected filename (PRD 6.6). Range is not supported; HEAD answers 405 (no audit row). The Accept header is not checked on this route. MinIO unavailable before the first byte answers 503 STORAGE_UNAVAILABLE; a storage failure after the headers are sent aborts the connection (the body is shorter than Content-Length). A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE and serves nothing.
+         */
+        get: operations["downloadSlides"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         CsrfTokenResponse: {
             token: string;
+        };
+        LoginRequest: {
+            /** @description Any string; a badly formatted ID is an ordinary login failure */
+            empNo: string;
+            /** Format: password */
+            password: string;
+        };
+        LoginResponse: {
+            empNo: string;
+            name: string;
+            /** @description null for Admin */
+            email: string | null;
+            /** @enum {string} */
+            role: "USER" | "ADMIN";
+        };
+        RegisterRequest: {
+            /** @description Exactly 6 ASCII digits */
+            empNo: string;
+            /** @description 1-50 code points after clean-up */
+            name: string;
+            /** @description Printable ASCII with exactly one @, at most 254 characters; stored lower-cased */
+            email: string;
+            /** Format: password */
+            password: string;
+        };
+        RegisterResponse: {
+            empNo: string;
+            name: string;
+            email: string;
         };
         Problem: {
             /** @example about:blank */
@@ -112,6 +222,8 @@ export interface components {
             field: string;
             code: string;
             expected?: string;
+            /** @description PASSWORD_POLICY only, the violated rule id (PRD 6.4) */
+            rule?: string;
         };
         Deadline: {
             /** Format: date-time */
@@ -127,6 +239,23 @@ export interface components {
         PersonRef: {
             empNo: string;
             name: string;
+        };
+        CreateIdeaForm: {
+            /** @description COOL_IDEA or OUTSTANDING_IMPACT */
+            category: string;
+            /** @description AAID, BSID, ICSD, TSID, PLED or DEID */
+            org: string;
+            /** @description One of the five ESG directions (PRD 6.6) */
+            direction: string;
+            /** @description 1-75 code points after clean-up; no / \ : * ? " < > | */
+            name: string;
+            /** @description 1-300 code points after clean-up */
+            summary: string;
+            /**
+             * Format: binary
+             * @description One PDF or PPTX, at most 5 MiB, named {I|O}_{org}_{leaderName}_{leaderEmpNo}_{name}.{pdf|pptx}
+             */
+            slides: string;
         };
         IdeaSummary: {
             /** Format: uuid */
@@ -235,6 +364,53 @@ export interface operations {
             500: components["responses"]["Problem"];
         };
     };
+    login: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Logged in */
+            200: {
+                headers: {
+                    /** @description __Host-session=<opaque ID>; HttpOnly; Secure; SameSite=Lax; Path=/ */
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            /** @description Throttled (LOGIN_THROTTLED) */
+            429: {
+                headers: {
+                    /** @description Seconds until a new attempt may succeed */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     logout: {
         parameters: {
             query?: never;
@@ -256,6 +432,63 @@ export interface operations {
             };
             403: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated caller */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Account created; log in separately */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterResponse"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     getDeadline: {
@@ -285,6 +518,21 @@ export interface operations {
             query?: {
                 page?: number;
                 size?: number;
+                /** @description Closed set; an invalid value is 422 INVALID_ENUM (never ignored). Validated in the handler. */
+                org?: string;
+                category?: string;
+                direction?: string;
+                leaderEmpNo?: string;
+                /** @description ISO 8601 instant with offset or Z; inclusive. Validated in the handler. */
+                createdFrom?: string;
+                /** @description ISO 8601 instant with offset or Z; exclusive. Validated in the handler. */
+                createdTo?: string;
+                /** @description Case-insensitive "name contains"; `%` and `_` are literal. */
+                q?: string;
+                /** @description createdAt (default) or name; anything else is 422 INVALID_ENUM. Validated in the handler. */
+                sort?: string;
+                /** @description asc or desc (default desc for createdAt, asc for name); anything else is 422 INVALID_ENUM. Validated in the handler. */
+                order?: string;
             };
             header?: never;
             path?: never;
@@ -304,6 +552,43 @@ export interface operations {
             401: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+        };
+    };
+    createIdea: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["CreateIdeaForm"];
+            };
+        };
+        responses: {
+            /** @description Created; Location is /api/v1/ideas/{id} */
+            201: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaDetail"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
     getIdea: {
@@ -330,6 +615,39 @@ export interface operations {
             401: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
+        };
+    };
+    downloadSlides: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The stored file */
+            200: {
+                headers: {
+                    /** @description attachment; filename="<ASCII fallback>"; filename*=UTF-8''<percent-encoded> (RFC 6266) */
+                    "Content-Disposition"?: string;
+                    "Content-Length"?: number;
+                    "Cache-Control"?: "no-store";
+                    "X-Content-Type-Options"?: "nosniff";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation": string;
+                };
+            };
+            401: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
         };
     };
 }

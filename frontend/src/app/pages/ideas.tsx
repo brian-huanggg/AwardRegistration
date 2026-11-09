@@ -1,7 +1,9 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
-import { useDeadline } from '@/features/deadline/useDeadline';
+import { useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router';
+import { deadlineKey, useDeadline } from '@/features/deadline/useDeadline';
+import { CreateIdeaForm } from '@/features/idea/CreateIdeaForm';
 import { Button } from '@/shared/ui/button';
 import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
@@ -81,17 +83,29 @@ export function IdeaList() {
 
 export function IdeaCreate() {
   const { t } = useTranslation();
+  const { data: me } = useMe();
   const { data: deadline } = useDeadline();
-  const open = deadline?.state === 'OPEN'; // Frontend.md §6.3 rule 6: a banner and disabled controls, not a guard
+  const client = useQueryClient();
+  const navigate = useNavigate();
+  const open = deadline?.state === 'OPEN'; // Frontend.md §6.3 rule 6: a hint and disabled controls, not a guard
   return (
     <>
       <PageHeading title={t('pages.ideaCreate.title')} />
-      <form onSubmit={noSubmit} className="max-w-2xl rounded-xl border bg-card p-6">
-        <IdeaFields withSlides />
-        <Button type="submit" disabled={!open}>
-          {t('pages.ideaCreate.submit')}
-        </Button>
-      </form>
+      <div className="max-w-2xl rounded-xl border bg-card p-6">
+        {me && (
+          <CreateIdeaForm
+            leader={{ name: me.name, empNo: me.empNo }}
+            canSubmit={open}
+            onSubmissionRejected={() => void client.invalidateQueries({ queryKey: deadlineKey })}
+            onCreated={(idea) => {
+              // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)
+              client.setQueryData(['idea', idea.id], idea);
+              void client.invalidateQueries({ queryKey: ['ideas'] });
+              void navigate(`/ideas/${idea.id}`);
+            }}
+          />
+        )}
+      </div>
     </>
   );
 }
