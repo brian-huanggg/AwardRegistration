@@ -12,7 +12,7 @@ Project: **ESG Idea Contest** registration system. Employees register, form team
 | Frontend design | `docs/Architecture/Frontend.md` |
 | Sequence diagrams (create / replace / delete / download, storage consistency) | `docs/Architecture/Sequence.md` |
 | API contract (endpoints, error codes, response bodies) | `docs/API/` (start at `README.md`) |
-| Why Go, and the sqlc findings | `docs/Adr/0001-Backend-in-go.md`, `docs/Adr/0001-Annex-sqlc-spike.md` |
+| Why Go, and the (historical) sqlc spike | `docs/Adr/0001-Backend-in-go.md`, `docs/Adr/0001-Annex-sqlc-spike.md` |
 | Unresolved questions (OI-nn) and owner confirmations | `docs/Open-items.md` — the only tracker for them |
 | PR breakdown, slices S0–S7, PR rules and Definition of Done | `docs/PR-plan.md` (plan only; work items live in `bd`) |
 
@@ -22,7 +22,7 @@ If documents disagree: PRD > ADR > Backend/Frontend > Architecture decision log;
 
 ## Stack (decided)
 
-Go 1.26 · chi · spec-first OpenAPI (oapi-codegen, standard non-strict server) · sqlc + `go-sql-driver/mysql` against MariaDB · golang-migrate migrations (embedded, `cmd/migrate`) · own session/CSRF/throttling middleware · `log/slog` · minio-go (`MaxRetries: 1`) · React + Vite + TypeScript frontend. Java/Spring text in older decision-log rows is superseded.
+Go 1.26 · chi · spec-first OpenAPI (oapi-codegen, standard non-strict server) · native `database/sql` + `go-sql-driver/mysql` against MariaDB (hand-written SQL, no sqlc, no ORM) · golang-migrate migrations (embedded, `cmd/migrate`) · own session/CSRF/throttling middleware · `log/slog` · minio-go (`MaxRetries: 1`) · React + Vite + TypeScript frontend. Java/Spring text in older decision-log rows is superseded.
 
 ## Build & Test (target commands; they start to work when the code PRs land)
 
@@ -31,7 +31,7 @@ golangci-lint run
 go test -race ./...                       # unit
 go test -race -tags integration ./...     # needs Docker (testcontainers-go, real MariaDB + migrations)
 go test -coverpkg=./... -coverprofile=cover.out ./... && go tool cover -func=cover.out   # gate: statement coverage >= 80 %
-sqlc generate && go generate ./...        # must produce no diff
+go generate ./...                         # must produce no diff
 ```
 
 ## Conventions that are easy to get wrong

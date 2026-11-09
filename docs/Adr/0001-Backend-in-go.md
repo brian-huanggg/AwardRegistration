@@ -6,7 +6,7 @@
 | Date | 2026-11-08 (drafted for PRD 1.4; accepted against PRD 1.5; amendments A1, A2, the Go version and the A3 findings recorded the same day) |
 | Affects | `docs/PRD.md` §8.1, §8.2, §8.4, §8.6; `docs/Architecture/Architecture.md` D1, D6, D28, D31, D33, D41, D43, D46; `docs/Architecture/Backend.md` §1, §2, §3, §4, §6, §11 (Go equivalents are in `docs/Architecture/Backend.md`) |
 | Unaffected | Data model, storage-consistency rules (D36–D39, D44 rule itself), audit tracks and scope (D2, D3, D48), uniform 404 (D9), database-time authority (D7), session-bound CSRF design (D40), API contract (PRD §6.1, §6.14), front end, delivery (D10) |
-| Annex | `docs/Adr/0001-Annex-sqlc-spike.md` — sqlc spike (A3a), 2026-11-08 |
+| Annex | `docs/Adr/0001-Annex-sqlc-spike.md` — sqlc spike (A3a), 2026-11-08; historical, sqlc dropped 2026-11-09 (G1) |
 | Decided after acceptance | **A1, A2** (owner, 2026-11-08), **Go 1.26** (G13), **A3b** status 413 for oversized JSON bodies. **A3a** spike done, verdict "usable with rules R1–R5", to be repeated on the real schema in PR `B0-02`. **A3c** checked in the minio-go source. Open: **A3b** limit value and error code (OI-50), **O1–O3** below. |
  
 ## Context
@@ -19,7 +19,7 @@ This document checks what a Go implementation looks like if the current architec
  
 | # | Choice | Notes |
 |---|---|---|
-| G1 | Persistence: **sqlc**. Each module owns its own `queries.sql` and the generated code under `<module>/internal/store/`. No ORM. | Keeps the intent of D31: hand-written SQL owned per module. Driver `go-sql-driver/mysql`; DSN `parseTime=true&loc=UTC&time_zone='+00:00'`. ORMs are banned via `depguard`. The session statement relies on matched-row counts: the DSN needs `clientFoundRows=true` (the driver's default reports changed rows). **Spike result (2026-11-08, sqlc v1.31.1, Go 1.26.10; parsing and code generation only):** sqlc's MySQL parser **rejects the native `UUID` and `INET6` column types**, so sqlc reads a schema converted from the Flyway migrations by a script, with per-column Go type overrides (`google/uuid`, `shared/db.IP`). 17 of the 18 test statements, including `FOR UPDATE SKIP LOCKED`, `ON DUPLICATE KEY UPDATE` and the `UPDATE … JOIN` session statement, generate correct code (two of them with a loosely typed parameter). The 18th, a keyset row comparison, fails **silently**, and so does one further probe, `sqlc.arg(…) IS TRUE`: sqlc reports no error but leaves the call in the SQL text. CI must catch this. Rules R1–R5 and details: Annex. |
+| G1 | Persistence: **native SQL** (`database/sql` + `go-sql-driver/mysql`), hand-written per module in `<module>/internal/store/`. No ORM, no query generator. **Amended 2026-11-09 (owner): sqlc is abandoned.** | Keeps the intent of D31 and removes one abstraction layer. The statement count is small; sqlc needed a converted schema (it rejects native `UUID` / `INET6`), per-column overrides and CI guards against silently unreplaced `sqlc.*` calls (spike, Annex). DSN `parseTime=true&loc=UTC&time_zone='+00:00'&clientFoundRows=true`: the session statement relies on matched-row counts (the driver default reports changed rows). ORMs are banned via `depguard`. Rules that still apply: no row comparison for keyset pagination (R3), `shared/db.IP` unmaps IPv4 (R6), nullable `JSON` scans into `shared/db.NullJSON` (R7). Rules R1, R2, R4, R5 are void. |
 | G2 | JSON request DTOs use **pointer fields** for every client-supplied field. ~~Decoding uses `DisallowUnknownFields`.~~ **Unknown fields are ignored** (amended, see below). | Pointers tell "missing" apart from "zero value", which is the line between 400 `MALFORMED_REQUEST` and 422 `REQUIRED` (PRD §6.1). Remaining gaps are listed in O1. |
 | G3 | Passwords use **bcrypt, cost 10** (`golang.org/x/crypto/bcrypt`). Argon2id is not used. | Same as PRD §6.4. Go's bcrypt rejects inputs over 72 bytes. At login, an input over 72 bytes returns `INVALID_CREDENTIALS` **after** the dummy-hash comparison still runs, so timing stays uniform. Vault admin hashes (`$2a$` / `$2b$`) need a contract test; hashes with cost ≠ 10 are rejected by the sync (D51). |
 | G4 | OpenAPI is **spec-first**: `backend/api/openapi.yaml` is the single source. Server interfaces are generated with **oapi-codegen, standard (non-strict) chi server interface**. ~~strict server~~ | **Amended by owner decision A1 (2026-11-08).** Each handler receives `http.ResponseWriter` and `*http.Request` and decodes its own body. The strict server was dropped: it decodes JSON before the handler runs (a malformed body would answer 400 before 404 / role 403 / state 403) and it uses plain `encoding/json` (duplicate keys accepted). Path and query parameters are still bound by the generated wrapper. Multipart endpoints get a streaming reader (D38). CI: lint the spec (Spectral, same rules as `Backend.md` §11), regenerate the server code and fail on a diff, and generate front-end types from the same file. |
@@ -48,7 +48,7 @@ This document checks what a Go implementation looks like if the current architec
 |---|---|---|
 | A1 | G4: oapi-codegen generates the **standard (non-strict)** chi server interface, not the strict server. | **Decided** (owner, 2026-11-08) |
 | A2 | G10 / G12: router **chi** instead of `net/http.ServeMux`. | **Decided** (owner, 2026-11-08) |
-| A3a | sqlc against the MariaDB schema. | **Done** (Annex §5, PR `B0-02`): usable with rules R1–R7, verified on the real `V001__init.sql` and a running MariaDB 11.4 (OI-51) |
+| A3a | sqlc against the MariaDB schema. | **Done** (Annex §5, PR `B0-02`); **superseded 2026-11-09**: sqlc dropped (G1) |
 | A3b | JSON body limit and its 413. | **Status 413 decided** (owner, 2026-11-08). Limit value and error code open (OI-50); worst-case body is under 5 KiB, 16 KiB proposed |
 | A3c | minio-go retry switch-off. | **Checked in the source** (v7.4.1, the version the module proxy returned): `Options.MaxRetries` set to **1** gives a single attempt; **0 means the default of 10** and does not disable retries. A test locks it (OI-52) |
  
@@ -57,7 +57,7 @@ This document checks what a Go implementation looks like if the current architec
 | # | Item |
 |---|---|
 | O1 (= OI-53) | **Facts checked on Go 1.26.10.** `encoding/json` (v1) matches field names case-insensitively (`"EMPNO"` fills `empNo`) and, for a duplicate key, the last one wins. `encoding/json/v2` is **still behind `GOEXPERIMENT=jsonv2`** and cannot be imported without it, so it is not used. With the experiment on, v2 rejects duplicate keys and matches names case-sensitively, which is what the PRD wants. `Backend.md` §3 proposes the `Token()` pre-pass plus exact-name field picking. When v2 becomes stable, only the decoder in `shared/web` is replaced; the `test/binding` tests stay. Waiting for owner confirmation of the decoder design. |
-| O2 (= OI-54) | Exclude generated code (sqlc, oapi-codegen) from the coverage denominator? Recommended: yes. |
+| O2 (= OI-54) | Exclude generated code (oapi-codegen) from the coverage denominator? Recommended: yes. |
 | O3 (= OI-55) | Probe paths: keep the `/actuator/...` paths or switch to `/healthz`-style paths and update the chart. |
  
 ## What adoption requires
@@ -87,6 +87,6 @@ Tracked as delivery task **D-01** in `docs/PR-plan.md`; this ADR does not change
 | Session, CSRF, transactions | Provided by the framework (custom session repository and own CSRF filter already required) | Written by the team (moderate size) |
 | JSON binding | Jackson 3, defaults locked by tests | `encoding/json` gaps (O1); `encoding/json/v2` not stable in Go 1.26 |
 | OpenAPI | Code-first (springdoc), as the PRD stated | Spec-first; PRD wording to be changed (D-01) |
-| SQL access | `JdbcClient`, plain SQL | sqlc on a converted schema with CI guards (Annex); dynamic `ORDER BY` and a few statements hand-written |
+| SQL access | `JdbcClient`, plain SQL | native `database/sql` with hand-written SQL per module |
 | Coverage metric | Line (JaCoCo), as the PRD stated | Statement; PRD wording to be changed (D-01) |
 | Runtime | JVM; warm-up before load tests | Static binary; small image, fast start |

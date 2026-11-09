@@ -1,4 +1,6 @@
 # ADR-0001 Annex — sqlc spike (A3a)
+
+> **Historical.** On 2026-11-09 the owner abandoned sqlc in favour of native `database/sql` (ADR-0001 G1). This annex is kept as the record of why; rules R1, R2, R4, R5 no longer apply.
  
 | | |
 |---|---|

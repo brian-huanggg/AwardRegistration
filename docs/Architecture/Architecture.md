@@ -28,7 +28,7 @@ Changes in 0.3: backend design moved to `Backend.md`; front end moved to `Fronte
 | Document | Content |
 |---|---|
 | `Architecture.md` (this file) | Principles, system context, delivery and operations, decision log |
-| `Backend.md` | Go backend: modules, dependency rules, stack, package layout, sqlc rules, request pipeline, transactions, session and CSRF middleware, audit, uniform 404, multi-replica behaviour (including Vault sync), data model, tests. The Java design it replaced is no longer kept |
+| `Backend.md` | Go backend: modules, dependency rules, stack, package layout, persistence rules, request pipeline, transactions, session and CSRF middleware, audit, uniform 404, multi-replica behaviour (including Vault sync), data model, tests. The Java design it replaced is no longer kept |
 | `Frontend.md` | Stack, feature folders aligned with backend modules, contract with the API, localization |
 | `Sequence.md` | Sequence diagrams: create, replace, delete, download; transaction-outcome and storage-consistency rules |
 | `../modules/` | **[Planned]** module guides (concepts, file map, invariants, change recipes); not yet written |
@@ -37,7 +37,7 @@ Changes in 0.3: backend design moved to `Backend.md`; front end moved to `Fronte
 | `../Open-items.md` | Single tracker of unresolved questions, owner confirmations and platform answers (OI-nn) |
 | `../PR-plan.md` | Pull-request breakdown, slices S0–S7, Definition of Done, milestones. Tracked as beads issues (`bd`), not Linear |
 | `../Adr/0001-Backend-in-go.md` | ADR: the backend is implemented in Go (accepted 2026-11-08) |
-| `../Adr/0001-Annex-sqlc-spike.md` | Annex to ADR-0001: result of the sqlc spike, rules R1–R5, conversion script |
+| `../Adr/0001-Annex-sqlc-spike.md` | Annex to ADR-0001: result of the sqlc spike (historical; sqlc dropped 2026-11-09) |
  
 **Moved sections** (section numbers of the former Java `overview` 0.2, kept so that existing references still resolve):
  
@@ -151,7 +151,7 @@ Next deliverables: ADR drafts for the decisions below; migration plan for the fi
 | D28 | No dedicated Spring Boot 4 compatibility spike | Owner decision; risk accepted | **Superseded: no Spring in the Go backend (OI-31 closed)** (was: Decided (OI-31)) |
 | D29 | Split `slides` into `storage` (no dependency on `idea`) and `slides` (HTTP orchestration on top of `idea` + `storage`) | Removes the `idea` ↔ `slides` cycle. `idea → storage` is allowed (Idea delete, `Sequence.md` §5); the forbidden direction is `storage → idea` | Decided |
 | D30 | Split `auth` into `account` and `auth`; `account` defines `SessionRevoker`, `auth` implements it | Smaller modules; Vault uncertainty isolated; no cycle | Decided |
-| D31 | Repositories use `JdbcClient`, hand-written SQL owned by each module, no JPA | Locking, upserts, atomic session statement and visibility query are SQL by design | **Superseded by ADR G1 (sqlc, hand-written SQL per module; intent unchanged)** (was: Decided) |
+| D31 | Repositories use `JdbcClient`, hand-written SQL owned by each module, no JPA | Locking, upserts, atomic session statement and visibility query are SQL by design | **Superseded by ADR G1 (native `database/sql`, hand-written SQL per module; intent unchanged)** (was: Decided) |
 | D32 | `shared` depends on no business module and contains no business concept | Reusable, trivially testable kernel | Decided |
 | D33 | `internal/` classes are `public`; module isolation enforced by ArchUnit in CI | Java package-private does not cross sub-packages | **Superseded by ADR G6 (Go `internal/` rule, import-graph test, `depguard`)** (was: Decided) |
 | D34 | `deadline` exposes `SubmissionGate` (`precheck`, `assertOpenInTx`) for every state-limited write | One place for deadline logic and the PRD §5 double check | Proposed (OI-18) |
@@ -181,5 +181,5 @@ Next deliverables: ADR drafts for the decisions below; migration plan for the fi
 | D58 | oapi-codegen generates the **standard (non-strict)** chi server interface; each handler decodes its own body | The strict server decodes JSON before the handler (400 before 404 / role 403 / state 403) and uses `encoding/json`, which accepts duplicate keys | Decided (owner, 2026-11-08) |
 | D59 | The router is **chi**; `HEAD` on the slide download answers 405 (explicit route plus a test, on top of the router default) | `ServeMux` answers `HEAD` with the `GET` handler and writes plain-text 404 / 405; chi's hooks produce problem+json (checked on Go 1.26.10) | Decided (owner, 2026-11-08) |
 | D60 | An oversized JSON request body answers **413** before any other check, as D39 does for files. Limit proposed 16 KiB; new error code `REQUEST_TOO_LARGE` proposed | The largest JSON body stays under 5 KiB; `FILE_TOO_LARGE` names a file | Status decided (owner, 2026-11-08); limit and code Proposed (OI-50) |
-| D61 | sqlc reads a **script-converted schema** (`UUID` → `CHAR(36)`, `INET6` → `VARCHAR(45)`) with generated per-column Go type overrides; CI rejects generated SQL that still contains `sqlc.*` calls; row comparisons are not used; dynamic `ORDER BY` is hand-written | sqlc's MySQL parser rejects native `UUID` / `INET6` and silently leaves some `sqlc.arg` calls unreplaced (spike: `Adr/0001-Annex-sqlc-spike.md`) | Proposed (OI-51) |
+| D61 | ~~sqlc reads a script-converted schema~~ **Superseded 2026-11-09 (owner): sqlc is dropped; the backend uses native `database/sql` with hand-written SQL.** Row comparisons are still not used (keyset pagination is expanded) | The generator added a layer and needed a schema-conversion script and CI guards for a small number of statements (spike: `Adr/0001-Annex-sqlc-spike.md`) | Decided |
 | D62 | Schema migrations use **golang-migrate** (embedded SQL `backend/db/migration/NNNNNN_name.up.sql`, run by `cmd/migrate` and, in tests, `shared/migrate.Up`) instead of Flyway. The server never migrates on start. Supersedes Flyway in older rows and in `PRD.md` §8 | One toolchain (Go), no JVM image, tests and production run the same code. golang-migrate locks with `GET_LOCK`; a failed migration leaves a dirty version that needs manual repair | **[Decided]** |

@@ -4,7 +4,7 @@
 |---|---|
 | Version | 0.2 |
 | Date | 2026-11-08 |
-| Companion of | `docs/Adr/0001-Backend-in-go.md` (+ `0001-Annex-sqlc-spike.md`), `docs/PRD.md` v1.5, `docs/Architecture/Sequence.md` v0.3 |
+| Companion of | `docs/Adr/0001-Backend-in-go.md` (+ `0001-Annex-sqlc-spike.md`, historical), `docs/PRD.md` v1.5, `docs/Architecture/Sequence.md` v0.3 |
 | Status | **Accepted with ADR-0001 (2026-11-08).** This is the backend design for the Go implementation. The former Java design document is no longer kept; sections that say "Same as `Backend.md` §n" refer to the section of this file. |
 | Status markers | **[Decided]** agreed by the owner · **[Proposed]** drafted by the architect, awaiting confirmation · **[Open]** unresolved (tracked in `docs/Open-items.md`) · **[ADR Gn]** the choice of that number in ADR-0001 |
  
@@ -24,7 +24,7 @@ A **modular monolith**: one deployable static binary, one Go module (`go.mod`), 
 |---|---|---|
 | Language | **Go 1.26**: `go 1.26` and a `toolchain` line with the latest 1.26 patch at the start of S0 (1.26.10 on 2026-11-08) | [Decided] (ADR G13) |
 | HTTP | `net/http` server; router **chi** (`github.com/go-chi/chi/v5`); server interface generated from `api/openapi.yaml` by **oapi-codegen**, **standard (non-strict)** chi interface | [Decided] (ADR G4 / G12, A1, A2) |
-| Persistence | **sqlc** on a **converted schema** (§2.3) + `database/sql` + `go-sql-driver/mysql`; SQL per module; no ORM | [ADR G1]; conversion rules [Proposed] |
+| Persistence | Native SQL: `database/sql` + `go-sql-driver/mysql`; hand-written SQL per module; no ORM, no query generator (§2.3) | [Decided] (owner, 2026-11-09; supersedes ADR G1) |
 | Migrations | **golang-migrate** (`cmd/migrate`, SQL embedded from `db/migration`), run by the Argo CD PreSync Job | [Decided] (D62) |
 | Object storage | `minio-go` v7, `MaxRetries: 1` (§4.4) | [Proposed] |
 | Passwords | `golang.org/x/crypto/bcrypt`, cost 10 | [ADR G3] |
@@ -62,49 +62,45 @@ internal/<module>/
     handler.go      HTTP adapter for this module's operations (where it has endpoints)
     errors.go       exported error values / codes the module can return
     internal/       implementation, repositories, mappers
-        store/      sqlc input (queries.sql), generated code, hand-written queries
+        store/      hand-written SQL (database/sql) and row scanning
 ```
  
 - Go's `internal` rule means `internal/<module>/internal/...` can be imported **only** from inside `internal/<module>/`. This replaces the ArchUnit "no `..internal..` from another module" rule with a compiler error (D33 no longer needs a CI rule).
 - Transactions are opened in service implementations. Handlers contain no business logic and no SQL.
 ### 2.3 Persistence **[ADR G1]**
  
-Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go 1.26.10; Part 1 generation only, Part 2 executed against MariaDB 11.4.13).
- 
-- One `sqlc.yaml` with **one package entry per module**; each module's queries live in `internal/<module>/internal/store/queries.sql`.
+Decision of 2026-11-09 (owner): sqlc is **abandoned**. Queries are hand-written `database/sql` calls in each module's `internal/store` package. Reason: the number of statements is small, sqlc could not read the real schema (`UUID`, `INET6`) without a conversion script and seven workarounds, and the generator was one more abstraction layer. The spike (`docs/Adr/0001-Annex-sqlc-spike.md`) is kept as history.
+
+- Each module's SQL lives as `const` strings next to the `database/sql` call that runs it, in `internal/<module>/internal/store/`.
+- Store functions take a small `Querier` interface (satisfied by `*sql.DB` and `*sql.Tx`) so they run in or outside a transaction. Placeholders are always `?`; a value is never concatenated into SQL. The one dynamic fragment, `ORDER BY`, is chosen from a closed `switch` over the API enum.
 - No module queries another module's tables. The only cross-table reads stay the explicit joins of `Backend.md` §6 (session) and §8 (visibility).
-- Generated code is committed; CI runs `sqlc generate` and fails on a diff.
 - **DSN** (driver `go-sql-driver/mysql`):
   ```
   parseTime=true&loc=UTC&time_zone=%27%2B00%3A00%27&clientFoundRows=true
   ```
  
   `clientFoundRows=true` makes `RowsAffected()` report **matched** rows. The session statement (§6) depends on it, the same way the Java version depends on `useAffectedRows=false`; a test locks it.
-**What the spike found.** sqlc's MySQL parser rejects the native `UUID` and `INET6` column types and therefore cannot read the migrations as they are. Everything else the design needs parsed and generated correctly: `CHECK`, `JSON`, `DATETIME(6)`, `utf8mb4_bin`, `BINARY(32)`, foreign keys, `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, `INSERT … ON DUPLICATE KEY UPDATE`, `UPDATE … JOIN … SET … = IF(…)`, `NOW(6) - INTERVAL …`, `LIKE … ESCAPE`, `DELETE … LIMIT`, `sqlc.slice`.
- 
-**Rules R1–R7 [Proposed]** (full text and evidence in the Annex):
- 
+**Rules [Decided]** (kept from the spike where they still apply):
+
 | # | Rule |
 |---|---|
-| R1 | sqlc reads a **converted schema**, never the migrations. `make sqlc-schema` runs `scripts/gen_sqlc_schema.py`: `UUID` → `CHAR(36)`, `INET6` → `VARCHAR(45)`, and writes one Go type override per converted column. The two outputs are generated files; CI regenerates them and fails on a diff. |
-| R2 | CI fails if any generated `*.sql.go` contains `sqlc.arg`, `sqlc.narg` or `sqlc.slice` inside a SQL string. sqlc leaves such text unreplaced **without an error** when it does not recognise the position (row comparison, `sqlc.arg(x) IS TRUE`), and the statement fails only when it runs. |
 | R3 | No row comparison `(a, b) < (…)`. Keyset pagination (Audit Log) is written as `occurred_at < ? OR (occurred_at = ? AND id < ?)`. |
-| R4 | A flag passed to SQL is written `CAST(sqlc.arg(x) AS SIGNED)` (typed `int64`); without the cast sqlc types it `interface{}`. |
-| R5 | Dynamic `ORDER BY` (the `sort` / `order` of the Idea list) is hand-written in the module's `store` package from a closed `switch` over the API enum; sqlc types a sort-key parameter `interface{}` whatever the cast. Other statements sqlc cannot express are hand-written in the same package with `database/sql`. |
 | R6 | `shared/db.IP.Scan` unmaps IPv4: MariaDB returns an IPv4 address stored in `INET6` as `::ffff:a.b.c.d`. |
-| R7 | A nullable `JSON` column is overridden to `shared/db.NullJSON` (`db_type: json, nullable: true`); the default `json.RawMessage` fails to scan NULL. |
- 
+| R7 | A nullable `JSON` column is scanned into `shared/db.NullJSON`; `json.RawMessage` fails to scan NULL. |
+
+Rules R1, R2, R4 and R5 of the spike no longer apply (they existed only because of sqlc). Flags are passed as plain `0/1` integers or `bool`; `UUID` and `INET6` columns are used as they are in the migrations.
+
 - **Type mapping [Proposed]:**
   | MariaDB | Go | Note |
   |---|---|---|
-  | `UUID` | `uuid.UUID`; nullable `uuid.NullUUID` | `Scan` accepts the 36-char text form; `Value` writes text, which MariaDB accepts |
+  | `UUID` | `uuid.UUID`; nullable `uuid.NullUUID` | scan into a `string` and parse, or `uuid.UUID.Scan` (36-char text form); write the text form, which MariaDB accepts |
   | `INET6` | `shared/db.IP`; nullable `shared/db.NullIP` | wraps `netip.Addr`, implements `Scanner` / `Valuer` (`netip.Addr` has no `Scanner`) |
   | `DATETIME(6)`, `DATETIME(0)` | `time.Time` (UTC) | `parseTime=true`, `loc=UTC` |
   | `JSON` (`audit_log.before/after`) | `json.RawMessage` | |
   | `BINARY(32)` (`session.id_hash`) | `[]byte` | |
-  | nullable columns | pointers (`emit_pointers_for_null_types: true`) | |
+  | nullable columns | `sql.Null*` types or pointers | |
 - **ORM ban:** `depguard` denies `gorm.io/...`, `entgo.io/...`, `github.com/uptrace/bun/...`.
-- **[Open] OI-51:** the spike must be repeated on the real `000001_init.up.sql` and against a running MariaDB (UUID text round-trip, `INET6` scanning, matched-row counts, each statement executed once). Owner: PR `B0-02`. Also open there: a column added later by `ALTER TABLE … ADD COLUMN x UUID` is not seen by the conversion script; the script or a test must cover it.
+- **OI-51** is closed by the decision above: with native SQL there is no schema conversion. Integration tests against a real MariaDB (testcontainers-go) cover the `UUID` text round-trip, `INET6` scanning and matched-row counts.
 - **[Proposed] Migration file names:** golang-migrate files are `NNNNNN_name.up.sql` (six digits, zero-padded), so that lexical order equals version order. Up-only: expand-then-contract needs no down files.
 ### 2.4 Rules replacing ArchUnit (CI gate) **[ADR G6]**
  
@@ -114,8 +110,7 @@ Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go
 | 2. No access to another module's `internal` | **Compiler** |
 | 3. Graph acyclic and equal to §2.1 | Acyclic: **compiler**. Allowed edges: import-graph test with an explicit edge table |
 | 4. No ORM | `depguard` |
-| 5. No `UPDATE` / `DELETE` on `audit_log` | Test scanning all `queries.sql` and `.go` files |
-| – (new) No unreplaced `sqlc.*` call in generated SQL | CI grep, rule R2 |
+| 5. No `UPDATE` / `DELETE` on `audit_log` | Test scanning all `.go` files under `internal/` for SQL strings |
  
 Additional Go rule **[Proposed]**: the generated API package (`internal/api`) may be imported by module handlers and `internal/server`, never by `shared` or by any `internal/<module>/internal/` package. This keeps generated transport types out of service code.
  
@@ -124,14 +119,11 @@ Additional Go rule **[Proposed]**: the generated API package (`internal/api`) ma
 ```
 backend/
 ├─ go.mod, go.sum                   go 1.26 + toolchain
-├─ sqlc.yaml, sqlc.overrides.yaml   overrides file is generated (R1)
 ├─ .golangci.yml
-├─ scripts/gen_sqlc_schema.py       migrations -> sqlc schema + overrides (R1)
 ├─ api/openapi.yaml                 single source of the API contract (G4)
 ├─ cmd/server/main.go               config, wiring, public + management http.Server, background loops
 ├─ db/
 │  ├─ migration/000001_init.up.sql …  golang-migrate (expand-then-contract)
-│  └─ sqlc/schema.sql               generated from the migrations (R1); do not edit
 ├─ internal/
 │  ├─ api/                          generated by oapi-codegen (models + chi ServerInterface); do not edit
 │  ├─ server/                       router, middleware chain, composes module handlers into api.ServerInterface
@@ -153,7 +145,7 @@ backend/
 │  ├─ slides/        /ideas/{id}/slides upload and download
 │  └─ admin/         HTTP entry points only
 └─ test/
-   ├─ arch/          import-graph, audit_log scan and sqlc-leftover scan (§2.4)
+   ├─ arch/          import-graph and audit_log scan (§2.4)
    ├─ matrix/        permission matrix over testdata/permission-matrix.json
    ├─ contract/      testdata/*.json (text clean-up, password, email, expected filename, error codes)
    ├─ binding/       locks JSON decoding rules (§3)
@@ -278,7 +270,7 @@ Requirements and SQL are the same as `Backend.md` §6. Spring Session and Spring
  
 - Session ID: 32 bytes from `crypto/rand`, base64url in the cookie (attributes per PRD §6.5). The table stores `SHA-256(id)` only.
 - Per request:
-  1. The atomic `UPDATE session s JOIN app_user u … ` statement of `Backend.md` §6 (generated by sqlc as `:execresult`, spike case c05). `RowsAffected() == 1` (matched rows, `clientFoundRows=true`) means valid.
+  1. The atomic `UPDATE session s JOIN app_user u … ` statement of `Backend.md` §6 (`ExecContext`). `RowsAffected() == 1` (matched rows, `clientFoundRows=true`) means valid.
   2. A `SELECT` of `id`, `emp_no`, `role` from `app_user` joined by the session hash, building the `Principal`.
   The principal is stored in the request context under an unexported key; `shared/security` offers `PrincipalFrom(ctx)`.
 - Login issues a new ID; logout deletes the row and is idempotent.
@@ -316,7 +308,7 @@ func (s *Service) RecordRejected(ctx context.Context, e Event)
  
 ## 8. Uniform 404 and Timing
  
-Same as `Backend.md` §8. The visibility query is one sqlc query in `idea/internal/store`; `idea.Service` exposes it as the only way to read an Idea. The admin flag is passed as `CAST(sqlc.arg(is_admin) AS SIGNED)` (rule R4).
+Same as `Backend.md` §8. The visibility predicate is one SQL fragment (`VisibleWhere`) in `idea/internal/store`; `idea.Service` exposes it as the only way to read an Idea. The admin flag is passed as `0/1`.
  
 ---
  
@@ -326,7 +318,7 @@ Same rules as `Backend.md` §9, including the Vault sync table. Go mechanics **[
  
 - Background work (Vault sync, session and throttle purge) runs as goroutines started in `main.go` through `shared/job.Run`: a timer re-armed after each run with the interval plus a fresh random jitter (the first run also waits a random jitter), so replicas drift apart. Each stops when the root context is cancelled at shutdown, and `main` waits for it before closing the pool. No leader is elected, so every job must be idempotent and safe on several replicas at once. The auth purge (B1b-07) runs every 5 min + up to 1 min and deletes in batches of 1000 with `DELETE … LIMIT`; a deadlock or lock-wait timeout ends that table's turn without an error.
 - Readiness waits for the first successful Vault read (`atomic.Bool` read by the readiness handler).
-- The orphan-file claim (`SELECT … FOR UPDATE SKIP LOCKED`) is generated by sqlc as written (spike case c03).
+- The orphan-file claim (`SELECT … FOR UPDATE SKIP LOCKED`) is plain SQL run with `QueryContext`.
 ---
  
 ## 10. Data Model
@@ -347,7 +339,6 @@ Same as `Backend.md` §10. Go type mapping is in §2.3. The API writes times as 
 | Storage-consistency, lost commit | A wrapping `driver.Connector` whose `Tx.Commit` can **commit then fail** or **fail without committing**; one Toxiproxy test (`testcontainers-go` module) cuts a real connection |
 | OpenAPI snapshot test | Spec-first (ADR G4): Spectral lint with the same custom rules; `go generate` diff check; **response validation** — integration tests validate every response against `api/openapi.yaml` with `kin-openapi`'s `openapi3filter`, so the implementation cannot drift from the spec |
 | Coverage ≥ 80 % (line, JaCoCo) | Statement coverage ≥ 80 % (ADR G5), unit and integration profiles merged. Exclusion of generated code is ADR O2 |
-| – (new) sqlc | CI: regenerate the converted schema and the sqlc output and fail on a diff (R1); grep for unreplaced `sqlc.*` calls (R2) |
 | – (new) router | Handler tests for 404, 405, 406 and `HEAD` on the download route (§3) |
 | – (new) MinIO | One test asserting a single connection attempt (§4.4) |
 | — | `go test -race` on every CI run |
@@ -372,7 +363,7 @@ Same as `Backend.md` §10. Go type mapping is in §2.3. The API writes times as 
 | G13 | Go 1.26 | [Decided] |
 | A1 | oapi-codegen generates the standard (non-strict) server interface | [Decided] |
 | A2 | Router is chi | [Decided] |
-| A3a | sqlc spike first; result: usable with rules R1–R5 | Done in `B0-02`: rules R1–R7, verified against MariaDB 11.4 (OI-51) |
+| A3a | sqlc spike first; result: usable with rules R1–R5 | Done in `B0-02`; **superseded 2026-11-09**: sqlc dropped, native `database/sql` |
 | A3b | Oversized JSON bodies answer 413 | Status [Decided]; limit and error code [Open] (OI-50) |
 | A3c | minio-go `MaxRetries: 1` | Verified in source; test pending (OI-52) |
  

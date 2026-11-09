@@ -79,7 +79,7 @@ func InsertIdea(ctx context.Context, tx *sql.Tx, n NewIdea) error {
 // VisibleWhere is the one visibility predicate (PRD 6.6: an Idea is visible to
 // its Leader, its approved Members and Admins). Every read of an Idea, single
 // or list, is built on it; no other code decides who may see an Idea.
-// Arguments, in order: is_admin (0/1, CAST AS SIGNED in sqlc terms, rule R4),
+// Arguments, in order: is_admin (0/1),
 // viewer user id. It assumes the idea table is aliased i.
 //
 // TODO(B5-01): add the approved-Member branch

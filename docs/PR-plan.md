@@ -16,13 +16,13 @@
 - **Execution order follows §7 priorities (P0 → P3), not table order.**
 
 ## 1. PR rules
-**Size/scope:** one thing per PR (one endpoint, middleware, table+queries, or page); hand-written code ≤ 400 lines (excluding sqlc/oapi-codegen output, `testdata/`), exceptions justified in the description; doable in 1–2 days; `main` always deployable (unfinished routes unregistered or `x-internal`).
+**Size/scope:** one thing per PR (one endpoint, middleware, table+queries, or page); hand-written code ≤ 400 lines (excluding oapi-codegen output, `testdata/`), exceptions justified in the description; doable in 1–2 days; `main` always deployable (unfinished routes unregistered or `x-internal`).
 
 **PR DoD:**
-- CI green: `golangci-lint` (incl. `depguard`), `go test -race` (unit + `integration` tag), statement coverage ≥ 80 % (from the first code PR). Coverage is measured with `go test -coverpkg=./...`, unit and integration results merged; generated code (sqlc, oapi-codegen) is excluded from the denominator (OI-54).
+- CI green: `golangci-lint` (incl. `depguard`), `go test -race` (unit + `integration` tag), statement coverage ≥ 80 % (from the first code PR). Coverage is measured with `go test -coverpkg=./...`, unit and integration results merged; generated code (oapi-codegen) is excluded from the denominator (OI-54).
 - Integration tests run on **testcontainers-go against a real MariaDB with the real Flyway migrations** (no H2/SQLite/mocks for SQL); a new migration comes with a test that exercises it.
 - Import-graph test (`test/arch`) green: module dependency direction, no access to another module's `internal/`, `shared` imports no module, no ORM, no `UPDATE`/`DELETE` on `audit_log`.
-- `sqlc generate`, `go generate` (oapi-codegen) and frontend type generation produce no diff (CI runs them and fails on `git diff`).
+- `go generate` (oapi-codegen) and frontend type generation produce no diff (CI runs them and fails on `git diff`).
 - New behavior tested; touched permission-matrix cells added to `testdata/permission-matrix.json` with automated tests.
 - New error codes synced: catalogue, `testdata/error-codes.json`, `docs/API/error-codes.md`, zh-TW/en dictionaries.
 - New audit events tested (track A SUCCESS; track B DENIED/FAILED/THROTTLED).
@@ -66,7 +66,7 @@
 | B0-13 | `test/apispec`: validate every integration response with `kin-openapi` | Wrong field fails test | B0-12 | S |
 | B0-14 | `GET /deadline` → `{deadline:null,state:NOT_OPEN,serverTime}`; ms output helper (truncate vs round per D-03) | Integration test; matches spec | B0-10, B0-12 | S |
 | O0-03 | `make ci` (lint, unit, integration, `-race`, merged coverage, 80 % gate) + GitHub Actions workflow (`.github/workflows/ci.yml`) | Coverage-dropping PR blocked | O0-01 | M |
-| O0-04/05 | Pipeline: sqlc/oapi/frontend-type diff, Spectral, `testdata/` schema checks; Pipeline: gitleaks, govulncheck, image scan | Each has a failing demo; Fake secret blocked | O0-03, B0-12, O0-03 | M |
+| O0-04/05 | Pipeline: oapi/frontend-type diff, Spectral, `testdata/` schema checks; Pipeline: gitleaks, govulncheck, image scan | Each has a failing demo; Fake secret blocked | O0-03, B0-12, O0-03 | M |
 | O0-07 | Helm backend: 2 replicas, probes, hardened securityContext, PDB, ConfigMap, `values-k3s/dev` | `helm lint` + K3S deploy | O0-06 | M |
 | O0-08 | Helm: Flyway PreSync Job; Ingress `/`, `/api`, 6 MiB, TLS | `curl …/api/v1/deadline` → 200 | O0-07 (OI-06) | S |
 | O0-09 | CD to DEV: merge `dev` → Harbor (git SHA) → deploy repo → Argo CD → smoke | No manual step | O0-08 (OI-02) | M |
@@ -243,7 +243,7 @@ F0-04 (route table + 404 page) is needed by the P1 login page, so it moved into 
 ### 7.4 Risks
 | Risk | Mitigation |
 |---|---|
-| sqlc can't parse `UUID`/`INET6`/`SKIP LOCKED` (+3 h) | B0-02 first; fall back to `database/sql` in same `store`, same interface |
+| ~~sqlc can't parse `UUID`/`INET6`/`SKIP LOCKED`~~ | Resolved 2026-11-09: sqlc dropped, native `database/sql` |
 | OI-07 unanswered | `make ci` enforces gate locally; GitHub-hosted runners run the same target |
 | OI-24 / OI-04 undecided | Decide OI-24 in prep (30 min); pin MariaDB 11.4 LTS |
 | A1/A2 overturned (+2 h) | Accepted risk |

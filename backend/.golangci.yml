@@ -20,11 +20,11 @@ linters:
           files: ["$all"]
           deny:
             - pkg: gorm.io
-              desc: ORMs are banned (Backend.md §2.3); use sqlc
+              desc: ORMs are banned (Backend.md §2.3); use native database/sql
             - pkg: entgo.io
-              desc: ORMs are banned (Backend.md §2.3); use sqlc
+              desc: ORMs are banned (Backend.md §2.3); use native database/sql
             - pkg: github.com/uptrace/bun
-              desc: ORMs are banned (Backend.md §2.3); use sqlc
+              desc: ORMs are banned (Backend.md §2.3); use native database/sql
   exclusions:
     rules:
       - path: _test\.go
