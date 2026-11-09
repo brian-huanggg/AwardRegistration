@@ -49,3 +49,8 @@ func (a API) GetMe(w http.ResponseWriter, r *http.Request) { a.Me.GetMe(w, r) }
 func (a API) GetIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId) {
 	a.Ideas.GetIdea(w, r, id)
 }
+
+// ListIdeas serves GET /ideas.
+func (a API) ListIdeas(w http.ResponseWriter, r *http.Request, params api.ListIdeasParams) {
+	a.Ideas.ListIdeas(w, r, params)
+}

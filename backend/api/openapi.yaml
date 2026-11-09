@@ -152,6 +152,27 @@ paths:
         - name: size
           in: query
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: org
+          in: query
+          description: Closed set; an invalid value is 422 INVALID_ENUM (never ignored). Validated in the handler.
+          schema: { type: string }
+        - name: category
+          in: query
+          schema: { type: string }
+        - name: direction
+          in: query
+          schema: { type: string }
+        - name: leaderEmpNo
+          in: query
+          schema: { type: string }
+        - name: createdFrom
+          in: query
+          description: ISO 8601 instant with offset or Z; inclusive. Validated in the handler.
+          schema: { type: string }
+        - name: createdTo
+          in: query
+          description: ISO 8601 instant with offset or Z; exclusive. Validated in the handler.
+          schema: { type: string }
       responses:
         '200':
           description: One page of IdeaSummary

@@ -248,6 +248,18 @@ type RegisterParams struct {
 type ListIdeasParams struct {
 	Page *int `form:"page,omitempty" json:"page,omitempty"`
 	Size *int `form:"size,omitempty" json:"size,omitempty"`
+
+	// Org Closed set; an invalid value is 422 INVALID_ENUM (never ignored). Validated in the handler.
+	Org         *string `form:"org,omitempty" json:"org,omitempty"`
+	Category    *string `form:"category,omitempty" json:"category,omitempty"`
+	Direction   *string `form:"direction,omitempty" json:"direction,omitempty"`
+	LeaderEmpNo *string `form:"leaderEmpNo,omitempty" json:"leaderEmpNo,omitempty"`
+
+	// CreatedFrom ISO 8601 instant with offset or Z; inclusive. Validated in the handler.
+	CreatedFrom *string `form:"createdFrom,omitempty" json:"createdFrom,omitempty"`
+
+	// CreatedTo ISO 8601 instant with offset or Z; exclusive. Validated in the handler.
+	CreatedTo *string `form:"createdTo,omitempty" json:"createdTo,omitempty"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
@@ -541,6 +553,84 @@ func (siw *ServerInterfaceWrapper) ListIdeas(w http.ResponseWriter, r *http.Requ
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "org" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "org", r.URL.Query(), &params.Org, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "org"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "org", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "category" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "category", r.URL.Query(), &params.Category, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "category"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "category", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "direction" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "direction", r.URL.Query(), &params.Direction, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "direction"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "direction", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "leaderEmpNo" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "leaderEmpNo", r.URL.Query(), &params.LeaderEmpNo, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "leaderEmpNo"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "leaderEmpNo", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "createdFrom" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "createdFrom", r.URL.Query(), &params.CreatedFrom, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "createdFrom"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "createdFrom", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "createdTo" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "createdTo", r.URL.Query(), &params.CreatedTo, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "createdTo"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "createdTo", Err: err})
 		}
 		return
 	}

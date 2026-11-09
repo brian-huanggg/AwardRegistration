@@ -33,3 +33,15 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID, caller security.Princip
 	}
 	return got, err
 }
+
+// Summary is the module's read model of one list row.
+type Summary = store.Summary
+
+// ListFilter is the validated filter set of the list.
+type ListFilter = store.ListFilter
+
+// List returns one page of the Ideas the caller may see and the total match
+// count. limit and offset are already validated by the handler.
+func (s *Service) List(ctx context.Context, caller security.Principal, f ListFilter, limit, offset int) ([]Summary, int, error) {
+	return store.ListVisible(ctx, s.DB, caller.UserID, caller.IsAdmin(), f, limit, offset)
+}
