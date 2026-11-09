@@ -15,6 +15,6 @@ dev-down:
 dev-reset:
 	$(COMPOSE) down -v
 
-## Apply Flyway migrations from backend/db/migration (idempotent).
+## Apply golang-migrate migrations from backend/db/migration (idempotent). Uses ESG_DB_DSN, default = local compose DB.
 migrate:
-	$(COMPOSE) run --rm flyway
+	cd backend && go run ./cmd/migrate

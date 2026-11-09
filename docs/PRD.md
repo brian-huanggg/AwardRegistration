@@ -431,7 +431,7 @@ Rules:
 |---|---|
 | Language | JavaScript, Python, C# and Rust are **not allowed**. Front end: **TypeScript only**. (Not enforced by CI.) |
 | Architecture | **Modular monolith** in one Go module, packages by feature: `account`, `auth`, `idea`, `team`, `storage`, `slides`, `deadline`, `admin`, `audit`, plus a `shared` kernel that depends on no business module. Boundaries are enforced by the Go `internal/` rule, an import-graph test and `depguard`. No microservices, no message queue. Details: `docs/Architecture/Backend.md` §2. **[Decided]** |
-| Backend | **Go 1.26** **[Decided]** (`docs/Adr/0001-Backend-in-go.md`): chi router, spec-first OpenAPI with oapi-codegen (standard non-strict server), **sqlc with module-owned hand-written SQL, no ORM**, `go-sql-driver/mysql`, Flyway migrations, own session / CSRF / throttling middleware, `log/slog`, `prometheus/client_golang`, minio-go, golangci-lint, testcontainers-go. Unknown JSON fields are ignored; JSON binding behaviour is locked by tests (§6.1). The earlier Java 21 + Spring Boot 4 choice is superseded. |
+| Backend | **Go 1.26** **[Decided]** (`docs/Adr/0001-Backend-in-go.md`): chi router, spec-first OpenAPI with oapi-codegen (standard non-strict server), **sqlc with module-owned hand-written SQL, no ORM**, `go-sql-driver/mysql`, golang-migrate migrations, own session / CSRF / throttling middleware, `log/slog`, `prometheus/client_golang`, minio-go, golangci-lint, testcontainers-go. Unknown JSON fields are ignored; JSON binding behaviour is locked by tests (§6.1). The earlier Java 21 + Spring Boot 4 choice is superseded. |
 | Front end | TypeScript SPA, **React + Vite** **[Decided]**, same origin as the API. The public `site/` stays on VitePress. See `docs/Architecture/Frontend.md`. |
 | Database | **MariaDB, version [Open]** (OI-04; `utf8mb4`). Version 10.8 is end of life; proposed **11.4 LTS** (maintained until 2029-05); required ≥ 10.7 for native `UUID`. Native `UUID` for public IDs, `INET6` for IPs, `DATETIME` in UTC. Enumerations are `VARCHAR` plus `CHECK`, never `ENUM`. Idea-name and email columns use `utf8mb4_bin`; name search is `LOWER(name) LIKE LOWER(?)` with escaped wildcards. Constraints are pushed into the database wherever it can enforce them. Details: `Backend.md` §10. |
 | Object storage | MinIO (platform-provided) |
@@ -451,7 +451,7 @@ Environments: **Local** (docker-compose with MariaDB, MinIO, Vault dev mode or t
 
 **Helm + Argo CD**
 - Argo CD renders the chart with `helm template` (no `--atomic`). Rollback = revert the Git commit in the deployment repository.
-- Migration is a **Job** annotated as an Argo CD `PreSync` hook (delete policy `BeforeHookCreation`); the application does not run Flyway. Migrations MUST use **expand-then-contract**, so an application rollback needs no schema rollback.
+- Migration is a **Job** annotated as an Argo CD `PreSync` hook (delete policy `BeforeHookCreation`); the Job runs the backend image's `/migrate` (golang-migrate); the server does not migrate on start. Migrations MUST use **expand-then-contract**, so an application rollback needs no schema rollback.
 - Chart: backend and front-end Deployments, Service, Ingress (`/` and `/api`), ConfigMap, migration Job, PodDisruptionBudget, optional ServiceMonitor.
 - Pods run with `runAsNonRoot`, all capabilities dropped, seccomp `RuntimeDefault`, `readOnlyRootFilesystem` and an `emptyDir` on `/tmp` for upload spooling. **[Proposed]**
 - The platform allows **one** MariaDB account without the `TRIGGER` privilege (§10).

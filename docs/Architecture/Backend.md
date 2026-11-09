@@ -25,7 +25,7 @@ A **modular monolith**: one deployable static binary, one Go module (`go.mod`), 
 | Language | **Go 1.26**: `go 1.26` and a `toolchain` line with the latest 1.26 patch at the start of S0 (1.26.10 on 2026-11-08) | [Decided] (ADR G13) |
 | HTTP | `net/http` server; router **chi** (`github.com/go-chi/chi/v5`); server interface generated from `api/openapi.yaml` by **oapi-codegen**, **standard (non-strict)** chi interface | [Decided] (ADR G4 / G12, A1, A2) |
 | Persistence | **sqlc** on a **converted schema** (§2.3) + `database/sql` + `go-sql-driver/mysql`; SQL per module; no ORM | [ADR G1]; conversion rules [Proposed] |
-| Migrations | **Flyway**, run by the Argo CD PreSync Job (unchanged) | [Decided] (language-neutral) |
+| Migrations | **golang-migrate** (`cmd/migrate`, SQL embedded from `db/migration`), run by the Argo CD PreSync Job | [Decided] (D62) |
 | Object storage | `minio-go` v7, `MaxRetries: 1` (§4.4) | [Proposed] |
 | Passwords | `golang.org/x/crypto/bcrypt`, cost 10 | [ADR G3] |
 | Text clean-up | `golang.org/x/text/unicode/norm` (NFC) + own White_Space table | [Proposed] |
@@ -34,7 +34,7 @@ A **modular monolith**: one deployable static binary, one Go module (`go.mod`), 
 | Metrics | `prometheus/client_golang` on the management server | [ADR G11] |
 | Vault | `github.com/hashicorp/vault/api` behind the `AdminDirectory` interface | [Proposed] (auth method still OI-01) |
 | Lint | `golangci-lint` incl. `depguard`, `gosec`, `errcheck` | [Proposed] |
-| Tests | `go test` (with `-race`), `testcontainers-go` (MariaDB, MinIO, Flyway, Toxiproxy) | [Proposed] |
+| Tests | `go test` (with `-race`), `testcontainers-go` (MariaDB, MinIO, Toxiproxy) | [Proposed] |
 | Dependency injection | None: constructors wired by hand in `cmd/server/main.go` | [Proposed] |
  
 ---
@@ -80,7 +80,7 @@ Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go
   ```
  
   `clientFoundRows=true` makes `RowsAffected()` report **matched** rows. The session statement (§6) depends on it, the same way the Java version depends on `useAffectedRows=false`; a test locks it.
-**What the spike found.** sqlc's MySQL parser rejects the native `UUID` and `INET6` column types and therefore cannot read the Flyway migrations as they are. Everything else the design needs parsed and generated correctly: `CHECK`, `JSON`, `DATETIME(6)`, `utf8mb4_bin`, `BINARY(32)`, foreign keys, `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, `INSERT … ON DUPLICATE KEY UPDATE`, `UPDATE … JOIN … SET … = IF(…)`, `NOW(6) - INTERVAL …`, `LIKE … ESCAPE`, `DELETE … LIMIT`, `sqlc.slice`.
+**What the spike found.** sqlc's MySQL parser rejects the native `UUID` and `INET6` column types and therefore cannot read the migrations as they are. Everything else the design needs parsed and generated correctly: `CHECK`, `JSON`, `DATETIME(6)`, `utf8mb4_bin`, `BINARY(32)`, foreign keys, `FOR UPDATE`, `FOR UPDATE SKIP LOCKED`, `INSERT … ON DUPLICATE KEY UPDATE`, `UPDATE … JOIN … SET … = IF(…)`, `NOW(6) - INTERVAL …`, `LIKE … ESCAPE`, `DELETE … LIMIT`, `sqlc.slice`.
  
 **Rules R1–R7 [Proposed]** (full text and evidence in the Annex):
  
@@ -104,8 +104,8 @@ Evidence for this section: `docs/Adr/0001-Annex-sqlc-spike.md` (sqlc v1.31.1, Go
   | `BINARY(32)` (`session.id_hash`) | `[]byte` | |
   | nullable columns | pointers (`emit_pointers_for_null_types: true`) | |
 - **ORM ban:** `depguard` denies `gorm.io/...`, `entgo.io/...`, `github.com/uptrace/bun/...`.
-- **[Open] OI-51:** the spike must be repeated on the real `V001__init.sql` and against a running MariaDB (UUID text round-trip, `INET6` scanning, matched-row counts, each statement executed once). Owner: PR `B0-02`. Also open there: a column added later by `ALTER TABLE … ADD COLUMN x UUID` is not seen by the conversion script; the script or a test must cover it.
-- **[Proposed] Migration file names:** Flyway versions are zero-padded (`V001__init.sql`), so that tools reading the directory in lexical order see the same order as Flyway.
+- **[Open] OI-51:** the spike must be repeated on the real `000001_init.up.sql` and against a running MariaDB (UUID text round-trip, `INET6` scanning, matched-row counts, each statement executed once). Owner: PR `B0-02`. Also open there: a column added later by `ALTER TABLE … ADD COLUMN x UUID` is not seen by the conversion script; the script or a test must cover it.
+- **[Proposed] Migration file names:** golang-migrate files are `NNNNNN_name.up.sql` (six digits, zero-padded), so that lexical order equals version order. Up-only: expand-then-contract needs no down files.
 ### 2.4 Rules replacing ArchUnit (CI gate) **[ADR G6]**
  
 | `Backend.md` §2.4 rule | Go mechanism |
@@ -126,11 +126,11 @@ backend/
 ├─ go.mod, go.sum                   go 1.26 + toolchain
 ├─ sqlc.yaml, sqlc.overrides.yaml   overrides file is generated (R1)
 ├─ .golangci.yml
-├─ scripts/gen_sqlc_schema.py       Flyway schema -> sqlc schema + overrides (R1)
+├─ scripts/gen_sqlc_schema.py       migrations -> sqlc schema + overrides (R1)
 ├─ api/openapi.yaml                 single source of the API contract (G4)
 ├─ cmd/server/main.go               config, wiring, public + management http.Server, background loops
 ├─ db/
-│  ├─ migration/V001__init.sql …    Flyway (expand-then-contract)
+│  ├─ migration/000001_init.up.sql …  golang-migrate (expand-then-contract)
 │  └─ sqlc/schema.sql               generated from the migrations (R1); do not edit
 ├─ internal/
 │  ├─ api/                          generated by oapi-codegen (models + chi ServerInterface); do not edit
@@ -339,7 +339,7 @@ Same as `Backend.md` §10. Go type mapping is in §2.3. The API writes times as 
  
 | `Backend.md` §11 item | Go equivalent **[Proposed]** |
 |---|---|
-| Testcontainers, real MariaDB + MinIO, real migrations | `testcontainers-go`; migrations applied by the **Flyway container**, the same tool as production. Images via Harbor proxy cache (OI-07) |
+| Testcontainers, real MariaDB + MinIO, real migrations | `testcontainers-go`; migrations applied by `shared/migrate.Up`, the same code as the production Job. Images via Harbor proxy cache (OI-07) |
 | `testdata/` contract and permission matrix | Table-driven tests reading the same JSON files (`test/contract`, `test/matrix`) |
 | ArchUnit | `test/arch` (§2.4) + compiler + `depguard` |
 | Logging test | slog handler writing to a buffer; assertions on passwords, session IDs, tokens |

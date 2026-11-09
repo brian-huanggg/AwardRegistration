@@ -98,7 +98,7 @@ flowchart LR
 ## 12. Delivery and Operations
  
 - **Separate deployment repository** holds the Helm chart and per-environment values; the application pipeline commits the new image tag there, which also avoids re-triggering itself. **[Decided]**
-- Migration is an Argo CD `PreSync` Job running Flyway; the application does not run Flyway. Expand-then-contract only.
+- Migration is an Argo CD `PreSync` Job running `cmd/migrate` (golang-migrate) from the backend image; the server does not migrate on start (D62). Expand-then-contract only.
 - Two backend replicas, startup/liveness/readiness probes. Readiness depends on MariaDB and the first Vault read, not on MinIO.
 - Pods: `runAsNonRoot`, all capabilities dropped, seccomp `RuntimeDefault`, `readOnlyRootFilesystem`, `emptyDir` on `/tmp` (`sizeLimit` about 256 MiB) for upload spooling; `GOMEMLIMIT` at about 75 % of the container limit. **[Proposed]**
 - Ingress body-size limit 6 MiB; the application enforces the exact 5 MiB slide limit (PRD §6.8). The platform's answer is OI-06.
@@ -113,7 +113,7 @@ Open points are tracked in `docs/Open-items.md`; the ones that concern this docu
  
 Resolved: CSRF binding (D40, decided by the owner); email whitespace rule (PRD §6.3); delete returns 204 everywhere; table name `pending_file_deletion`; oversized-body error precedence (D39); PRD package list (PRD 1.2); the four gaps of the `shared` module guide (D53–D56); the Go design choices D57–D60. The full list is in `Open-items.md` §5.
  
-Next deliverables: ADR drafts for the decisions below; Flyway migration plan for the first schema; import-graph test and `depguard` rules (`Backend.md` §2.4); `testdata/schema/` files; module guides (`docs/modules/`); sequence diagrams for the remaining flows only if needed (join requests are database-only).
+Next deliverables: ADR drafts for the decisions below; migration plan for the first schema; import-graph test and `depguard` rules (`Backend.md` §2.4); `testdata/schema/` files; module guides (`docs/modules/`); sequence diagrams for the remaining flows only if needed (join requests are database-only).
  
 ---
  
@@ -182,3 +182,4 @@ Next deliverables: ADR drafts for the decisions below; Flyway migration plan for
 | D59 | The router is **chi**; `HEAD` on the slide download answers 405 (explicit route plus a test, on top of the router default) | `ServeMux` answers `HEAD` with the `GET` handler and writes plain-text 404 / 405; chi's hooks produce problem+json (checked on Go 1.26.10) | Decided (owner, 2026-11-08) |
 | D60 | An oversized JSON request body answers **413** before any other check, as D39 does for files. Limit proposed 16 KiB; new error code `REQUEST_TOO_LARGE` proposed | The largest JSON body stays under 5 KiB; `FILE_TOO_LARGE` names a file | Status decided (owner, 2026-11-08); limit and code Proposed (OI-50) |
 | D61 | sqlc reads a **script-converted schema** (`UUID` → `CHAR(36)`, `INET6` → `VARCHAR(45)`) with generated per-column Go type overrides; CI rejects generated SQL that still contains `sqlc.*` calls; row comparisons are not used; dynamic `ORDER BY` is hand-written | sqlc's MySQL parser rejects native `UUID` / `INET6` and silently leaves some `sqlc.arg` calls unreplaced (spike: `Adr/0001-Annex-sqlc-spike.md`) | Proposed (OI-51) |
+| D62 | Schema migrations use **golang-migrate** (embedded SQL `backend/db/migration/NNNNNN_name.up.sql`, run by `cmd/migrate` and, in tests, `shared/migrate.Up`) instead of Flyway. The server never migrates on start. Supersedes Flyway in older rows and in `PRD.md` §8 | One toolchain (Go), no JVM image, tests and production run the same code. golang-migrate locks with `GET_LOCK`; a failed migration leaves a dirty version that needs manual repair | **[Decided]** |

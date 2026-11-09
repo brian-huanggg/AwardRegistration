@@ -22,7 +22,7 @@ If documents disagree: PRD > ADR > Backend/Frontend > Architecture decision log;
 
 ## Stack (decided)
 
-Go 1.26 · chi · spec-first OpenAPI (oapi-codegen, standard non-strict server) · sqlc + `go-sql-driver/mysql` against MariaDB · Flyway migrations · own session/CSRF/throttling middleware · `log/slog` · minio-go (`MaxRetries: 1`) · React + Vite + TypeScript frontend. Java/Spring text in older decision-log rows is superseded.
+Go 1.26 · chi · spec-first OpenAPI (oapi-codegen, standard non-strict server) · sqlc + `go-sql-driver/mysql` against MariaDB · golang-migrate migrations (embedded, `cmd/migrate`) · own session/CSRF/throttling middleware · `log/slog` · minio-go (`MaxRetries: 1`) · React + Vite + TypeScript frontend. Java/Spring text in older decision-log rows is superseded.
 
 ## Build & Test (target commands; they start to work when the code PRs land)
 

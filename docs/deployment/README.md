@@ -1,7 +1,7 @@
 # Deployment manual: frontend on K3S (DEV)
 
 How the frontend image is built, pushed to Harbor and deployed to the K3S cluster through Argo CD.
-Scope is the frontend only (F0-05). The backend chart, the Flyway PreSync Job and the real
+Scope is the frontend only (F0-05). The backend chart, the migration PreSync Job (`/migrate`) and the real
 Ingress are O0-06 to O0-08; the automated pipeline is O0-09. Until O0-09 exists, steps 2 to 4 are
 manual.
 

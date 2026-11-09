@@ -6,11 +6,14 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/migrate ./cmd/migrate
 
 # Static binary on distroless: no shell, uid 65532, works with a read-only root
 # filesystem (upload spooling needs a /tmp emptyDir, mounted by the chart).
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /out/server /server
+# Migration Job runs the same image with command ["/migrate"].
+COPY --from=build /out/migrate /migrate
 # About 75 % of the container memory limit; the chart overrides it together
 # with the limit (Backend.md §12).
 ENV GOMEMLIMIT=384MiB

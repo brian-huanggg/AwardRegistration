@@ -6,10 +6,7 @@ package dbtest
 import (
 	"context"
 	"database/sql"
-	"path/filepath"
 	"regexp"
-	"runtime"
-	"sort"
 	"testing"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -17,6 +14,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/migrate"
 )
 
 // Image matches docker-compose.yml and production.
@@ -28,15 +26,6 @@ var hostPort = regexp.MustCompile(`@tcp\(([^)]+)\)`)
 // session time_zone, clientFoundRows) pointed at the container's host:port.
 func DSN(hostAndPort string) string {
 	return hostPort.ReplaceAllString(config.DefaultDSN, "@tcp("+hostAndPort+")")
-}
-
-// MigrationFiles lists db/migration/V*.sql in version order.
-func MigrationFiles() ([]string, error) {
-	_, file, _, _ := runtime.Caller(0)
-	dir := filepath.Join(filepath.Dir(file), "..", "..", "..", "db", "migration")
-	files, err := filepath.Glob(filepath.Join(dir, "V*.sql"))
-	sort.Strings(files)
-	return files, err
 }
 
 // New starts MariaDB, applies every migration and returns a pool that uses
@@ -53,13 +42,8 @@ func New(t testing.TB) *sql.DB {
 func Start(t testing.TB, opts ...testcontainers.ContainerCustomizer) string {
 	t.Helper()
 	ctx := context.Background()
-	scripts, err := MigrationFiles()
-	if err != nil || len(scripts) == 0 {
-		t.Fatalf("no migrations found: %v", err)
-	}
 	opts = append([]testcontainers.ContainerCustomizer{
 		mariadb.WithDatabase("esg"), mariadb.WithUsername("esg"), mariadb.WithPassword("esg"),
-		mariadb.WithScripts(scripts...),
 	}, opts...)
 	ctr, err := mariadb.Run(ctx, Image, opts...)
 	if err != nil {
@@ -75,7 +59,11 @@ func Start(t testing.TB, opts ...testcontainers.ContainerCustomizer) string {
 	if u == nil {
 		t.Fatalf("unexpected connection string %q", cs)
 	}
-	return DSN(u[1])
+	dsn := DSN(u[1])
+	if err := migrate.Up(dsn); err != nil {
+		t.Fatalf("apply migrations: %v", err)
+	}
+	return dsn
 }
 
 // Open opens a pool on dsn, closed when the test ends.

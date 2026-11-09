@@ -1,4 +1,4 @@
-# Local development stack: MariaDB 11.4 LTS, MinIO, Flyway (O0-02).
+# Local development stack: MariaDB 11.4 LTS, MinIO (O0-02); migrations run with `make migrate`.
 # Credentials below are throwaway local defaults; override via environment or .env.
 name: esg-idea-contest
 
@@ -33,22 +33,6 @@ services:
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio-data:/data
-
-  flyway:
-    image: flyway/flyway:11
-    profiles: ["migrate"]   # only runs via `make migrate` (docker compose run)
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    command: ["migrate"]
-    environment:
-      FLYWAY_URL: jdbc:mariadb://mariadb:3306/${DB_NAME:-esg}
-      FLYWAY_USER: ${DB_USER:-esg}
-      FLYWAY_PASSWORD: ${DB_PASSWORD:-esg}
-      FLYWAY_LOCATIONS: filesystem:/flyway/sql
-      FLYWAY_CONNECT_RETRIES: "10"
-    volumes:
-      - ./backend/db/migration:/flyway/sql:ro
 
 volumes:
   mariadb-data:
