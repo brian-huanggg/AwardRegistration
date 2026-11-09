@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
@@ -65,10 +65,10 @@ describe('Idea detail', () => {
   it('shows the Idea, members, pending requests and the expected file names', async () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
     const { container } = await open();
-    expect(await screen.findByText('成立供應商永續學院')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: '成立供應商永續學院' })).toBeInTheDocument();
     expect(screen.getByText('Cool Idea Award')).toBeInTheDocument();
-    expect(screen.getByText('李小華 (089291)')).toBeInTheDocument();
-    expect(screen.getByText(/陳大文 \(089292\)/)).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Team' })).getByText('李小華')).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: /Join requests/ })).getByText('陳大文')).toBeInTheDocument();
     expect(screen.getByText('I_BSID_王小明_089290_成立供應商永續學院.pptx')).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect((await axe(container)).violations).toEqual([]);
@@ -77,8 +77,8 @@ describe('Idea detail', () => {
   it('hides the pending section when pendingRequests is null', async () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail({ pendingRequests: null }))));
     await open();
-    await screen.findByText('李小華 (089291)');
-    expect(screen.queryByRole('heading', { name: 'Pending join requests' })).not.toBeInTheDocument();
+    await screen.findByRole('heading', { name: 'Team' });
+    expect(screen.queryByRole('heading', { name: /Join requests/ })).not.toBeInTheDocument();
   });
 
   it('a 404 shows the one 404 page', async () => {
@@ -92,7 +92,7 @@ describe('Idea detail', () => {
     let gets = 0;
     server.use(http.get(`${API}/ideas/${ID}`, () => (gets++, HttpResponse.json(detail()))));
     await open(ADMIN);
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     window.dispatchEvent(new Event('focus'));
     document.dispatchEvent(new Event('visibilitychange'));
     await new Promise((r) => setTimeout(r, 50));
@@ -102,7 +102,7 @@ describe('Idea detail', () => {
   it('shows an Admin download, replace and delete, but no edit link; passes axe', async () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
     const { container } = await open(ADMIN);
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /replace/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /delete/i })).toBeEnabled();
@@ -119,12 +119,13 @@ describe('Idea detail', () => {
       ),
     );
     const { user } = await open(ADMIN);
-    await user.click(await screen.findByRole('link', { name: /back/i }));
+    await screen.findByRole('heading', { name: 'Team' }); // the back link moves into the loaded header
+    await user.click(screen.getByRole('link', { name: 'Back to All Ideas' }));
     const link = await screen.findByRole('link', { name: 'N' });
     await user.hover(link);
     expect(gets).toBe(1); // the first open only
     await user.click(link);
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     expect(gets).toBe(1);
   });
 });

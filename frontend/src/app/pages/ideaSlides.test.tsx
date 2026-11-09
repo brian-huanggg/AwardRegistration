@@ -63,7 +63,7 @@ describe('Replace slides', () => {
     idea();
     const a = await open();
     expect(await screen.findByRole('button', { name: 'Replace slides' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Delete Idea' })).toBeEnabled();
     a.unmount();
     idea();
     const b = await open({ me: ADMIN });
@@ -73,7 +73,7 @@ describe('Replace slides', () => {
     await open({ me: MEMBER });
     await screen.findByRole('button', { name: 'Download' });
     expect(screen.queryByRole('button', { name: 'Replace slides' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete Idea' })).not.toBeInTheDocument();
   });
 
   it('disables both for the Leader when submissions are closed, but not for an Admin', async () => {
@@ -81,7 +81,7 @@ describe('Replace slides', () => {
     const a = await open({ state: 'CLOSED' });
     await screen.findByRole('button', { name: 'Download' });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Replace slides' })).toBeDisabled());
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete Idea' })).toBeDisabled();
     a.unmount();
     idea();
     await open({ me: ADMIN, state: 'CLOSED' });
@@ -118,7 +118,7 @@ describe('Replace slides', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(sent!.csrf).toBe('tok');
     expect((sent!.file as File).name).toBe(`${BASE}.pdf`);
-    expect(await screen.findByText(/Size: 4 KB/)).toBeInTheDocument();
+    expect(await screen.findByText(/4 KB/)).toBeInTheDocument();
     expect(gets()).toBe(1);
   });
 
@@ -162,7 +162,7 @@ describe('Delete Idea', () => {
     let dels = 0;
     server.use(http.delete(`${API}/ideas/${ID}`, () => (dels++, new HttpResponse(null, { status: 204 }))));
     const { user } = await open();
-    const trigger = await screen.findByRole('button', { name: 'Delete' });
+    const trigger = await screen.findByRole('button', { name: 'Delete Idea' });
     await user.click(trigger);
     const dialog = screen.getByRole('alertdialog');
     expect(dialog).toHaveTextContent('cannot be undone');
@@ -184,7 +184,7 @@ describe('Delete Idea', () => {
       http.get(`${API}/ideas`, () => HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })),
     );
     const { router, user } = await open();
-    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Idea' }));
     screen.getByRole('button', { name: 'Delete Idea' }).focus();
     await user.keyboard('{Enter}');
     await waitFor(() => expect(router.state.location.pathname).toBe('/ideas'));
@@ -195,7 +195,7 @@ describe('Delete Idea', () => {
     idea();
     server.use(http.delete(`${API}/ideas/${ID}`, () => problem(503, 'SERVICE_UNAVAILABLE')));
     const { router, user } = await open();
-    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Idea' }));
     await user.click(screen.getByRole('button', { name: 'Delete Idea' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('temporarily unavailable');
     expect(router.state.location.pathname).toBe(`/ideas/${ID}`);
@@ -209,7 +209,7 @@ describe('Delete Idea', () => {
       http.get(`${API}/ideas`, () => HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })),
     );
     const { router, user } = await open({ me: ADMIN });
-    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    await user.click(await screen.findByRole('button', { name: 'Delete Idea' }));
     await user.click(screen.getByRole('button', { name: 'Delete Idea' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/ideas'));
   });

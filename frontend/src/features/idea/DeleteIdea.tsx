@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { AlertDialog } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/shared/api';
@@ -60,7 +61,13 @@ export function DeleteIdea({
       }}
     >
       <AlertDialog.Trigger asChild>
-        <Button variant="destructive" disabled={disabled}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 aria-hidden="true" />
           {t('pages.ideaDetail.delete')}
         </Button>
       </AlertDialog.Trigger>

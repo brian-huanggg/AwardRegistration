@@ -38,7 +38,7 @@ async function attempt(h: ActionHandlers, text: (e: unknown) => string): Promise
 }
 
 /** Approve: not destructive, so no confirmation. */
-export function ApproveButton({ name, disabled, ...h }: ActionHandlers & { name: string; disabled: boolean }) {
+export function ApproveButton({ name, disabled, icon, ...h }: ActionHandlers & { name: string; disabled: boolean; icon?: React.ReactNode }) {
   const { t } = useTranslation();
   const text = useErrorText();
   const [pending, setPending] = useState(false);
@@ -46,7 +46,7 @@ export function ApproveButton({ name, disabled, ...h }: ActionHandlers & { name:
   return (
     <>
       <Button
-        variant="outline"
+        size="sm"
         disabled={disabled || pending}
         aria-label={t('pages.ideaDetail.approveNamed', { name })}
         onClick={async () => {
@@ -56,6 +56,7 @@ export function ApproveButton({ name, disabled, ...h }: ActionHandlers & { name:
           setPending(false);
         }}
       >
+        {icon}
         {t('pages.ideaDetail.approve')}
       </Button>
       {failure && (
@@ -76,8 +77,22 @@ export function ConfirmAction({
   confirm,
   busy,
   disabled,
+  icon,
+  iconOnly = false,
   ...h
-}: ActionHandlers & { trigger: string; triggerLabel: string; title: string; body: string; confirm: string; busy: string; disabled: boolean }) {
+}: ActionHandlers & {
+  trigger: string;
+  triggerLabel: string;
+  title: string;
+  body: string;
+  confirm: string;
+  busy: string;
+  disabled: boolean;
+  /** Decorative icon before the trigger text (UI-04). */
+  icon?: React.ReactNode;
+  /** Show only the icon; `triggerLabel` stays the accessible name. */
+  iconOnly?: boolean;
+}) {
   const { t } = useTranslation();
   const text = useErrorText();
   const [open, setOpen] = useState(false);
@@ -104,8 +119,9 @@ export function ConfirmAction({
       }}
     >
       <AlertDialog.Trigger asChild>
-        <Button variant="outline" disabled={disabled} aria-label={triggerLabel}>
-          {trigger}
+        <Button variant="outline" size={iconOnly ? 'icon-sm' : 'sm'} disabled={disabled} aria-label={triggerLabel}>
+          {icon}
+          {!iconOnly && trigger}
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>

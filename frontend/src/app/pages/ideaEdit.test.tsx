@@ -81,7 +81,7 @@ describe('Edit Idea page', () => {
       csrf: 'tok',
       body: { category: 'COOL_IDEA', org: 'BSID', direction: 'TALENT_DEVELOPMENT', name: 'New name', summary: 'line one' },
     });
-    expect(await screen.findByText('New name')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'New name' })).toBeInTheDocument();
     expect(gets).toBe(1);
   });
 
@@ -147,11 +147,11 @@ describe('Edit link on the detail page', () => {
   it('is offered to the Leader only', async () => {
     idea();
     const a = await open({ path: `/ideas/${ID}` });
-    expect(await screen.findByRole('link', { name: 'Edit' })).toHaveAttribute('href', `/ideas/${ID}/edit`);
+    expect(await screen.findByRole('link', { name: 'Edit details' })).toHaveAttribute('href', `/ideas/${ID}/edit`);
     a.unmount();
     idea();
     await open({ me: MEMBER, path: `/ideas/${ID}` });
-    await screen.findByText('成立供應商永續學院');
-    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
+    await screen.findByRole('heading', { level: 1, name: '成立供應商永續學院' });
+    expect(screen.queryByRole('link', { name: 'Edit details' })).not.toBeInTheDocument();
   });
 });

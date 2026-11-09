@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Upload } from 'lucide-react';
 import { Dialog } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/shared/api';
@@ -98,7 +99,8 @@ export function ReplaceSlides({
       }}
     >
       <Dialog.Trigger asChild>
-        <Button variant="outline" disabled={disabled}>
+        <Button variant="outline" size="sm" disabled={disabled}>
+          <Upload aria-hidden="true" />
           {t('pages.ideaDetail.replace')}
         </Button>
       </Dialog.Trigger>

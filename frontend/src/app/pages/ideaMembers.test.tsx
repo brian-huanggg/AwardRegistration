@@ -67,9 +67,9 @@ describe('Member management', () => {
       }),
     );
     const { user, container } = await open(LEADER);
-    expect((await axe(await screen.findByText('李小華 (089291)').then(() => container))).violations).toEqual([]);
+    expect((await axe(await screen.findByRole('heading', { name: 'Team' }).then(() => container))).violations).toEqual([]);
     await user.click(await screen.findByRole('button', { name: 'Approve 陳大文 (089292)' }));
-    expect(await screen.findByText('陳大文 (089292)')).toBeInTheDocument();
+    expect(await within(screen.getByRole('list', { name: 'Team' })).findByText('陳大文')).toBeInTheDocument();
     expect(screen.getByText('No pending requests.')).toBeInTheDocument();
     expect(calls).toBe(1);
   });
@@ -142,18 +142,18 @@ describe('Member management', () => {
   it('a Leader sees no Leave button; an Admin sees no member controls', async () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
     const a = await open(LEADER);
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     expect(screen.queryByRole('button', { name: 'Leave team' })).not.toBeInTheDocument();
     a.unmount();
     await open(ADMIN);
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     expect(screen.queryByRole('button', { name: /Approve|Reject|Remove|Leave/ })).not.toBeInTheDocument();
   });
 
   it('controls are disabled outside the submission window', async () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
     await open(LEADER, 'CLOSED');
-    await screen.findByText('李小華 (089291)');
+    await screen.findByRole('heading', { name: 'Team' });
     for (const n of [/Approve/, /Reject/, /Remove/]) expect(await screen.findByRole('button', { name: n })).toBeDisabled();
   });
 });
