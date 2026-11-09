@@ -126,6 +126,35 @@ func LockByEmpNo(ctx context.Context, tx *sql.Tx, ideaID uuid.UUID, empNo string
 	return out, nil
 }
 
+// LockOwn locks the caller's own row on the Idea and returns its status, or
+// ErrNoRow. The caller already holds the Idea row lock.
+func LockOwn(ctx context.Context, tx *sql.Tx, ideaID, userID uuid.UUID) (string, error) {
+	var st string
+	err := tx.QueryRowContext(ctx,
+		`SELECT status FROM idea_member WHERE idea_id = ? AND user_id = ? FOR UPDATE`,
+		ideaID.String(), userID.String()).Scan(&st)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNoRow
+	}
+	if err != nil {
+		return "", fmt.Errorf("lock own idea_member: %w", err)
+	}
+	return st, nil
+}
+
+// HasRow reports whether the pair has a row (read only, no lock).
+func HasRow(ctx context.Context, q interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}, ideaID, userID uuid.UUID) (bool, error) {
+	var n int
+	if err := q.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM idea_member WHERE idea_id = ? AND user_id = ?`,
+		ideaID.String(), userID.String()).Scan(&n); err != nil {
+		return false, fmt.Errorf("select idea_member: %w", err)
+	}
+	return n > 0, nil
+}
+
 // CountAccepted returns the number of approved Members of the Idea.
 func CountAccepted(ctx context.Context, tx *sql.Tx, ideaID uuid.UUID) (int, error) {
 	var n int

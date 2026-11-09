@@ -6,6 +6,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/security"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
@@ -93,6 +95,86 @@ func TestRemoveState(t *testing.T) {
 		setDeadline(t, d, expr)
 		if err := s.Remove(context.Background(), id, "100002", leader, team.Request{}); code(err) != want {
 			t.Errorf("%s: %v, want %s", expr, err, want)
+		}
+	}
+	if n := count(t, d, `SELECT COUNT(*) FROM idea_member`); n != 1 {
+		t.Errorf("rows = %d, want 1", n)
+	}
+}
+
+func TestLeave(t *testing.T) {
+	d := dbtest.New(t)
+	setDeadline(t, d, "NOW(6) + INTERVAL 1 DAY")
+	leader := addUser(t, d, "100001", "USER")
+	applicant := addUser(t, d, "100002", "USER")
+	member := addUser(t, d, "100003", "USER")
+	stranger := addUser(t, d, "100004", "USER")
+	admin := addUser(t, d, "900001", "ADMIN")
+	id := addIdea(t, d, leader.UserID, "Idea A")
+	addRow(t, d, id, applicant.UserID, "PENDING")
+	addRow(t, d, id, member.UserID, "ACCEPTED")
+	s := newService(d)
+	ctx := context.Background()
+	req := team.Request{Method: "DELETE", Route: "/ideas/{id}/members/me"}
+
+	for name, who := range map[string]security.Principal{
+		"stranger": stranger, "leader": leader, "admin": admin,
+	} {
+		if err := s.Leave(ctx, id, who, req); code(err) != web.CodeNotFound {
+			t.Errorf("%s: %v, want NOT_FOUND", name, err)
+		}
+	}
+	if err := s.Leave(ctx, uuid.New(), member, req); code(err) != web.CodeNotFound {
+		t.Errorf("missing idea: %v, want NOT_FOUND", err)
+	}
+	if n := count(t, d, `SELECT COUNT(*) FROM idea_member`); n != 2 {
+		t.Errorf("refusals left %d rows, want 2", n)
+	}
+
+	// Withdraw a PENDING request; the applicant may apply again at once.
+	if err := s.Leave(ctx, id, applicant, req); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, d, `SELECT COUNT(*) FROM audit_log WHERE action = 'JOIN_REQUEST_WITHDRAW' AND outcome = 'SUCCESS'
+	        AND target_id = ? AND status = 204`, id.String()); n != 1 {
+		t.Errorf("JOIN_REQUEST_WITHDRAW rows = %d, want 1", n)
+	}
+	if _, err := s.Apply(ctx, applicant, "100001", "Idea A", req); err != nil {
+		t.Errorf("re-apply after withdraw: %v", err)
+	}
+
+	// Leave as an ACCEPTED Member.
+	if err := s.Leave(ctx, id, member, req); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, d, `SELECT COUNT(*) FROM audit_log WHERE action = 'MEMBER_LEAVE' AND outcome = 'SUCCESS'
+	        AND target_id = ? AND status = 204`, id.String()); n != 1 {
+		t.Errorf("MEMBER_LEAVE rows = %d, want 1", n)
+	}
+	if err := s.Leave(ctx, id, member, req); code(err) != web.CodeNotFound {
+		t.Errorf("second leave: %v, want NOT_FOUND", err)
+	}
+}
+
+func TestLeaveState(t *testing.T) {
+	d := dbtest.New(t)
+	leader := addUser(t, d, "100001", "USER")
+	applicant := addUser(t, d, "100002", "USER")
+	stranger := addUser(t, d, "100004", "USER")
+	id := addIdea(t, d, leader.UserID, "Idea A")
+	addRow(t, d, id, applicant.UserID, "PENDING")
+	s := newService(d)
+	for expr, want := range map[string]web.ErrorCode{
+		"NULL":                    web.CodeSubmissionNotOpen,
+		"NOW(6) - INTERVAL 1 DAY": web.CodeSubmissionClosed,
+	} {
+		setDeadline(t, d, expr)
+		if err := s.Leave(context.Background(), id, applicant, team.Request{}); code(err) != want {
+			t.Errorf("%s: %v, want %s", expr, err, want)
+		}
+		// A stranger never learns the Idea exists, whatever the window.
+		if err := s.Leave(context.Background(), id, stranger, team.Request{}); code(err) != web.CodeNotFound {
+			t.Errorf("%s stranger: %v, want NOT_FOUND", expr, err)
 		}
 	}
 	if n := count(t, d, `SELECT COUNT(*) FROM idea_member`); n != 1 {

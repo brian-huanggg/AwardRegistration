@@ -130,3 +130,19 @@ func (h Handler) RemoveMember(w http.ResponseWriter, r *http.Request, id uuid.UU
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// LeaveIdea serves DELETE /ideas/{id}/members/me: 204 on success.
+func (h Handler) LeaveIdea(w http.ResponseWriter, r *http.Request, id uuid.UUID) {
+	p, ok := security.PrincipalFrom(r.Context())
+	if !ok {
+		h.Fail(w, r, web.NewError(web.CodeUnauthenticated, "authentication required"))
+		return
+	}
+	err := h.Service.Leave(r.Context(), id, p,
+		Request{Method: r.Method, Route: web.RoutePattern(r), UserAgent: r.UserAgent(), IP: web.ClientIP(r)})
+	if err != nil {
+		h.Fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
