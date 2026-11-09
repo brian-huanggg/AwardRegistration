@@ -173,6 +173,18 @@ paths:
           in: query
           description: ISO 8601 instant with offset or Z; exclusive. Validated in the handler.
           schema: { type: string }
+        - name: q
+          in: query
+          description: Case-insensitive "name contains"; `%` and `_` are literal.
+          schema: { type: string }
+        - name: sort
+          in: query
+          description: createdAt (default) or name; anything else is 422 INVALID_ENUM. Validated in the handler.
+          schema: { type: string }
+        - name: order
+          in: query
+          description: asc or desc (default desc for createdAt, asc for name); anything else is 422 INVALID_ENUM. Validated in the handler.
+          schema: { type: string }
       responses:
         '200':
           description: One page of IdeaSummary

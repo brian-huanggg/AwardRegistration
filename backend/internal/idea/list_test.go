@@ -67,3 +67,30 @@ func TestParseListValid(t *testing.T) {
 		t.Errorf("from = %v", q.filter.CreatedFrom)
 	}
 }
+
+func TestParseListSortOrder(t *testing.T) {
+	for _, tc := range []struct {
+		sort, order *string
+		name, desc  bool
+	}{
+		{nil, nil, false, true},
+		{ptr("createdAt"), nil, false, true},
+		{ptr("createdAt"), ptr("asc"), false, false},
+		{ptr("name"), nil, true, false},
+		{ptr("name"), ptr("desc"), true, true},
+		{nil, ptr("asc"), false, false},
+	} {
+		q, errs := parseList(api.ListIdeasParams{Sort: tc.sort, Order: tc.order})
+		if len(errs) != 0 || q.filter.SortName != tc.name || q.filter.Desc != tc.desc {
+			t.Errorf("%v %v: %+v %v", tc.sort, tc.order, q.filter, errs)
+		}
+	}
+	_, errs := parseList(api.ListIdeasParams{Sort: ptr("id"), Order: ptr("DESC"), Q: ptr("x")})
+	if len(errs) != 2 || errs[0] != (web.FieldError{Field: "sort", Code: web.CodeInvalidEnum}) ||
+		errs[1] != (web.FieldError{Field: "order", Code: web.CodeInvalidEnum}) {
+		t.Errorf("errs = %v", errs)
+	}
+	if q, _ := parseList(api.ListIdeasParams{Q: ptr("50%_")}); q.filter.Q != "50%_" {
+		t.Errorf("q = %q", q.filter.Q)
+	}
+}

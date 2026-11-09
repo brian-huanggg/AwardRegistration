@@ -40,6 +40,6 @@ Every write (`POST`, `PUT`, `DELETE`, including login, register and logout) MUST
 Notes:
  
 - `DELETE /ideas/{id}/members/{empNo}` works on both `PENDING` and `ACCEPTED` rows (reject or remove); `DELETE …/members/me` works on the caller's own row (withdraw or leave). `me` is never a 6-digit employee ID, so the two paths cannot collide (PRD §6.7).
-- List endpoints enforce a maximum page size of 100 (`GET /ideas`: `page`, `size`, filters, `sort`, `order`; PRD §6.6). `GET /admin/audit-logs` uses keyset pagination with `cursor` and `limit` (PRD §6.11).
+- List endpoints enforce a maximum page size of 100 (`GET /ideas`: `page`, `size`, filters, `q`, `sort`, `order`; PRD §6.6). `GET /admin/audit-logs` uses keyset pagination with `cursor` and `limit` (PRD §6.11).
 - Unknown paths: 401 without a session, 404 with one; wrong method 405; unsupported `Accept` 406 (PRD §6.1, OI-15).
 - Operations endpoints are on the management port and are not routed by the public ingress (PRD §8.3).

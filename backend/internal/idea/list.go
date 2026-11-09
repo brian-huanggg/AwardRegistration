@@ -24,6 +24,8 @@ var (
 	orgs       = []string{"AAID", "BSID", "ICSD", "TSID", "PLED", "DEID"}
 	directions = []string{"GREEN_MANUFACTURING", "RESPONSIBLE_SUPPLY_CHAIN", "INCLUSIVE_WORKPLACE",
 		"TALENT_DEVELOPMENT", "CARING_FOR_DISADVANTAGED"}
+	sorts       = []string{"createdAt", "name"}
+	order       = []string{"asc", "desc"}
 	empNoFormat = regexp.MustCompile(`^[0-9]{6}$`)
 )
 
@@ -110,6 +112,18 @@ func parseList(p api.ListIdeasParams) (listQuery, []web.FieldError) {
 	}
 	q.filter.CreatedFrom = instant("createdFrom", p.CreatedFrom)
 	q.filter.CreatedTo = instant("createdTo", p.CreatedTo)
+	if p.Q != nil {
+		q.filter.Q = *p.Q
+	}
+	sort := "createdAt"
+	enum("sort", p.Sort, sorts, &sort)
+	q.filter.SortName = sort == "name"
+	dir := "desc"
+	if q.filter.SortName {
+		dir = "asc"
+	}
+	enum("order", p.Order, order, &dir)
+	q.filter.Desc = dir == "desc"
 	return q, errs
 }
 
