@@ -112,6 +112,9 @@ export const zhTW: Dictionary = {
       submit: '送出提案',
       submitting: '送出中…',
       closedHint: '目前不在收件期間，暫時無法送出提案。',
+      uploading: '上傳進度',
+      uncertain: '結果不確定：提案可能已建立。再次送出前，請先查看您的提案列表。',
+      duplicateAfterUncertain: '您已有同名提案，先前的嘗試可能已成功，請查看您的提案列表。',
     },
     ideaEdit: { title: '編輯提案' },
     ideaDetail: {

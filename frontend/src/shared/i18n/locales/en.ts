@@ -115,6 +115,9 @@ export const en = {
       submit: 'Submit Idea',
       submitting: 'Submitting…',
       closedHint: 'Submissions are not open, so the Idea cannot be submitted now.',
+      uploading: 'Upload progress',
+      uncertain: 'The result is uncertain: the Idea may already have been created. Check your Idea list before you submit again.',
+      duplicateAfterUncertain: 'You already have an Idea with this name. An earlier attempt may have succeeded; check your Idea list.',
     },
     ideaEdit: { title: 'Edit Idea' },
     ideaDetail: {

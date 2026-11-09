@@ -96,6 +96,7 @@ export function IdeaCreate() {
           <CreateIdeaForm
             leader={{ name: me.name, empNo: me.empNo }}
             canSubmit={open}
+            onOutcomeUnknown={() => void client.invalidateQueries({ queryKey: ['ideas'] })}
             onSubmissionRejected={() => void client.invalidateQueries({ queryKey: deadlineKey })}
             onCreated={(idea) => {
               // the response is the detail: cache it, no follow-up GET (Frontend.md §6.7)

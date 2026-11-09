@@ -1,6 +1,7 @@
 import { markActivity } from './activity';
 import { API_BASE, clearCsrfToken, getCsrfToken, refreshCsrfToken } from './csrf';
 import { parseApiError, type ApiError } from './problem';
+import type { Transport } from './upload';
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -23,6 +24,8 @@ export interface ApiRequestInit extends Omit<RequestInit, 'body'> {
   body?: BodyInit | Record<string, unknown> | null;
   /** A 401 is an answer here (e.g. `GET /auth/me` means "visitor"), not a session end. */
   allowUnauthenticated?: boolean;
+  /** Replaces `fetch`, e.g. the XHR transport that reports upload progress. */
+  transport?: Transport;
 }
 
 function prepare(init: ApiRequestInit): { headers: Headers; body: BodyInit | null | undefined } {
@@ -63,10 +66,11 @@ export async function apiFetch(path: string, init: ApiRequestInit = {}): Promise
   const method = (init.method ?? 'GET').toUpperCase();
   const write = !SAFE.has(method);
   const { headers, body } = prepare(init);
+  const { transport, allowUnauthenticated, ...rest } = init;
   const send = (csrf: string | null) => {
     const h = new Headers(headers);
     if (csrf !== null) h.set('X-CSRF-Token', csrf);
-    return fetch(`${API_BASE()}${path}`, { ...init, method, headers: h, body, credentials: 'same-origin' });
+    return (transport ?? fetch)(`${API_BASE()}${path}`, { ...rest, method, headers: h, body, credentials: 'same-origin' });
   };
 
   let res = await send(write ? await getCsrfToken() : null);
@@ -80,7 +84,7 @@ export async function apiFetch(path: string, init: ApiRequestInit = {}): Promise
     return res;
   }
   const err = await parseApiError(res);
-  if (err.status === 401 && err.code !== 'INVALID_CREDENTIALS' && !init.allowUnauthenticated) {
+  if (err.status === 401 && err.code !== 'INVALID_CREDENTIALS' && !allowUnauthenticated) {
     clearCsrfToken();
     onUnauthenticated?.();
   }

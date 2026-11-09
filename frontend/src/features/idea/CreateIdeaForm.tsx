@@ -51,6 +51,7 @@ export function CreateIdeaForm({
   canSubmit,
   onCreated,
   onSubmissionRejected,
+  onOutcomeUnknown,
 }: {
   leader: Leader;
   /** False outside the submission window; the server still decides (Frontend.md §6.3 rule 6). */
@@ -58,6 +59,8 @@ export function CreateIdeaForm({
   onCreated: (idea: IdeaDetail) => void;
   /** A 403 SUBMISSION_* answer: the caller refetches the deadline (Frontend.md §5.3). */
   onSubmissionRejected?: () => void;
+  /** The create may have succeeded although no answer arrived (Frontend.md §5.2, F12): the caller refreshes the list. */
+  onOutcomeUnknown?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const [values, setValues] = useState<IdeaText>(EMPTY);
@@ -66,6 +69,9 @@ export function CreateIdeaForm({
   const [serverExpected, setServerExpected] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  // An earlier attempt ended without a usable answer; a later 409 may be its success (F12).
+  const [earlierUncertain, setEarlierUncertain] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
   const summary = useRef<HTMLDivElement>(null);
   // WCAG 3.3.1: the error summary takes focus once it is on screen (it is re-keyed on every failed submit).
@@ -102,22 +108,36 @@ export function CreateIdeaForm({
       return;
     }
     setPending(true);
+    setProgress(0);
     setProblems({});
     setFormError(null);
     try {
-      onCreated(await createIdea(body, files[0]!));
+      onCreated(await createIdea(body, files[0]!, (loaded, total) => setProgress(Math.round((loaded / total) * 100))));
     } catch (err) {
       const { problems: p, rest, expected } = mapServerError(err);
       setServerExpected(expected);
       if (rest?.code === "SUBMISSION_CLOSED" || rest?.code === "SUBMISSION_NOT_OPEN") onSubmissionRejected?.();
+      // 503 SERVICE_UNAVAILABLE or a lost answer: the commit may have happened. Do not claim failure.
+      const unknown = rest !== null && (rest.code === "SERVICE_UNAVAILABLE" || rest.status === 0);
+      if (unknown) {
+        setEarlierUncertain(true);
+        onOutcomeUnknown?.();
+      }
+      const id = rest?.requestId ? ` ${t("common.requestId", { id: rest.requestId })}` : "";
+      const duplicate = p.name === "IDEA_DUPLICATE" && earlierUncertain;
       fail(
         p,
-        rest
-          ? t(`errors.${rest.code}`) + (rest.requestId ? ` ${t("common.requestId", { id: rest.requestId })}` : "")
-          : null,
+        unknown
+          ? t("pages.ideaCreate.uncertain") + id
+          : duplicate
+            ? t("pages.ideaCreate.duplicateAfterUncertain")
+            : rest
+              ? t(`errors.${rest.code}`) + id
+              : null,
       );
     } finally {
       setPending(false);
+      setProgress(null);
     }
   };
 
@@ -271,6 +291,17 @@ export function CreateIdeaForm({
         )}
 
         <Field>
+          {progress !== null && (
+            <div className="flex items-center gap-2 text-sm">
+              <progress
+                className="h-2 flex-1"
+                max={100}
+                value={progress}
+                aria-label={t("pages.ideaCreate.uploading")}
+              />
+              <span aria-hidden="true">{progress}%</span>
+            </div>
+          )}
           {!canSubmit && <FieldDescription>{t("pages.ideaCreate.closedHint")}</FieldDescription>}
           <Button type="submit" disabled={pending || !canSubmit} aria-busy={pending || undefined}>
             {pending ? t("pages.ideaCreate.submitting") : t("pages.ideaCreate.submit")}

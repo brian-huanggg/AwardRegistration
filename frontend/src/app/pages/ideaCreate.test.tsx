@@ -216,7 +216,7 @@ describe('Create Idea page: submit', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe(`/ideas/${ID}`));
     expect(sent).toEqual([
       {
-        fields: { category: 'COOL_IDEA', org: 'BSID', direction: 'RESPONSIBLE_SUPPLY_CHAIN', name: '成立供應商永續學院', summary: 'Line 1\nLine 2' },
+        fields: { category: 'COOL_IDEA', org: 'BSID', direction: 'RESPONSIBLE_SUPPLY_CHAIN', name: '成立供應商永續學院', summary: 'Line 1\r\nLine 2' }, // multipart serialisation turns LF into CRLF (HTML spec); the server normalises it back (PRD §6.2)
         file: { name: `${BASE}.pdf`, size: PDF.length },
         csrf: 'tok',
       },
@@ -305,5 +305,53 @@ describe('Create Idea page: server answers', () => {
     expect(summary).toHaveTextContent('Request ID: 6f1c2c1e-0000-4000-8000-000000000000');
     await waitFor(() => expect(screen.getByRole('button', { name: 'Submit Idea' })).toBeDisabled());
     expect(screen.getByText('Submissions are not open, so the Idea cannot be submitted now.')).toBeInTheDocument();
+  });
+});
+
+describe('Create Idea page: upload progress and 503 (F3-02)', () => {
+  async function submitValid(respond: () => Response | Promise<Response>) {
+    const ctx = await open();
+    const sent = createReturns(respond);
+    await fillText(ctx.user);
+    await pick(ctx.user, `${BASE}.pdf`);
+    await submit(ctx.user);
+    return { ...ctx, sent };
+  }
+
+  it('shows a named progress bar while the upload is in flight, then removes it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    await submitValid(async () => {
+      await gate;
+      return problem(422, 'EMPTY_FILE');
+    });
+    const bar = await screen.findByRole('progressbar', { name: 'Upload progress' });
+    expect(bar).toBeInTheDocument();
+    release();
+    await screen.findByRole('link', { name: 'Slide file: The file is empty.' });
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+  });
+
+  it('503 STORAGE_UNAVAILABLE is a form message: the write did not happen, nothing typed is lost', async () => {
+    const { router } = await submitValid(() => problem(503, 'STORAGE_UNAVAILABLE'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('File storage is temporarily unavailable.');
+    expect(screen.getByLabelText('Summary')).toHaveValue('Train suppliers.');
+    expect(router.state.location.pathname).toBe('/ideas/new');
+  });
+
+  it('503 SERVICE_UNAVAILABLE says the result is uncertain, refreshes the list, and a later 409 mentions the earlier attempt', async () => {
+    const ctx = await submitValid(() => problem(503, 'SERVICE_UNAVAILABLE'));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The result is uncertain');
+    expect(alert).not.toHaveTextContent('Please try again later');
+    server.use(http.post(`${API}/ideas`, () => problem(409, 'IDEA_DUPLICATE')));
+    await submit(ctx.user);
+    expect(await screen.findByText(/An earlier attempt may have succeeded/)).toBeInTheDocument();
+    expect(ctx.sent).toHaveLength(1);
+  });
+
+  it('a lost answer (network error) is also an uncertain result', async () => {
+    await submitValid(() => HttpResponse.error());
+    expect(await screen.findByRole('alert')).toHaveTextContent('The result is uncertain');
   });
 });

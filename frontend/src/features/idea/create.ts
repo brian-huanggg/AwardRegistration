@@ -1,4 +1,4 @@
-import { ApiError, apiFetch, type components } from '@/shared/api';
+import { ApiError, apiFetch, xhrTransport, type components } from '@/shared/api';
 import { CATEGORIES, expectedFilenameBase, filenameTooLong, precheckSlides, type Category } from '@/shared/slides';
 import { checkName, checkSummary } from '@/shared/text';
 
@@ -90,11 +90,11 @@ export async function precheck(v: IdeaText, files: readonly File[], leader: Lead
 }
 
 /** POST /ideas: one multipart request with every field and the slides (PRD §6.6). */
-export async function createIdea(values: IdeaText, file: File): Promise<IdeaDetail> {
+export async function createIdea(values: IdeaText, file: File, onProgress?: (loaded: number, total: number) => void): Promise<IdeaDetail> {
   const body = new FormData();
   for (const f of ['category', 'org', 'direction', 'name', 'summary'] as const) body.append(f, values[f]);
   body.append('slides', file, file.name);
-  const res = await apiFetch('/ideas', { method: 'POST', body });
+  const res = await apiFetch('/ideas', { method: 'POST', body, transport: xhrTransport(onProgress) });
   return (await res.json()) as IdeaDetail;
 }
 
