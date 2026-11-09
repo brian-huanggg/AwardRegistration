@@ -17,9 +17,11 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 )
 
 func main() {
@@ -66,6 +68,11 @@ func run() error {
 			Fail:    errs.Write,
 		},
 		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},
+		Ideas: idea.Handler{
+			Service:          &idea.Service{DB: db, Audit: auditSvc},
+			ExpectedFilename: storage.ExpectedFilenameBase,
+			Fail:             errs.Write,
+		},
 	}
 
 	var ready atomic.Bool

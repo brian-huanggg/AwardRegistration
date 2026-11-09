@@ -7,6 +7,7 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/api"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 )
 
 // API composes the module handlers into api.ServerInterface. Operations whose
@@ -19,6 +20,7 @@ type API struct {
 	Me       auth.MeHandler
 	Account  account.Handler
 	Deadline deadline.Handler
+	Ideas    idea.Handler
 }
 
 // GetDeadline serves GET /deadline.
@@ -42,3 +44,8 @@ func (a API) Logout(w http.ResponseWriter, r *http.Request, _ api.LogoutParams) 
 
 // GetMe serves GET /auth/me.
 func (a API) GetMe(w http.ResponseWriter, r *http.Request) { a.Me.GetMe(w, r) }
+
+// GetIdea serves GET /ideas/{id}.
+func (a API) GetIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId) {
+	a.Ideas.GetIdea(w, r, id)
+}

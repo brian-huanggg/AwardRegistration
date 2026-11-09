@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea/internal/store"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/security"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
@@ -18,7 +19,10 @@ import (
 type Idea = store.Idea
 
 // Service reads Ideas.
-type Service struct{ DB *sql.DB }
+type Service struct {
+	DB    *sql.DB
+	Audit *audit.Service
+}
 
 // Get returns the Idea if the caller may see it. A missing Idea and a hidden
 // one both return the same NOT_FOUND error; the handler audits it as DENIED.
