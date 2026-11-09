@@ -68,12 +68,22 @@ func newLoginEnv(t *testing.T) loginEnv {
 
 func newLoginEnvLog(t *testing.T, log *slog.Logger) loginEnv {
 	t.Helper()
+	return newLoginEnvWith(t, log, nil)
+}
+
+// newLoginEnvWith wires mk(db) as the throttle; nil keeps the fake.
+func newLoginEnvWith(t *testing.T, log *slog.Logger, mk func(*sql.DB) auth.Throttle) loginEnv {
+	t.Helper()
 	db := dbtest.New(t)
 	auditSvc := audit.New(db, nil)
 	errs := server.ErrorAdapter{Audit: auditSvc}
 	sessions := auth.New(db)
 	th := &fakeThrottle{}
-	logins, err := auth.NewLogins(sessions, auditSvc, th)
+	var thr auth.Throttle = th
+	if mk != nil {
+		thr = mk(db)
+	}
+	logins, err := auth.NewLogins(sessions, auditSvc, thr)
 	if err != nil {
 		t.Fatal(err)
 	}

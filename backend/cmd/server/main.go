@@ -54,7 +54,7 @@ func run() error {
 		return err
 	}
 	sessions := auth.New(db)
-	logins, err := auth.NewLogins(sessions, auditSvc, auth.NoThrottle{}) // B1b-04 wires the real throttle
+	logins, err := auth.NewLogins(sessions, auditSvc, auth.DBThrottle{DB: db})
 	if err != nil {
 		return err
 	}

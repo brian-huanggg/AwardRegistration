@@ -33,9 +33,9 @@ const (
 
 var empNoFormat = regexp.MustCompile(`^[0-9]{6}$`)
 
-// Throttle is the login throttling hook (PRD §6.5). B1b-04 implements it on
-// login_lock / login_attempt; until then NoThrottle is wired. Errors fail the
-// login closed (500): an unreachable counter must not disable the limit.
+// Throttle is the login throttling hook (PRD §6.5); DBThrottle implements it on
+// login_lock. Errors fail the login closed (500): an unreachable counter must
+// not disable the limit.
 type Throttle interface {
 	// Check runs before any password work. A positive retryAfter means the
 	// attempt is throttled: it answers 429, runs no bcrypt and is not counted.

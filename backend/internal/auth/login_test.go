@@ -66,3 +66,18 @@ func TestComparePassword(t *testing.T) {
 		}
 	}
 }
+
+func TestLockKey(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"123456", "123456"},
+		{"12\x00\n34\t56\x7f", "123456"},
+		{strings.Repeat("a", 40), strings.Repeat("a", 32)},
+		{strings.Repeat("工", 33), strings.Repeat("工", 32)},
+		{"", ""},
+	}
+	for _, tc := range tests {
+		if got := LockKey(tc.in); got != tc.want {
+			t.Errorf("LockKey(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}
