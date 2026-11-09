@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router';
 import { deadlineKey, useDeadline } from '@/features/deadline/useDeadline';
 import { CreateIdeaForm } from '@/features/idea/CreateIdeaForm';
+import { IdeaList as IdeaListView } from '@/features/idea/IdeaList';
 import { Button } from '@/shared/ui/button';
 import { Field } from '@/shared/ui/form-field';
 import { PageHeading } from '../layouts';
@@ -53,30 +54,18 @@ export function IdeaList() {
   return (
     <>
       <PageHeading title={t('nav.ideas')} />
-      <form role="search" onSubmit={noSubmit} className="mb-4 flex flex-wrap items-end gap-4">
-        <Field label={t('pages.ideaList.search')}>{(p) => <input {...p} name="q" type="search" />}</Field>
-        <Button type="submit" className="mb-4">
-          {t('pages.ideaList.apply')}
-        </Button>
-        {me?.role === 'USER' && (
-          <Button asChild variant="outline" className="mb-4">
-            <Link to="/ideas/new">{t('pages.ideaList.create')}</Link>
-          </Button>
-        )}
-      </form>
-      <table className="w-full rounded-xl border bg-card text-left text-sm">
-        <caption className="sr-only">{t('nav.ideas')}</caption>
-        <thead>
-          <tr>
-            {(['ideaName', 'category', 'org', 'direction', 'leader', 'members'] as const).map((c) => (
-              <th key={c} scope="col" className="border-b p-3 font-medium text-muted-foreground">
-                {t(`fields.${c}`)}
-              </th>
-            ))}
-          </tr>
-        </thead>
-      </table>
-      <p className="mt-4">{t('pages.ideaList.empty')}</p>
+      {me && (
+        <IdeaListView
+          admin={me.role === 'ADMIN'}
+          actions={
+            me.role === 'USER' && (
+              <Button asChild variant="outline">
+                <Link to="/ideas/new">{t('pages.ideaList.create')}</Link>
+              </Button>
+            )
+          }
+        />
+      )}
     </>
   );
 }
