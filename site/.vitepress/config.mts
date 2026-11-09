@@ -9,6 +9,7 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Audit Log', link: '/audit-log/' },
+      { text: 'File Upload', link: '/file-upload/' },
     ],
 
     sidebar: [
@@ -20,6 +21,16 @@ export default defineConfig({
           { text: 'Implementation', link: '/audit-log/implementation' },
           { text: 'Decision Thinking', link: '/audit-log/decisions' },
           { text: 'Technical FAQ', link: '/audit-log/faq' }
+        ]
+      },
+      {
+        text: 'File Upload',
+        items: [
+          { text: 'Concepts', link: '/file-upload/' },
+          { text: 'Architecture', link: '/file-upload/architecture' },
+          { text: 'Implementation', link: '/file-upload/implementation' },
+          { text: 'Decision Thinking', link: '/file-upload/decisions' },
+          { text: 'Technical FAQ', link: '/file-upload/faq' }
         ]
       }
     ],
