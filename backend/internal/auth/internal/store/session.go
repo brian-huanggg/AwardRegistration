@@ -99,19 +99,27 @@ func DeleteByUser(ctx context.Context, db *sql.DB, userID uuid.UUID) error {
 	return nil
 }
 
-// DeleteExpired removes sessions past either timeout and returns how many.
-func DeleteExpired(ctx context.Context, db *sql.DB, l Limits) (int64, error) {
-	res, err := db.ExecContext(ctx,
+// DeleteExpired removes at most limit sessions past either timeout and
+// returns how many. The condition is the exact complement of Touch's, so a row
+// it deletes could no longer be validated anyway.
+func DeleteExpired(ctx context.Context, db *sql.DB, l Limits, limit int) (int64, error) {
+	return deleteRows(ctx, db, "purge sessions",
 		`DELETE FROM session
 		  WHERE last_access_at <= NOW(6) - INTERVAL ? SECOND
-		     OR created_at     <= NOW(6) - INTERVAL ? SECOND`,
-		l.IdleSeconds, l.AbsoluteSeconds)
+		     OR created_at     <= NOW(6) - INTERVAL ? SECOND
+		  LIMIT ?`,
+		l.IdleSeconds, l.AbsoluteSeconds, limit)
+}
+
+// deleteRows runs one DELETE and returns the affected row count.
+func deleteRows(ctx context.Context, db *sql.DB, what, query string, args ...any) (int64, error) {
+	res, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
-		return 0, fmt.Errorf("purge sessions: %w", err)
+		return 0, fmt.Errorf("%s: %w", what, err)
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf("purge sessions rows: %w", err)
+		return 0, fmt.Errorf("%s rows: %w", what, err)
 	}
 	return n, nil
 }

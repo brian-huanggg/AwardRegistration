@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -216,9 +217,8 @@ func TestSessions(t *testing.T) {
 		live, idle, old := create(t, u), create(t, u), create(t, u)
 		age(t, db, idle, time.Hour, time.Hour)
 		age(t, db, old, 9*time.Hour, 0)
-		n, err := s.Purge(ctx)
-		if err != nil || n < 2 {
-			t.Fatalf("purged %d, %v; want at least 2", n, err)
+		if err := (auth.Purger{DB: db, Log: slog.New(slog.DiscardHandler)}).Purge(ctx); err != nil {
+			t.Fatal(err)
 		}
 		if !valid(t, live) {
 			t.Fatal("live session purged")

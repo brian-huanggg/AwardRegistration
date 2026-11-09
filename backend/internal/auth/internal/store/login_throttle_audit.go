@@ -32,3 +32,11 @@ func ClaimThrottleAudit(ctx context.Context, db *sql.DB, scope, subject string, 
 	n, _ := res.RowsAffected()
 	return n > 0, nil
 }
+
+// DeleteExpiredThrottleAudits removes at most limit claims that have run out.
+// ClaimThrottleAudit treats a missing row like an expired one (the next
+// throttled attempt wins), so deleting it changes no outcome.
+func DeleteExpiredThrottleAudits(ctx context.Context, db *sql.DB, limit int) (int64, error) {
+	return deleteRows(ctx, db, "purge throttle audits",
+		`DELETE FROM login_throttle_audit WHERE audited_until <= NOW(6) LIMIT ?`, limit)
+}

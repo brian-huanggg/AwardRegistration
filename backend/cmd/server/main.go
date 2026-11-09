@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/config"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/job"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 )
@@ -87,6 +89,16 @@ func run() error {
 			Fail:             errs.Write,
 		},
 	}
+
+	// Background jobs stop when the root context is cancelled, or when Run
+	// returns for another reason, and are awaited before the pool closes.
+	jobCtx, stopJobs := context.WithCancel(ctx)
+	var jobs sync.WaitGroup
+	defer func() { stopJobs(); jobs.Wait() }()
+	jobs.Go(func() {
+		job.Run(jobCtx, log, job.Spec{Name: "auth-purge", Interval: auth.PurgeInterval, Jitter: auth.PurgeJitter},
+			auth.Purger{DB: db, Log: log}.Purge)
+	})
 
 	var ready atomic.Bool
 	return server.Run(ctx, cfg, log, server.NewPublic(log, server.Mount(si),

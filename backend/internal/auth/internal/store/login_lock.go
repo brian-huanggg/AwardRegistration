@@ -63,3 +63,15 @@ func ClearFailures(ctx context.Context, db *sql.DB, key string) error {
 	}
 	return nil
 }
+
+// DeleteStaleLocks removes at most limit login_lock rows that no longer
+// matter: no active lock and the last failure outside the window. For such a
+// row RecordFailure would start again at 1, exactly as for a missing row.
+func DeleteStaleLocks(ctx context.Context, db *sql.DB, p LockPolicy, limit int) (int64, error) {
+	return deleteRows(ctx, db, "purge login locks",
+		`DELETE FROM login_lock
+		  WHERE last_fail_at <= NOW(6) - INTERVAL ? SECOND
+		    AND (locked_until IS NULL OR locked_until <= NOW(6))
+		  LIMIT ?`,
+		p.WindowSeconds, limit)
+}

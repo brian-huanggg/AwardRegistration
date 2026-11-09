@@ -43,3 +43,11 @@ func IPRetryAfter(ctx context.Context, db *sql.DB, ip string, p IPPolicy) (time.
 	}
 	return time.Duration(us) * time.Microsecond, nil
 }
+
+// DeleteOldAttempts removes at most limit login_attempt rows outside the
+// window; IPRetryAfter only reads rows inside it.
+func DeleteOldAttempts(ctx context.Context, db *sql.DB, p IPPolicy, limit int) (int64, error) {
+	return deleteRows(ctx, db, "purge login attempts",
+		`DELETE FROM login_attempt WHERE attempted_at <= NOW(6) - INTERVAL ? SECOND LIMIT ?`,
+		p.WindowSeconds, limit)
+}

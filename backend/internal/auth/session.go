@@ -106,12 +106,6 @@ func (s *Sessions) RevokeAll(ctx context.Context, userID uuid.UUID) error {
 	return store.DeleteByUser(ctx, s.DB, userID)
 }
 
-// Purge deletes expired sessions and returns how many; a background ticker
-// calls it. Validation never depends on it: expired rows already fail Touch.
-func (s *Sessions) Purge(ctx context.Context) (int64, error) {
-	return store.DeleteExpired(ctx, s.DB, limits)
-}
-
 // Binding returns SHA-256 of the session ID, the value the CSRF token is bound
 // to (D40). ok is false for a malformed ID.
 func Binding(id string) (b []byte, ok bool) { return parse(id) }
