@@ -4,6 +4,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/account/internal/passwords"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
 )
 
@@ -38,14 +39,15 @@ type Rule struct {
 // (testdata/password.json): later PRs add their rule at its table position.
 type Policy struct{ Rules []Rule }
 
-// DefaultPolicy returns the rules implemented so far, in table order.
-// SEQUENCE and COMMON_PASSWORD arrive with B1b-03 and later.
+// DefaultPolicy returns all eight rules of the PRD §6.4 table, in table order.
 func DefaultPolicy() *Policy {
 	return &Policy{Rules: []Rule{
 		{RuleLength, violatesLength},
 		{RuleCharset, violatesCharset},
 		{RuleComplexity, violatesComplexity},
+		{RuleCommon, violatesCommon},
 		{RuleKeyboardRun, violatesKeyboardRun},
+		{RuleSequence, violatesSequence},
 		{RuleRepeat, violatesRepeat},
 		{RuleContainsEmpNo, violatesEmpNo},
 	}}
@@ -102,6 +104,10 @@ func violatesComplexity(pw, _ string) bool {
 	}
 	return n < minPassClasses
 }
+
+// violatesCommon: the whole password equals an entry of the bundled Top-10,000
+// list, ignoring case (internal/passwords/NOTICE for the source).
+func violatesCommon(pw, _ string) bool { return passwords.IsCommon(pw) }
 
 // violatesRepeat: the same character three or more times in a row, compared
 // exactly (case-sensitive: "aAa" is fine).
