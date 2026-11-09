@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "expected-filename.schema.json",
+  "title": "Expected filename cases",
+  "description": "Shared front-end/back-end cases for PRD 6.8 (filename base) and PRD 6.2 (255 UTF-8 byte limit measured with .pptx).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cases"],
+  "properties": {
+    "description": { "type": "string" },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "org", "leaderName", "leaderEmpNo", "ideaName", "wantBase", "wantBytes", "wantTooLong"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "category": { "enum": ["COOL_IDEA", "OUTSTANDING_IMPACT"] },
+          "org": { "enum": ["AAID", "BSID", "ICSD", "TSID", "PLED", "DEID"] },
+          "leaderName": { "type": "string" },
+          "leaderEmpNo": { "type": "string" },
+          "ideaName": { "type": "string" },
+          "wantBase": { "type": "string" },
+          "wantBytes": { "type": "integer", "minimum": 1 },
+          "wantTooLong": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}
