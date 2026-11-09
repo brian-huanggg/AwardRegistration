@@ -98,6 +98,35 @@ describe('Idea detail', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(gets).toBe(1);
   });
+
+  it('shows an Admin download, replace and delete, but no edit link; passes axe', async () => {
+    server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
+    const { container } = await open(ADMIN);
+    await screen.findByText('李小華 (089291)');
+    expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /replace/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /delete/i })).toBeEnabled();
+    expect(screen.queryByRole('link', { name: /edit/i })).not.toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('an Admin opening from the list sends one GET /ideas/{id}, even after hovering the row', async () => {
+    let gets = 0;
+    server.use(
+      http.get(`${API}/ideas/${ID}`, () => (gets++, HttpResponse.json(detail()))),
+      http.get(`${API}/ideas`, () =>
+        HttpResponse.json({ items: [{ id: ID, name: 'N', category: 'COOL_IDEA', org: 'BSID', direction: 'TALENT_DEVELOPMENT', leader: { empNo: '089290', name: '王小明' }, createdAt: '2026-11-02T03:00:00.000Z', myRelation: null }], page: 1, size: 20, total: 1 }),
+      ),
+    );
+    const { user } = await open(ADMIN);
+    await user.click(await screen.findByRole('link', { name: /back/i }));
+    const link = await screen.findByRole('link', { name: 'N' });
+    await user.hover(link);
+    expect(gets).toBe(1); // the first open only
+    await user.click(link);
+    await screen.findByText('李小華 (089291)');
+    expect(gets).toBe(1);
+  });
 });
 
 describe('Slides download', () => {
