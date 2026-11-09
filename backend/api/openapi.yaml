@@ -281,6 +281,26 @@ paths:
         '422': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
         '503': { $ref: '#/components/responses/Problem' }
+    delete:
+      operationId: deleteIdea
+      tags: [ideas]
+      summary: Delete the Idea (Leader, Admin)
+      description: >
+        Check order: 404 (hidden or missing) -> 403 FORBIDDEN (Member) -> 403 SUBMISSION_* (state; Admin
+        is exempt). The transaction locks the row, deletes it (member rows cascade), records the slide key
+        as DELETED and writes IDEA_DELETE; the object is deleted after commit and never fails the request,
+        so a delete succeeds while MinIO is down. A transaction whose outcome is unknown answers
+        503 SERVICE_UNAVAILABLE.
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+        - $ref: '#/components/parameters/CsrfToken'
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /ideas/{id}/slides:
     get:
       operationId: downloadSlides

@@ -149,6 +149,7 @@ func newCreateEnvOn(t *testing.T, d, svcDB *sql.DB) *createEnv {
 			Objects:  objs,
 			Aborter:  storage.NewPendingDeletion(d, objs, nil),
 			Replaced: server.IdeaReplacedKeys{P: storage.NewPendingDeletion(d, objs, nil)},
+			Deleted:  server.IdeaDeletedKeys{P: storage.NewPendingDeletion(d, objs, nil)},
 		},
 		ExpectedFilename: storage.ExpectedFilenameBase,
 		Fail:             errs.Write,

@@ -76,3 +76,8 @@ func (a API) UpdateIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId, _
 func (a API) ReplaceSlides(w http.ResponseWriter, r *http.Request, id api.IdeaId, _ api.ReplaceSlidesParams) {
 	a.Ideas.ReplaceSlides(w, r, uuid.UUID(id))
 }
+
+// DeleteIdea serves DELETE /ideas/{id}.
+func (a API) DeleteIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId, _ api.DeleteIdeaParams) {
+	a.Ideas.DeleteIdea(w, r, uuid.UUID(id))
+}

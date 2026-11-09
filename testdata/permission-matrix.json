@@ -251,6 +251,45 @@
       }
     },
     {
+      "id": "delete-idea",
+      "operation": "delete the Idea (${ideaId} is led by a fresh Leader; the leader actor leads it itself). Member cells arrive with B5-01",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}",
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 204 },
+        "admin": { "status": 204 }
+      }
+    },
+    {
+      "id": "delete-idea-not-open",
+      "operation": "delete the Idea before the contest opens (Admin is exempt)",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}",
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 204 }
+      }
+    },
+    {
+      "id": "delete-idea-closed",
+      "operation": "delete the Idea after the deadline (Admin is exempt)",
+      "method": "DELETE",
+      "path": "/api/v1/ideas/${ideaId}",
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "leader": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 204 }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

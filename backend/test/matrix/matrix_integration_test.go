@@ -77,6 +77,7 @@ func newEnv(t *testing.T) *env {
 				Objects:  discardObjects{},
 				Aborter:  discardObjects{},
 				Replaced: discardObjects{},
+				Deleted:  discardObjects{},
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
@@ -105,6 +106,8 @@ func (discardObjects) Get(context.Context, string) (io.ReadCloser, int64, error)
 func (discardObjects) AbortUpload(context.Context, string, shareddb.Outcome) {}
 
 func (discardObjects) RecordReplaced(context.Context, *sql.Tx, string) (int64, error) { return 0, nil }
+
+func (discardObjects) RecordDeleted(context.Context, *sql.Tx, string) (int64, error) { return 0, nil }
 
 func (discardObjects) DeleteAfterCommit(context.Context, int64, string) {}
 

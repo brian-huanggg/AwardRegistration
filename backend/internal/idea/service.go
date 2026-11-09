@@ -31,6 +31,8 @@ type Service struct {
 	Aborter UploadAborter
 	// Replaced is needed by ReplaceSlides only.
 	Replaced ReplacedKeys
+	// Deleted is needed by Delete only.
+	Deleted DeletedKeys
 }
 
 // Get returns the Idea if the caller may see it. A missing Idea and a hidden

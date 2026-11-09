@@ -240,3 +240,12 @@ func SwitchSlides(ctx context.Context, tx *sql.Tx, id uuid.UUID, s Slides) error
 	}
 	return nil
 }
+
+// DeleteIdea removes a locked idea row. Dependent member rows go with it by
+// foreign-key cascade (Sequence.md §5).
+func DeleteIdea(ctx context.Context, tx *sql.Tx, id uuid.UUID) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM idea WHERE id = ?`, id.String()); err != nil {
+		return fmt.Errorf("delete idea: %w", err)
+	}
+	return nil
+}

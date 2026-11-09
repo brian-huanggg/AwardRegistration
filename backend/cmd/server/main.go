@@ -86,6 +86,7 @@ func run() error {
 				Objects:  slides,
 				Aborter:  pending,
 				Replaced: server.IdeaReplacedKeys{P: pending},
+				Deleted:  server.IdeaDeletedKeys{P: pending},
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,

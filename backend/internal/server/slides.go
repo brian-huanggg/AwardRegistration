@@ -36,3 +36,17 @@ func (r IdeaReplacedKeys) RecordReplaced(ctx context.Context, tx *sql.Tx, key st
 func (r IdeaReplacedKeys) DeleteAfterCommit(ctx context.Context, id int64, key string) {
 	r.P.DeleteAfterCommit(ctx, storage.PendingID(id), key)
 }
+
+// IdeaDeletedKeys adapts storage.PendingDeletion to idea.DeletedKeys.
+type IdeaDeletedKeys struct{ P *storage.PendingDeletion }
+
+// RecordDeleted records key as DELETED inside tx.
+func (r IdeaDeletedKeys) RecordDeleted(ctx context.Context, tx *sql.Tx, key string) (int64, error) {
+	id, err := r.P.RecordInTx(ctx, tx, key, storage.ReasonDeleted)
+	return int64(id), err
+}
+
+// DeleteAfterCommit deletes the object and its pending row, best effort.
+func (r IdeaDeletedKeys) DeleteAfterCommit(ctx context.Context, id int64, key string) {
+	r.P.DeleteAfterCommit(ctx, storage.PendingID(id), key)
+}
