@@ -1,3 +1,4 @@
+import { markActivity } from './activity';
 import { API_BASE, clearCsrfToken, getCsrfToken, refreshCsrfToken } from './csrf';
 import { parseApiError, type ApiError } from './problem';
 
@@ -73,6 +74,7 @@ export async function apiFetch(path: string, init: ApiRequestInit = {}): Promise
     res = await send(await refreshCsrfToken());
   }
 
+  if (res.status !== 401) markActivity();
   if (res.ok) {
     if (write && SESSION_CHANGING.has(path)) clearCsrfToken();
     return res;
