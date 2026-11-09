@@ -172,7 +172,7 @@ export const en = {
       back: 'Back to Ideas',
     },
     joinRequests: { apply: 'Apply to join a team', submit: 'Send request', mine: 'My pending requests', empty: 'You have no pending requests.' },
-    adminDeadline: { label: 'Submission deadline', hint: 'Shown in your local time.' },
+    adminDeadline: { label: 'Submission deadline', hint: 'Shown in your local time.', saving: 'Saving…', saved: 'The deadline was saved.', problems: 'The deadline was not saved' },
     adminStats: { empty: 'No statistics to show yet.' },
   },
   errors: {

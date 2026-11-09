@@ -169,7 +169,7 @@ export const zhTW: Dictionary = {
       back: '回到提案列表',
     },
     joinRequests: { apply: '申請加入團隊', submit: '送出申請', mine: '我的待處理申請', empty: '您沒有待處理的申請。' },
-    adminDeadline: { label: '提案截止時間', hint: '以您的當地時間顯示。' },
+    adminDeadline: { label: '提案截止時間', hint: '以您的當地時間顯示。', saving: '儲存中…', saved: '截止時間已儲存。', problems: '截止時間未儲存' },
     adminStats: { empty: '目前沒有統計資料。' },
   },
   errors: {

@@ -1,7 +1,6 @@
-import type { FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/shared/ui/button';
-import { Field } from '@/shared/ui/form-field';
+import { DeadlineBanner } from '@/features/deadline/DeadlineBanner';
+import { DeadlineForm } from '@/features/deadline/DeadlineForm';
 import { PageHeading } from '../layouts';
 
 /** Admin-only pages are lazy-loaded so ordinary Users never download them (Frontend.md §7). */
@@ -10,12 +9,10 @@ export function AdminDeadline() {
   return (
     <>
       <PageHeading title={t('nav.deadline')} />
-      <form onSubmit={(e: FormEvent) => e.preventDefault()} className="max-w-md rounded-xl border bg-card p-6">
-        <Field label={t('pages.adminDeadline.label')} hint={t('pages.adminDeadline.hint')}>
-          {(p) => <input {...p} name="deadline" type="datetime-local" required />}
-        </Field>
-        <Button type="submit">{t('common.save')}</Button>
-      </form>
+      <div className="mb-6 max-w-md overflow-hidden rounded-xl border">
+        <DeadlineBanner />
+      </div>
+      <DeadlineForm />
     </>
   );
 }
