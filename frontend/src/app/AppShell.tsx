@@ -51,8 +51,7 @@ function TopBar({ me, route }: { me: Me; route?: RouteDef }) {
       <SidebarDrawer me={me} />
       <Breadcrumb crumbs={crumbsFor(route, me.role)} />
       <div className="ml-auto flex min-w-0 items-center gap-3">
-        {/* /admin/deadline still renders its own DeadlineBanner (same region label) until UI-07 replaces it. */}
-        {route?.path !== '/admin/deadline' && <DeadlinePill />}
+        <DeadlinePill />
         <LanguageSwitch />
       </div>
     </header>

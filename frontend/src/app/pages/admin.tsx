@@ -1,18 +1,24 @@
 import { useTranslation } from 'react-i18next';
-import { DeadlineBanner } from '@/features/deadline/DeadlineBanner';
 import { DeadlineForm } from '@/features/deadline/DeadlineForm';
+import { DeadlineStates } from '@/features/deadline/DeadlineStates';
 import { PageHeading } from '../layouts';
 
 /** Admin-only pages are lazy-loaded so ordinary Users never download them (Frontend.md §7). */
 export function AdminDeadline() {
   const { t } = useTranslation();
+  // No page-level banner: the shell's DeadlinePill (UI-01) already shows the state on every page.
   return (
     <>
-      <PageHeading title={t('nav.deadline')} />
-      <div className="mb-6 max-w-md overflow-hidden rounded-xl border">
-        <DeadlineBanner />
+      <div>
+        <PageHeading title={t('nav.deadline')} />
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{t('pages.adminDeadline.description')}</p>
       </div>
-      <DeadlineForm />
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DeadlineForm />
+        </div>
+        <DeadlineStates />
+      </div>
     </>
   );
 }
