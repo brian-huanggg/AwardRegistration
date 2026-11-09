@@ -8,8 +8,11 @@ export function JoinRequests() {
   const deadline = useDeadline();
   return (
     <>
-      <PageHeading title={t('nav.joinRequests')} />
-      <JoinRequestsPanel closed={deadline.data !== undefined && deadline.data.state !== 'OPEN'} />
+      <div className="space-y-1">
+        <PageHeading title={t('nav.joinRequests')} />
+        <p className="text-sm text-muted-foreground">{t('pages.joinRequests.description')}</p>
+      </div>
+      <JoinRequestsPanel closed={deadline.data !== undefined && deadline.data.state !== 'OPEN'} serverTime={deadline.data?.serverTime} />
     </>
   );
 }

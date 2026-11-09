@@ -44,9 +44,12 @@ async function open({ me = USER as { empNo: string; name: string; email: string 
 describe('/join-requests', () => {
   it('lists my requests and has no axe violations', async () => {
     const { container } = await open({ items: [jr()] });
-    const item = await within(await screen.findByRole('main')).findByRole('listitem');
+    const item = await within(await within(await screen.findByRole('main')).findByRole('region', { name: 'My pending requests' })).findByRole('listitem');
     expect(within(item).getByText('成立供應商永續學院')).toBeInTheDocument();
-    expect(within(item).getByText(/李小華 \(089291\)/)).toBeInTheDocument();
+    expect(within(item).getByText(/Leader 李小華 · 089291/)).toBeInTheDocument();
+    const time = item.querySelector('time');
+    expect(time).toHaveAttribute('dateTime', '2026-11-04T03:00:00.000Z');
+    expect(time).toHaveTextContent('Nov 4, 2026');
     expect((await axe(container)).violations).toEqual([]);
   });
 
@@ -92,12 +95,11 @@ describe('/join-requests', () => {
     expect(await screen.findByText(/Your request was sent/)).toBeInTheDocument();
     expect(body).toEqual({ leaderEmpNo: '089291', ideaName: '成立供應商永續學院' });
     expect(csrf).toBe('tok');
-    expect(await within(screen.getByRole('main')).findByRole('listitem')).toHaveTextContent('成立供應商永續學院');
+    expect(await within(within(screen.getByRole('main')).getByRole('region', { name: 'My pending requests' })).findByRole('listitem')).toHaveTextContent('成立供應商永續學院');
     expect(screen.getByLabelText('Idea name')).toHaveValue('');
   });
 
   it.each([
-    [404, 'NOT_FOUND', 'The page or item you asked for was not found.'],
     [409, 'JOIN_REQUEST_EXISTS', 'You already have a join request for this Idea.'],
     [409, 'ALREADY_MEMBER', 'You are already a member of this Idea.'],
     [422, 'CANNOT_JOIN_OWN_IDEA', 'You cannot request to join your own Idea.'],
@@ -161,5 +163,56 @@ describe('/join-requests', () => {
     await open({ items: [jr()], locale: 'zh-TW' });
     expect(await screen.findByRole('button', { name: '送出申請' })).toBeInTheDocument();
     expect(await screen.findByRole('button', { name: '撤回「成立供應商永續學院」的申請' })).toBeInTheDocument();
+  });
+
+  it('shows the uniform 404 under the Idea name field without blaming either input', async () => {
+    server.use(http.post(`${API}/join-requests`, () => problem(404, 'NOT_FOUND')));
+    const { user, container } = await open();
+    await screen.findByText('You have no pending requests.');
+    await user.type(screen.getByLabelText('Leader employee ID'), '089291');
+    await user.type(screen.getByLabelText('Idea name'), 'abc');
+    await user.click(screen.getByRole('button', { name: 'Send request' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('No Idea matches this Leader ID and name. Check the exact spelling.');
+    const name = screen.getByLabelText('Idea name');
+    expect(name).toHaveAttribute('aria-invalid', 'true');
+    expect(name.getAttribute('aria-describedby')?.split(' ')).toContain(alert.id);
+    expect(screen.getByLabelText('Leader employee ID')).not.toHaveAttribute('aria-invalid');
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('shows a count badge that matches the list length', async () => {
+    await open({ items: [jr(), jr({ ideaId: '0193a1b2-0000-7000-8000-000000000002', ideaName: 'Green commute' }), jr({ ideaId: '0193a1b2-0000-7000-8000-000000000003', ideaName: 'Audit' })] });
+    const region = await screen.findByRole('region', { name: 'My pending requests' });
+    expect(await within(region).findAllByRole('listitem')).toHaveLength(3);
+    expect(within(region).getByText('3 pending')).toBeInTheDocument();
+  });
+
+  it('hides the count badge when the list is empty and passes axe', async () => {
+    const { container } = await open();
+    await screen.findByText('You have no pending requests.');
+    expect(screen.queryByText(/\d+ pending/)).not.toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it('renders the explainer as an ordered list', async () => {
+    await open();
+    const region = await screen.findByRole('region', { name: 'How it works' });
+    const list = within(region).getByRole('list');
+    expect(list.tagName).toBe('OL');
+    const steps = within(list).getAllByRole('listitem');
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toHaveTextContent('Apply');
+    expect(steps[1]).toHaveTextContent('Leader reviews');
+    expect(steps[2]).toHaveTextContent("You're in");
+  });
+
+  it('disables every apply and withdraw control when CLOSED', async () => {
+    await open({ items: [jr(), jr({ ideaId: '0193a1b2-0000-7000-8000-000000000002', ideaName: 'Green commute' })], state: 'CLOSED' });
+    await screen.findByText(/Submissions are not open/);
+    expect(screen.getByRole('button', { name: 'Send request' })).toBeDisabled();
+    const withdraws = await screen.findAllByRole('button', { name: /Withdraw request/ });
+    expect(withdraws).toHaveLength(2);
+    for (const b of withdraws) expect(b).toBeDisabled();
   });
 });
