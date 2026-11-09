@@ -3,5 +3,6 @@
 .git
 .beads
 backend
+!backend/internal/account/internal/passwords/common-passwords.txt
 site
 docs

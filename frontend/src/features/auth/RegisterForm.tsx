@@ -10,6 +10,7 @@ import {
   FieldLabel,
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
+import { PasswordChecklist } from "./PasswordChecklist";
 import {
   mapServerError,
   precheck,
@@ -48,7 +49,6 @@ const FIELD_ATTRS: Record<
 const HINTS: Partial<Record<RegisterField, string>> = {
   empNo: "pages.register.empNoHint",
   email: "pages.register.emailHint",
-  password: "pages.register.passwordHint",
 };
 
 /** The register form: format pre-check, error summary with focus, server errors mapped to fields (Frontend.md §5.6, §8). */
@@ -155,8 +155,10 @@ export function RegisterForm({
           const a = FIELD_ATTRS[f];
           const problem = problems[f];
           const hint = HINTS[f];
+          // the password's hint is the live rule checklist (F1b-01)
+          const hintId = f === "password" ? "password-rules" : hint && `${f}-hint`;
           const describedBy =
-            [hint && `${f}-hint`, problem && `${f}-error`]
+            [hintId, problem && `${f}-error`]
               .filter(Boolean)
               .join(" ") || undefined;
           return (
@@ -179,6 +181,13 @@ export function RegisterForm({
               />
               {hint && (
                 <FieldDescription id={`${f}-hint`}>{t(hint)}</FieldDescription>
+              )}
+              {f === "password" && (
+                <PasswordChecklist
+                  id="password-rules"
+                  password={values.password}
+                  empNo={values.empNo}
+                />
               )}
               {problem && (
                 <FieldError id={`${f}-error`} role={undefined}>

@@ -138,6 +138,38 @@ describe('Register page: pre-check and error summary', () => {
   });
 });
 
+describe('Register page: live password checklist (F1b-01)', () => {
+  const status = (rule: string) => document.querySelector(`li[data-rule="${rule}"]`)?.getAttribute('data-status');
+
+  it('the password field is described by the checklist, which follows typing and the employee ID', async () => {
+    const { user } = await open();
+    const password = screen.getByLabelText('Password');
+    expect(password.getAttribute('aria-describedby')).toContain('password-rules');
+    expect(document.getElementById('password-rules')).toHaveTextContent('Your password must:');
+    expect(status('LENGTH')).toBe('idle');
+
+    await fill(user, { 'Employee ID': '089290', Password: 'Password089290' });
+    await waitFor(() => expect(status('COMMON_PASSWORD')).toBe('met'));
+    expect(status('LENGTH')).toBe('met');
+    expect(status('CONTAINS_EMP_NO')).toBe('unmet');
+  });
+
+  it('the Top-10k blocklist (lazy chunk) marks a common password', async () => {
+    const { user } = await open();
+    await fill(user, { Password: 'password' });
+    await waitFor(() => expect(status('COMMON_PASSWORD')).toBe('unmet'));
+  });
+
+  it('does not block submit: the server stays the authority (422 PASSWORD_POLICY)', async () => {
+    const { seen, user } = await open();
+    registerReturns(seen, () => problem(422, 'PASSWORD_POLICY', { errors: [{ field: 'password', code: 'PASSWORD_POLICY', rule: 'LENGTH' }] }));
+    await fill(user, { ...VALID, Password: 'short', 'Confirm password': 'short' });
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    expect(await screen.findByText('Password: The password does not meet the requirements.')).toBeInTheDocument();
+    expect(seen).toHaveLength(1);
+  });
+});
+
 describe('Register page: submit', () => {
   it('sends the cleaned values with the CSRF token, then goes to /login with a notice and no login', async () => {
     const { user, seen, router } = await open();

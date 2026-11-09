@@ -6,6 +6,8 @@ WORKDIR /repo/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY testdata /repo/testdata
+# The common-password list lives with the backend rule; the register page lazy-loads the same file.
+COPY backend/internal/account/internal/passwords/common-passwords.txt /repo/backend/internal/account/internal/passwords/
 COPY frontend/ ./
 RUN npm run build
 
