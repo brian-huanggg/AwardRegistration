@@ -14,6 +14,75 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AuditLogActorRole.
+const (
+	AuditLogActorRoleADMIN     AuditLogActorRole = "ADMIN"
+	AuditLogActorRoleANONYMOUS AuditLogActorRole = "ANONYMOUS"
+	AuditLogActorRoleSYSTEM    AuditLogActorRole = "SYSTEM"
+	AuditLogActorRoleUSER      AuditLogActorRole = "USER"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogActorRole enum.
+func (e AuditLogActorRole) Valid() bool {
+	switch e {
+	case AuditLogActorRoleADMIN:
+		return true
+	case AuditLogActorRoleANONYMOUS:
+		return true
+	case AuditLogActorRoleSYSTEM:
+		return true
+	case AuditLogActorRoleUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditLogOutcome.
+const (
+	DENIED    AuditLogOutcome = "DENIED"
+	FAILED    AuditLogOutcome = "FAILED"
+	SUCCESS   AuditLogOutcome = "SUCCESS"
+	THROTTLED AuditLogOutcome = "THROTTLED"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogOutcome enum.
+func (e AuditLogOutcome) Valid() bool {
+	switch e {
+	case DENIED:
+		return true
+	case FAILED:
+		return true
+	case SUCCESS:
+		return true
+	case THROTTLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AuditLogTargetType.
+const (
+	AuditLogTargetTypeDEADLINE AuditLogTargetType = "DEADLINE"
+	AuditLogTargetTypeIDEA     AuditLogTargetType = "IDEA"
+	AuditLogTargetTypeUSER     AuditLogTargetType = "USER"
+)
+
+// Valid indicates whether the value is a known member of the AuditLogTargetType enum.
+func (e AuditLogTargetType) Valid() bool {
+	switch e {
+	case AuditLogTargetTypeDEADLINE:
+		return true
+	case AuditLogTargetTypeIDEA:
+		return true
+	case AuditLogTargetTypeUSER:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for DeadlineState.
 const (
 	CLOSED  DeadlineState = "CLOSED"
@@ -55,20 +124,64 @@ func (e IdeaSummaryMyRelation) Valid() bool {
 
 // Defines values for LoginResponseRole.
 const (
-	ADMIN LoginResponseRole = "ADMIN"
-	USER  LoginResponseRole = "USER"
+	LoginResponseRoleADMIN LoginResponseRole = "ADMIN"
+	LoginResponseRoleUSER  LoginResponseRole = "USER"
 )
 
 // Valid indicates whether the value is a known member of the LoginResponseRole enum.
 func (e LoginResponseRole) Valid() bool {
 	switch e {
-	case ADMIN:
+	case LoginResponseRoleADMIN:
 		return true
-	case USER:
+	case LoginResponseRoleUSER:
 		return true
 	default:
 		return false
 	}
+}
+
+// AuditLog defines model for AuditLog.
+type AuditLog struct {
+	Action     string            `json:"action"`
+	ActorEmpNo *string           `json:"actorEmpNo"`
+	ActorRole  AuditLogActorRole `json:"actorRole"`
+
+	// After JSON document, changed fields only
+	After interface{} `json:"after"`
+
+	// Before JSON document, changed fields only
+	Before    interface{} `json:"before"`
+	ErrorCode *string     `json:"errorCode"`
+	Id        int64       `json:"id"`
+	Ip        *string     `json:"ip"`
+	Method    *string     `json:"method"`
+
+	// OccurredAt Database time, UTC, microsecond precision
+	OccurredAt     time.Time           `json:"occurredAt"`
+	Outcome        AuditLogOutcome     `json:"outcome"`
+	RequestId      *openapi_types.UUID `json:"requestId"`
+	Route          *string             `json:"route"`
+	Status         *int                `json:"status"`
+	SubmittedEmpNo *string             `json:"submittedEmpNo"`
+	TargetId       *openapi_types.UUID `json:"targetId"`
+	TargetType     *AuditLogTargetType `json:"targetType"`
+	UserAgent      *string             `json:"userAgent"`
+}
+
+// AuditLogActorRole defines model for AuditLog.ActorRole.
+type AuditLogActorRole string
+
+// AuditLogOutcome defines model for AuditLog.Outcome.
+type AuditLogOutcome string
+
+// AuditLogTargetType defines model for AuditLog.TargetType.
+type AuditLogTargetType string
+
+// AuditLogPage defines model for AuditLogPage.
+type AuditLogPage struct {
+	Items           []AuditLog `json:"items"`
+	NextCursor      *string    `json:"nextCursor"`
+	SlidesUpdatedAt *time.Time `json:"slidesUpdatedAt,omitempty"`
 }
 
 // CreateIdeaForm defines model for CreateIdeaForm.
@@ -179,10 +292,9 @@ type IdeaSummary struct {
 	MemberCount int                `json:"memberCount"`
 
 	// MyRelation null for Admin
-	MyRelation      *IdeaSummaryMyRelation `json:"myRelation"`
-	Name            string                 `json:"name"`
-	Org             string                 `json:"org"`
-	SlidesUpdatedAt time.Time              `json:"slidesUpdatedAt"`
+	MyRelation *IdeaSummaryMyRelation `json:"myRelation"`
+	Name       string                 `json:"name"`
+	Org        string                 `json:"org"`
 }
 
 // IdeaSummaryMyRelation null for Admin
@@ -297,6 +409,38 @@ type CsrfToken = string
 // IdeaId defines model for IdeaId.
 type IdeaId = openapi_types.UUID
 
+// ListAuditLogsParams defines parameters for ListAuditLogs.
+type ListAuditLogsParams struct {
+	// From ISO 8601 instant with offset or Z; inclusive. Validated in the handler.
+	From *string `form:"from,omitempty" json:"from,omitempty"`
+
+	// To ISO 8601 instant with offset or Z; exclusive. Validated in the handler.
+	To         *string `form:"to,omitempty" json:"to,omitempty"`
+	ActorEmpNo *string `form:"actorEmpNo,omitempty" json:"actorEmpNo,omitempty"`
+
+	// Action Audit action (PRD 6.11); repeat for several. An unknown value is 422 INVALID_ENUM.
+	Action *[]string `form:"action,omitempty" json:"action,omitempty"`
+
+	// Outcome SUCCESS, FAILED, DENIED or THROTTLED, else 422 INVALID_ENUM.
+	Outcome *string `form:"outcome,omitempty" json:"outcome,omitempty"`
+
+	// TargetType USER, IDEA or DEADLINE, else 422 INVALID_ENUM.
+	TargetType *string `form:"targetType,omitempty" json:"targetType,omitempty"`
+
+	// TargetId UUID, else 422 INVALID_FORMAT.
+	TargetId *string `form:"targetId,omitempty" json:"targetId,omitempty"`
+
+	// RequestId UUID, else 422 INVALID_FORMAT.
+	RequestId *string `form:"requestId,omitempty" json:"requestId,omitempty"`
+
+	// Ip Exact IPv4 or IPv6 address, else 422 INVALID_FORMAT.
+	Ip     *string `form:"ip,omitempty" json:"ip,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Limit 1-100, default 50. Validated in the handler.
+	Limit *string `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
 // PutDeadlineParams defines parameters for PutDeadline.
 type PutDeadlineParams struct {
 	// XCSRFToken Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400).
@@ -401,6 +545,9 @@ type CreateJoinRequestJSONRequestBody = JoinRequestCreate
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// ListAuditLogs Query the Audit Log (Admin only)
+	// (GET /admin/audit-logs)
+	ListAuditLogs(w http.ResponseWriter, r *http.Request, params ListAuditLogsParams)
 	// PutDeadline Set the submission deadline (Admin only)
 	// (PUT /admin/deadline)
 	PutDeadline(w http.ResponseWriter, r *http.Request, params PutDeadlineParams)
@@ -454,6 +601,12 @@ type ServerInterface interface {
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
 
 type Unimplemented struct{}
+
+// ListAuditLogs Query the Audit Log (Admin only)
+// (GET /admin/audit-logs)
+func (_ Unimplemented) ListAuditLogs(w http.ResponseWriter, r *http.Request, params ListAuditLogsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
 
 // PutDeadline Set the submission deadline (Admin only)
 // (PUT /admin/deadline)
@@ -559,6 +712,169 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// ListAuditLogs operation middleware
+func (siw *ServerInterfaceWrapper) ListAuditLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListAuditLogsParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "actorEmpNo" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "actorEmpNo", r.URL.Query(), &params.ActorEmpNo, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "actorEmpNo"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "actorEmpNo", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "array", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "outcome" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "outcome", r.URL.Query(), &params.Outcome, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "outcome"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "outcome", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "targetType" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "targetType", r.URL.Query(), &params.TargetType, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetType"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetType", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "targetId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "targetId", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "targetId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "targetId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "requestId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "requestId", r.URL.Query(), &params.RequestId, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "requestId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "requestId", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "ip" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "ip", r.URL.Query(), &params.Ip, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "ip"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ip", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAuditLogs(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // PutDeadline operation middleware
 func (siw *ServerInterfaceWrapper) PutDeadline(w http.ResponseWriter, r *http.Request) {
@@ -1360,6 +1676,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Put(options.BaseURL+"/admin/deadline", wrapper.PutDeadline)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/admin/audit-logs", wrapper.ListAuditLogs)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ideas", wrapper.ListIdeas)

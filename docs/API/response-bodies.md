@@ -47,6 +47,11 @@ Timestamps are ISO 8601 UTC with `Z` and millisecond precision; employee IDs are
 // JoinRequest
 { "ideaId", "ideaName", "category", "org", "direction",
   "leader": { "empNo", "name" }, "requestedAt" }
+
+// AuditLog (GET /admin/audit-logs; every key is always present, null when the column is null)
+{ "id", "occurredAt", "requestId", "actorEmpNo", "actorRole", "action", "outcome",
+  "targetType", "targetId", "method", "route", "status", "errorCode",
+  "ip", "userAgent", "submittedEmpNo", "before", "after" }
 ```
  
 ## 3. Rules
@@ -55,5 +60,6 @@ Timestamps are ISO 8601 UTC with `Z` and millisecond precision; employee IDs are
 - Email addresses of other people are never returned.
 - `expectedFilenameBase` is the expected slide filename without extension (PRD §6.8); the client appends `.pdf` or `.pptx` (`Frontend.md` §5.5).
 - `GET /join-requests` returns the Idea ID, which the applicant needs to withdraw, and only minimal Idea information; `GET /ideas/{id}` stays 404 for applicants (PRD §6.7).
+- `GET /admin/audit-logs`: `occurredAt` has microsecond precision (`2026-11-09T01:02:03.456789Z`), the only exception to the millisecond rule; `nextCursor` is an opaque string, `null` on the last page; `before` / `after` are the stored JSON documents or `null`; `ip` is dotted for IPv4.
 - `version` supports the optimistic-locking bonus (PRD §9 #3).
  

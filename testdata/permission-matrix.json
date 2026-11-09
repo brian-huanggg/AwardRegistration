@@ -36,6 +36,18 @@
       }
     },
     {
+      "id": "audit-logs",
+      "operation": "listAuditLogs",
+      "method": "GET",
+      "path": "/api/v1/admin/audit-logs",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "FORBIDDEN" },
+        "leader": { "status": 403, "code": "FORBIDDEN" },
+        "admin": { "status": 200 }
+      }
+    },
+    {
       "id": "register",
       "operation": "register",
       "method": "POST",

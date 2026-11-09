@@ -7,6 +7,7 @@ import (
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/account"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/api"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
@@ -23,6 +24,7 @@ type API struct {
 	Me       auth.MeHandler
 	Account  account.Handler
 	Deadline deadline.Handler
+	Audit    audit.Handler
 	Ideas    idea.Handler
 	Team     team.Handler
 }
@@ -33,6 +35,11 @@ func (a API) GetDeadline(w http.ResponseWriter, r *http.Request) { a.Deadline.Ge
 // PutDeadline serves PUT /admin/deadline.
 func (a API) PutDeadline(w http.ResponseWriter, r *http.Request, _ api.PutDeadlineParams) {
 	a.Deadline.PutDeadline(w, r)
+}
+
+// ListAuditLogs serves GET /admin/audit-logs.
+func (a API) ListAuditLogs(w http.ResponseWriter, r *http.Request, params api.ListAuditLogsParams) {
+	a.Audit.ListAuditLogs(w, r, params)
 }
 
 // Register serves POST /auth/register.

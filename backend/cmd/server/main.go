@@ -93,6 +93,7 @@ func run() error {
 			Setter: deadline.Setter{DB: db, Audit: auditSvc},
 			Fail:   errs.Write,
 		},
+		Audit: audit.Handler{Service: auditSvc, Fail: errs.Write},
 		Ideas: idea.Handler{
 			Service:          ideaSvc,
 			ExpectedFilename: storage.ExpectedFilenameBase,
