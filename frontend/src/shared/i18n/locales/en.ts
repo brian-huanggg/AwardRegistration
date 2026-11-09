@@ -70,7 +70,7 @@ export const en = {
   },
   pages: {
     idle: { title: 'Are you still there?', body: 'You have been inactive for a while. For your security your session will end in about 2 minutes unless you continue.', continue: 'Continue' },
-    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.', submitting: 'Signing in…', sessionEnded: 'Your session has ended. Please sign in again.' },
+    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.', submitting: 'Signing in…', retryIn: 'Try again in {{seconds}} s', canRetry: 'You can sign in again.', sessionEnded: 'Your session has ended. Please sign in again.' },
     register: {
       title: 'Create an account',
       description: 'Enter your details below to register.',

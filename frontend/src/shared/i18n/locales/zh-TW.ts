@@ -67,7 +67,7 @@ export const zhTW: Dictionary = {
   },
   pages: {
     idle: { title: '您還在嗎？', body: '您已閒置一段時間。為了安全，若不繼續使用，您的登入將在約 2 分鐘後結束。', continue: '繼續' },
-    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。', submitting: '登入中…', sessionEnded: '您的登入已結束，請重新登入。' },
+    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。', submitting: '登入中…', retryIn: '{{seconds}} 秒後可再試', canRetry: '您可以再次登入。', sessionEnded: '您的登入已結束，請重新登入。' },
     register: {
       title: '建立帳號',
       description: '請在下方輸入資料以完成註冊。',

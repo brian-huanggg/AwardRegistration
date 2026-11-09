@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter } from "react-router";
@@ -139,6 +140,42 @@ describe("Login page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "Too many sign-in attempts",
     );
+  });
+
+  it("disables sign-in for Retry-After seconds, then re-enables it", async () => {
+    // only the interval and the monotonic clock are faked; userEvent and msw keep real timers
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    let now = 1_000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const advance = (ms: number) =>
+      act(() => {
+        now += ms;
+        vi.advanceTimersByTime(ms);
+      });
+    try {
+      const { user } = await open("/login");
+      server.use(
+        http.post(`${API}/auth/login`, () =>
+          problem(429, "LOGIN_THROTTLED", {}, { "Retry-After": "3" }),
+        ),
+      );
+      await signIn(user);
+      expect(
+        await screen.findByRole("button", { name: "Try again in 3 s" }),
+      ).toBeDisabled();
+      advance(1000);
+      expect(
+        screen.getByRole("button", { name: "Try again in 2 s" }),
+      ).toBeDisabled();
+      advance(2000);
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "You can sign in again.",
+      );
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
   });
 
   it("shows the registered and session-ended notices", async () => {

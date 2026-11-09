@@ -12,6 +12,7 @@ import {
 } from "@/shared/ui/field";
 import { Input } from "@/shared/ui/input";
 import { login, type Me } from "./login";
+import { useCountdown } from "./useCountdown";
 
 /**
  * The login form. Every credential failure is the same 401 `INVALID_CREDENTIALS` (PRD §6.5), so
@@ -33,6 +34,9 @@ export function LoginForm({
   const [errorKey, setErrorKey] = useState(0);
   const [pending, setPending] = useState(false);
   const alert = useRef<HTMLParagraphElement>(null);
+  const countdown = useCountdown();
+  const [wasThrottled, setWasThrottled] = useState(false);
+  const throttled = countdown.remaining > 0;
 
   // after the message is in the DOM (WCAG 3.3.1)
   useEffect(() => {
@@ -41,9 +45,10 @@ export function LoginForm({
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (pending) return;
+    if (pending || throttled) return;
     setPending(true);
     setError(null);
+    setWasThrottled(false);
     try {
       onLoggedIn(await login({ empNo: empNo.trim(), password }));
     } catch (err) {
@@ -51,6 +56,10 @@ export function LoginForm({
         err instanceof ApiError
           ? err
           : new ApiError({ status: 0, code: "UNKNOWN" });
+      if (apiErr.status === 429 && apiErr.retryAfterSeconds !== undefined) {
+        countdown.start(apiErr.retryAfterSeconds);
+        setWasThrottled(true);
+      }
       setError(
         t(`errors.${apiErr.code}`) +
           (apiErr.requestId
@@ -107,6 +116,11 @@ export function LoginForm({
             {error}
           </p>
         )}
+        {wasThrottled && !throttled && (
+          <p role="status" className="text-sm">
+            {t("pages.login.canRetry")}
+          </p>
+        )}
         <Field>
           <FieldLabel htmlFor="empNo">{t("fields.empNo")}</FieldLabel>
           <Input
@@ -134,10 +148,14 @@ export function LoginForm({
         <Field>
           <Button
             type="submit"
-            disabled={pending}
+            disabled={pending || throttled}
             aria-busy={pending || undefined}
           >
-            {pending ? t("pages.login.submitting") : t("nav.signIn")}
+            {pending
+              ? t("pages.login.submitting")
+              : throttled
+                ? t("pages.login.retryIn", { seconds: countdown.remaining })
+                : t("nav.signIn")}
           </Button>
           <FieldDescription className="text-center">
             {t("pages.login.noAccount")}{" "}
