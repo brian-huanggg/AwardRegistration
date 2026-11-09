@@ -13,6 +13,7 @@ export default defineConfig({
       { text: 'Authentication', link: '/authentication/' },
       { text: 'Authorization', link: '/authorization/' },
       { text: 'Team', link: '/team/' },
+{ text: 'Transactions', link: '/transactions/' },
     ],
 
     sidebar: [
@@ -64,6 +65,16 @@ export default defineConfig({
           { text: 'Implementation', link: '/team/implementation' },
           { text: 'Decision Thinking', link: '/team/decisions' },
           { text: 'Technical FAQ', link: '/team/faq' }
+        ]
+      },
+      {
+        text: 'Transactions & Consistency',
+        items: [
+          { text: 'Concepts', link: '/transactions/' },
+          { text: 'Architecture', link: '/transactions/architecture' },
+          { text: 'Implementation', link: '/transactions/implementation' },
+          { text: 'Decision Thinking', link: '/transactions/decisions' },
+          { text: 'Technical FAQ', link: '/transactions/faq' }
         ]
       }
     ],
