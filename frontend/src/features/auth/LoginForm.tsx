@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
-import { Leaf } from "lucide-react";
+import { CircleCheck, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ApiError } from "@/shared/api";
@@ -14,6 +14,12 @@ import { Input } from "@/shared/ui/input";
 import { login, type Me } from "./login";
 import { useCountdown } from "./useCountdown";
 
+/** A notice carried in router state: account created (success) or session ended (neutral). */
+export interface LoginNotice {
+  kind: "registered" | "sessionEnded";
+  text: string;
+}
+
 /**
  * The login form. Every credential failure is the same 401 `INVALID_CREDENTIALS` (PRD §6.5), so
  * it is one form-level message, never attached to a field. Focus moves to the message.
@@ -24,7 +30,7 @@ export function LoginForm({
   heading,
 }: {
   onLoggedIn: (me: Me) => void;
-  notice?: string;
+  notice?: LoginNotice;
   heading?: Ref<HTMLHeadingElement>;
 }) {
   const { t } = useTranslation();
@@ -75,36 +81,42 @@ export function LoginForm({
 
   return (
     <form
-      className="flex w-full max-w-sm flex-col gap-6"
+      className="flex w-full max-w-[380px] flex-col gap-6"
       onSubmit={(e) => void onSubmit(e)}
     >
       <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <div
-            aria-hidden="true"
-            className="mb-2 flex size-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground"
-          >
-            <Leaf className="size-7" />
-          </div>
-          <h1
-            ref={heading}
-            tabIndex={-1}
-            className="text-2xl font-bold outline-none"
-          >
-            {t("pages.login.title")}
-          </h1>
-          <p className="text-sm text-balance text-muted-foreground">
-            {t("pages.login.description")}
-          </p>
-        </div>
+        {/* Notice slot above the heading, as in Pencil ZziSC. Both kinds stay polite (`status`):
+            they describe how the visitor arrived, not an error of this form. */}
         {notice && (
           <p
             role="status"
-            className="rounded-md border border-primary p-3 text-sm"
+            data-notice={notice.kind}
+            className={
+              notice.kind === "registered"
+                ? "flex items-center gap-2.5 rounded-lg border border-success/25 bg-success/10 p-3 text-[13px] text-success"
+                : "flex items-center gap-2.5 rounded-lg border bg-muted p-3 text-[13px] text-foreground"
+            }
           >
-            {notice}
+            {notice.kind === "registered" ? (
+              <CircleCheck aria-hidden="true" className="size-4 shrink-0" />
+            ) : (
+              <Info aria-hidden="true" className="size-4 shrink-0" />
+            )}
+            {notice.text}
           </p>
         )}
+        <div className="flex flex-col gap-1.5">
+          <h1
+            ref={heading}
+            tabIndex={-1}
+            className="text-[28px] leading-tight font-bold tracking-tight outline-none"
+          >
+            {t("nav.signIn")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t("pages.login.description")}
+          </p>
+        </div>
         {error !== null && (
           <p
             key={errorKey}
@@ -148,6 +160,7 @@ export function LoginForm({
         <Field>
           <Button
             type="submit"
+            size="lg"
             disabled={pending || throttled}
             aria-busy={pending || undefined}
           >
@@ -159,8 +172,11 @@ export function LoginForm({
           </Button>
           <FieldDescription className="text-center">
             {t("pages.login.noAccount")}{" "}
-            <Link to="/register" className="underline underline-offset-4">
-              {t("nav.register")}
+            <Link
+              to="/register"
+              className="font-semibold text-primary underline underline-offset-4"
+            >
+              {t("pages.login.createAccount")}
             </Link>
           </FieldDescription>
         </Field>

@@ -91,7 +91,23 @@ export const en = {
   },
   pages: {
     idle: { title: 'Are you still there?', body: 'You have been inactive for a while. For your security your session will end in about 2 minutes unless you continue.', continue: 'Continue' },
-    login: { title: 'Sign in to your account', description: 'Enter your employee ID and password.', noAccount: 'No account yet?', panelTitle: 'ESG Idea Contest', panelBody: 'Register, form a team and submit your Idea.', submitting: 'Signing in…', retryIn: 'Try again in {{seconds}} s', canRetry: 'You can sign in again.', sessionEnded: 'Your session has ended. Please sign in again.' },
+    login: {
+      description: 'Use your 6-digit employee ID and password.',
+      noAccount: 'New here?',
+      createAccount: 'Create an account',
+      submitting: 'Signing in…',
+      retryIn: 'Try again in {{seconds}} s',
+      canRetry: 'You can sign in again.',
+      sessionEnded: 'Your session has ended. Please sign in again.',
+      brand: {
+        eyebrow: '2026 ESG Award · IT Division',
+        headline: 'Small teams.\nReal impact.',
+        body: 'Form a team of up to four, submit one Idea with your slides, and help shape how we build a greener, fairer company.',
+        state: { NOT_OPEN: 'Submissions not open yet', OPEN: 'Submissions open', CLOSED: 'Submissions closed' },
+        closes: 'Closes {{date}}',
+        closed: 'Closed {{date}}',
+      },
+    },
     register: {
       title: 'Create an account',
       description: 'Enter your details below to register.',

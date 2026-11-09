@@ -88,7 +88,23 @@ export const zhTW: Dictionary = {
   },
   pages: {
     idle: { title: '您還在嗎？', body: '您已閒置一段時間。為了安全，若不繼續使用，您的登入將在約 2 分鐘後結束。', continue: '繼續' },
-    login: { title: '登入您的帳號', description: '請輸入員工編號與密碼。', noAccount: '還沒有帳號？', panelTitle: 'ESG 創意競賽', panelBody: '註冊、組隊並提交您的創意。', submitting: '登入中…', retryIn: '{{seconds}} 秒後可再試', canRetry: '您可以再次登入。', sessionEnded: '您的登入已結束，請重新登入。' },
+    login: {
+      description: '請使用 6 位數員工編號與密碼。',
+      noAccount: '第一次使用？',
+      createAccount: '建立帳號',
+      submitting: '登入中…',
+      retryIn: '{{seconds}} 秒後可再試',
+      canRetry: '您可以再次登入。',
+      sessionEnded: '您的登入已結束，請重新登入。',
+      brand: {
+        eyebrow: '2026 ESG 大獎 · 資訊處',
+        headline: '小團隊，\n大影響。',
+        body: '最多四人組隊，提交一份創意與簡報，一起打造更綠色、更公平的公司。',
+        state: { NOT_OPEN: '尚未開放提案', OPEN: '開放提案中', CLOSED: '提案已截止' },
+        closes: '截止時間 {{date}}',
+        closed: '已於 {{date}} 截止',
+      },
+    },
     register: {
       title: '建立帳號',
       description: '請在下方輸入資料以完成註冊。',

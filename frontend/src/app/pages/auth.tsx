@@ -1,22 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Leaf } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router";
-import { LoginForm } from "@/features/auth/LoginForm";
+import { LoginForm, type LoginNotice } from "@/features/auth/LoginForm";
 import { RegisterForm } from "@/features/auth/RegisterForm";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/shared/ui/card";
 import {
   replaceIdentity,
   type RegisteredState,
   type SessionEndedState,
 } from "../session";
+import { LanguageSwitch } from "../AppShell";
+import { LoginBrandPanel } from "./LoginBrandPanel";
 
 /** One h1 per page; focus moves to it after a route change and the title updates (Frontend.md §8). */
 function useAuthHeading(title: string) {
@@ -29,34 +23,24 @@ function useAuthHeading(title: string) {
   return ref;
 }
 
-/** Brand mark shared by both hero layouts and the form header. */
-function LogoMark({ className = "size-16" }: { className?: string }) {
+/**
+ * Pencil `ZziSC`: brand panel left, form right, 50 / 50 from 1024 px. Below that the panel stacks
+ * above the form in its short form. `/register` has no frame of its own and shares this layout.
+ */
+function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div
-      aria-hidden="true"
-      className={`flex items-center justify-center rounded-2xl bg-primary text-primary-foreground ${className}`}
-    >
-      <Leaf className="size-1/2" />
+    <div className="grid min-h-screen bg-background lg:grid-cols-2">
+      <LoginBrandPanel />
+      <div className="relative flex flex-col items-center justify-center gap-4 px-4 pt-16 pb-10 sm:px-6 md:px-12 lg:py-12">
+        <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
+          <LanguageSwitch />
+        </div>
+        {children}
+      </div>
     </div>
   );
 }
 
-function HeroCopy({ title, body }: { title: string; body: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="flex flex-col items-center gap-4 text-center"
-    >
-      <LogoMark />
-      <p className="max-w-sm text-3xl font-semibold text-balance whitespace-pre-line text-primary">
-        {title}
-      </p>
-      <p className="max-w-xs text-sm text-balance text-foreground/80">{body}</p>
-    </div>
-  );
-}
-
-/** Design `Login - Employee`: 500px photo panel on the left (lg and up), form centred on the right. */
 export function Login() {
   const { t } = useTranslation();
   const heading = useAuthHeading(t("nav.signIn"));
@@ -64,65 +48,52 @@ export function Login() {
   const state = useLocation().state as Partial<
     RegisteredState | SessionEndedState
   > | null;
-  const notice =
+  const notice: LoginNotice | undefined =
     state?.notice === "registered"
-      ? t("pages.register.success")
+      ? { kind: "registered", text: t("pages.register.success") }
       : state?.notice === "sessionEnded"
-        ? t("pages.login.sessionEnded")
+        ? { kind: "sessionEnded", text: t("pages.login.sessionEnded") }
         : undefined;
   return (
-    <div className="grid min-h-screen bg-card lg:grid-cols-[500px_1fr]">
-      <div
-        className="relative hidden items-center justify-center bg-cover bg-center p-10 lg:flex"
-        style={{ backgroundImage: "url(/auth-hero-login.jpg)" }}
-      >
-        <HeroCopy
-          title={t("pages.login.panelTitle")}
-          body={t("pages.login.panelBody")}
-        />
-      </div>
-      <div className="flex items-center justify-center p-6 md:p-12">
-        {/* A new session means a new identity: nothing cached for the previous one may survive. The gate then
-            sees `me` and redirects to the validated `next` (Frontend.md §6.4). */}
-        <LoginForm
-          heading={heading}
-          notice={notice}
-          onLoggedIn={(me) => replaceIdentity(client, me)}
-        />
-      </div>
-    </div>
+    <AuthLayout>
+      {/* A new session means a new identity: nothing cached for the previous one may survive. The gate then
+          sees `me` and redirects to the validated `next` (Frontend.md §6.4). */}
+      <LoginForm
+        heading={heading}
+        notice={notice}
+        onLoggedIn={(me) => replaceIdentity(client, me)}
+      />
+    </AuthLayout>
   );
 }
 
-/** Design `Sign Up - Employee`: a full-bleed photo with the form card centred on it. */
+/** No design frame: the Login layout with the register form on the right (UI-02). */
 export function Register() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const heading = useAuthHeading(t("nav.register"));
   return (
-    <div
-      className="flex min-h-screen items-center justify-center bg-cover bg-center px-4 py-10"
-      style={{ backgroundImage: "url(/auth-hero-register.jpg)" }}
-    >
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="items-center text-center">
-          <LogoMark className="size-14" />
-          <CardTitle className="pt-2 text-2xl">
-            <h1 ref={heading} tabIndex={-1} className="outline-none">
-              {t("pages.register.title")}
-            </h1>
-          </CardTitle>
-          <CardDescription>{t("pages.register.description")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RegisterForm
-              onRegistered={() => {
-                const state: RegisteredState = { notice: "registered" };
-                void navigate("/login", { replace: true, state });
-              }}
-            />
-        </CardContent>
-      </Card>
-    </div>
+    <AuthLayout>
+      <div className="flex w-full max-w-md flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <h1
+            ref={heading}
+            tabIndex={-1}
+            className="text-[28px] leading-tight font-bold tracking-tight outline-none"
+          >
+            {t("pages.register.title")}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t("pages.register.description")}
+          </p>
+        </div>
+        <RegisterForm
+          onRegistered={() => {
+            const state: RegisteredState = { notice: "registered" };
+            void navigate("/login", { replace: true, state });
+          }}
+        />
+      </div>
+    </AuthLayout>
   );
 }

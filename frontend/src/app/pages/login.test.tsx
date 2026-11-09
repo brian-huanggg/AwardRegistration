@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import { vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -8,7 +8,7 @@ import { axe } from "vitest-axe";
 import { clearCsrfToken } from "@/shared/api";
 import { problem } from "@/shared/api/mocks/problem";
 import { server } from "@/shared/api/mocks/server";
-import { initI18n } from "@/shared/i18n";
+import { initI18n, type Locale } from "@/shared/i18n";
 import { App } from "../App";
 import { routes } from "../router";
 
@@ -54,7 +54,7 @@ async function open(path: string, account: Account = USER) {
   const view = render(<App router={router} client={new QueryClient()} />);
   await screen.findByRole("heading", {
     level: 1,
-    name: "Sign in to your account",
+    name: "Sign in",
   });
   return { router, calls, user: userEvent.setup(), ...view };
 }
@@ -200,5 +200,104 @@ describe("Login page", () => {
     expect(
       await screen.findByText("Your session has ended. Please sign in again."),
     ).toBeInTheDocument();
+  });
+});
+
+type DeadlineBody = { deadline: string | null; state: "NOT_OPEN" | "OPEN" | "CLOSED" };
+
+/** A visitor on /login with router `state`, a given deadline and locale (UI-02 brand panel). */
+async function openPanel(
+  deadline: DeadlineBody = { deadline: null, state: "OPEN" },
+  { locale = "en", state }: { locale?: Locale; state?: unknown } = {},
+) {
+  clearCsrfToken();
+  server.use(
+    http.get(`${API}/auth/me`, () => problem(401, "UNAUTHENTICATED")),
+    http.get(`${API}/deadline`, () =>
+      HttpResponse.json({ ...deadline, serverTime: "2026-11-08T00:00:00.000Z" }),
+    ),
+  );
+  await initI18n(locale);
+  const router = createMemoryRouter(routes, {
+    initialEntries: [{ pathname: "/login", state }],
+  });
+  const view = render(<App router={router} client={new QueryClient()} />);
+  await screen.findByRole("heading", {
+    level: 1,
+    name: locale === "en" ? "Sign in" : "登入",
+  });
+  return { user: userEvent.setup(), ...view };
+}
+
+const DEADLINE = "2026-11-30T10:00:00.000Z";
+
+describe("Login page: brand panel (UI-02)", () => {
+  it.each([
+    ["OPEN", DEADLINE, "Submissions open", /^Closes .*2026/],
+    ["NOT_OPEN", DEADLINE, "Submissions not open yet", /^Closes .*2026/],
+    ["CLOSED", DEADLINE, "Submissions closed", /^Closed .*2026/],
+    ["OPEN", null, "Submissions open", /^The deadline has not been set\.$/],
+  ] as const)(
+    "shows state %s with deadline %s",
+    async (state, deadline, label, when) => {
+      await openPanel({ state, deadline });
+      const region = screen.getByRole("region", { name: "Submission status" });
+      expect(await within(region).findByText(label)).toBeInTheDocument();
+      expect(region).toHaveAttribute("data-state", state);
+      expect(within(region).getByText(when)).toBeInTheDocument();
+    },
+  );
+
+  it("formats the deadline with the user's UTC offset, not a fixed label", async () => {
+    await openPanel({ state: "OPEN", deadline: DEADLINE });
+    const region = screen.getByRole("region", { name: "Submission status" });
+    expect(await within(region).findByText(/GMT|UTC/)).toBeInTheDocument();
+  });
+
+  it("shows the pitch copy and no countdown cells before F2-02", async () => {
+    await openPanel();
+    expect(screen.getByText("Small teams.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("2026 ESG Award · IT Division")).toBeInTheDocument();
+    expect(screen.queryByText("days")).not.toBeInTheDocument();
+  });
+
+  it("renders the registered notice as a status in the slot above the heading", async () => {
+    await openPanel(undefined, { state: { notice: "registered" } });
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("Your account was created. Sign in to continue.");
+    expect(notice).toHaveAttribute("data-notice", "registered");
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(notice.compareDocumentPosition(h1) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders the session-ended notice in the same slot", async () => {
+    const { container } = await openPanel(undefined, { state: { notice: "sessionEnded" } });
+    const notice = screen.getByRole("status");
+    expect(notice).toHaveTextContent("Your session has ended. Please sign in again.");
+    expect(notice).toHaveAttribute("data-notice", "sessionEnded");
+    expect((await axe(container)).violations).toEqual([]);
+  });
+
+  it("links to /register with the design wording", async () => {
+    await openPanel();
+    expect(screen.getByRole("link", { name: "Create an account" })).toHaveAttribute("href", "/register");
+  });
+
+  it("switches the language from the login page", async () => {
+    const { user } = await openPanel();
+    await user.click(screen.getByRole("button", { name: "Switch language (EN / 中文)" }));
+    expect(await screen.findByRole("heading", { level: 1, name: "登入" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "登入" })).toBeInTheDocument();
+  });
+
+  it.each(["en", "zh-TW"] as const)("has no axe violations in %s", async (locale) => {
+    const { container } = await openPanel(
+      { state: "OPEN", deadline: DEADLINE },
+      { locale, state: { notice: "registered" } },
+    );
+    await within(screen.getByRole("region", { name: locale === "en" ? "Submission status" : "提案狀態" })).findByText(
+      locale === "en" ? "Submissions open" : "開放提案中",
+    );
+    expect((await axe(container)).violations).toEqual([]);
   });
 });

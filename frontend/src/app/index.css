@@ -46,6 +46,16 @@
   --success-foreground: oklch(0.9911 0 0);
   --warning: oklch(0.473 0.137 46.201);
   --warning-foreground: oklch(0.9911 0 0);
+  /* Login brand panel (UI-02, Pencil ZziSC). Stays dark in both themes. Every text token passes
+     4.5:1 at the lightest point of the panel (the glow at 40 % over --brand-panel): accent 5.7:1,
+     muted 6.6:1, foreground 7.6:1. --brand-panel-state is for the state dot only, not text. */
+  --brand-panel: oklch(0.268 0.057 158.3);
+  --brand-panel-glow: oklch(0.627 0.17 149.2);
+  --brand-panel-foreground: oklch(0.979 0.021 166.1);
+  --brand-panel-muted: oklch(0.925 0.081 156);
+  --brand-panel-accent: oklch(0.871 0.136 154.4);
+  --brand-panel-logo: oklch(0.723 0.192 149.6);
+  --brand-panel-state: oklch(0.8 0.182 151.7);
   /* Inter only when installed locally; it is not loaded from any CDN. The TC fonts cover
      zh-TW glyphs before system-ui, which may pick Japanese or Simplified glyph shapes. */
   --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
@@ -137,6 +147,13 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-brand-panel: var(--brand-panel);
+  --color-brand-panel-glow: var(--brand-panel-glow);
+  --color-brand-panel-foreground: var(--brand-panel-foreground);
+  --color-brand-panel-muted: var(--brand-panel-muted);
+  --color-brand-panel-accent: var(--brand-panel-accent);
+  --color-brand-panel-logo: var(--brand-panel-logo);
+  --color-brand-panel-state: var(--brand-panel-state);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
