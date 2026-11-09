@@ -171,7 +171,7 @@ export const en = {
       deleting: 'Deleting…',
       back: 'Back to Ideas',
     },
-    joinRequests: { apply: 'Apply to join a team', submit: 'Send request', mine: 'My pending requests', empty: 'You have no pending requests.' },
+    joinRequests: { apply: 'Apply to join a team', submit: 'Send request', sending: 'Sending…', sent: 'Your request was sent. The Leader will decide on it.', mine: 'My pending requests', empty: 'You have no pending requests.', closedHint: 'Submissions are not open, so requests cannot be sent or withdrawn now.', leader: 'Leader: {{name}} ({{empNo}})', requestedAt: 'Requested {{at}}', withdraw: 'Withdraw', withdrawNamed: 'Withdraw request for {{name}}' },
     adminDeadline: { label: 'Submission deadline', hint: 'Shown in your local time.', saving: 'Saving…', saved: 'The deadline was saved.', problems: 'The deadline was not saved' },
     adminStats: { empty: 'No statistics to show yet.' },
   },

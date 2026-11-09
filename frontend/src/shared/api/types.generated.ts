@@ -112,6 +112,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/deadline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the submission deadline (Admin only)
+         * @description Check order before the body is read: 401 -> 403 CSRF_INVALID -> 403 FORBIDDEN (not an Admin, audited DENIED). Then 400 (missing or null deadline, wrong type), 413, 415, 422 VALIDATION_FAILED with INVALID_FORMAT (not ISO 8601 with offset or Z) or OUT_OF_RANGE (UTC year outside 2000-2099). Any instant in range is allowed, including the past. Stored in UTC at second precision (fractions truncated). The DEADLINE_UPDATE audit row carries before and after.
+         */
+        put: operations["putDeadline"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Query the Audit Log (Admin only)
+         * @description Newest first: ordered by occurredAt, id descending, keyset-paged. Check order: 401 -> 403 FORBIDDEN (not an Admin, audited DENIED as AUDIT_QUERY). Then 422 VALIDATION_FAILED with every failing parameter. Filters combine with AND; `action` may repeat (OR within it). `from` is inclusive and `to` exclusive. `cursor` is opaque (nextCursor of the previous page); a cursor that does not decode is 422 INVALID_FORMAT on `cursor`. `limit` is 1-100 (default 50), else 422 OUT_OF_RANGE. nextCursor is null on the last page. A successful query writes an AUDIT_QUERY row listing the filters used; that row is newer than the page and never appears in it.
+         */
+        get: operations["listAuditLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ideas": {
         parameters: {
             query?: never;
@@ -148,7 +188,11 @@ export interface paths {
          */
         put: operations["updateIdea"];
         post?: never;
-        delete?: never;
+        /**
+         * Delete the Idea (Leader, Admin)
+         * @description Check order: 404 (hidden or missing) -> 403 FORBIDDEN (Member) -> 403 SUBMISSION_* (state; Admin is exempt). The transaction locks the row, deletes it (member rows cascade), records the slide key as DELETED and writes IDEA_DELETE; the object is deleted after commit and never fails the request, so a delete succeeds while MinIO is down. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        delete: operations["deleteIdea"];
         options?: never;
         head?: never;
         patch?: never;
@@ -172,6 +216,50 @@ export interface paths {
          */
         put: operations["replaceSlides"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ideas/{id}/members/{empNo}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a pending join request (Leader only)
+         * @description Check order (PRD 6.1): 404 (missing or hidden Idea) -> 403 FORBIDDEN (Admin, Member) -> 403 SUBMISSION_* (state) -> 404 (no row for this employee ID) -> 409 JOIN_REQUEST_NOT_PENDING -> 409 TEAM_FULL (3 approved Members, checked under the Idea row lock). Writes accepted_at and JOIN_REQUEST_APPROVE. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        post: operations["approveMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/join-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's own pending join requests (Admin gets an empty list)
+         * @description Newest request first. Carries only minimal Idea information, including the Idea ID needed to withdraw; GET /ideas/{id} stays 404 for an applicant (PRD 6.7).
+         */
+        get: operations["listJoinRequests"];
+        put?: never;
+        /**
+         * Ask to join an Idea (User only)
+         * @description The Idea is resolved by exact match of the Leader's employee ID and the cleaned-up Idea name. Check order (PRD 6.1): role 403 FORBIDDEN (Admin) -> 403 SUBMISSION_* (state) -> 400/413/415, 422 (body fields) -> 404 NOT_FOUND (no match, same as any hidden resource) -> 422 CANNOT_JOIN_OWN_IDEA -> 409 ALREADY_MEMBER / JOIN_REQUEST_EXISTS. A full team may still be applied to. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        post: operations["createJoinRequest"];
         delete?: never;
         options?: never;
         head?: never;
@@ -244,6 +332,46 @@ export interface components {
              */
             serverTime: string;
         };
+        DeadlineRequest: {
+            /** @description ISO 8601 with offset or Z; null or missing is 400 */
+            deadline: string;
+        };
+        AuditLog: {
+            /** Format: int64 */
+            id: number;
+            /**
+             * Format: date-time
+             * @description Database time, UTC, microsecond precision
+             */
+            occurredAt: string;
+            /** Format: uuid */
+            requestId: string | null;
+            actorEmpNo: string | null;
+            /** @enum {string} */
+            actorRole: "USER" | "ADMIN" | "ANONYMOUS" | "SYSTEM";
+            action: string;
+            /** @enum {string} */
+            outcome: "SUCCESS" | "FAILED" | "DENIED" | "THROTTLED";
+            /** @enum {string|null} */
+            targetType: "USER" | "IDEA" | "DEADLINE" | null;
+            /** Format: uuid */
+            targetId: string | null;
+            method: string | null;
+            route: string | null;
+            status: number | null;
+            errorCode: string | null;
+            ip: string | null;
+            userAgent: string | null;
+            submittedEmpNo: string | null;
+            /** @description JSON document, changed fields only */
+            before: unknown;
+            /** @description JSON document, changed fields only */
+            after: unknown;
+        };
+        AuditLogPage: {
+            items: components["schemas"]["AuditLog"][];
+            nextCursor: string | null;
+        };
         PersonRef: {
             empNo: string;
             name: string;
@@ -296,6 +424,23 @@ export interface components {
              * @description One PDF or PPTX, at most 5 MiB, named by the Idea's current expected filename
              */
             slides: string;
+        };
+        JoinRequestCreate: {
+            /** @description Six ASCII digits */
+            leaderEmpNo: string;
+            /** @description 1-75 code points after clean-up */
+            ideaName: string;
+        };
+        JoinRequest: {
+            /** Format: uuid */
+            ideaId: string;
+            ideaName: string;
+            category: string;
+            org: string;
+            direction: string;
+            leader: components["schemas"]["PersonRef"];
+            /** Format: date-time */
+            requestedAt: string;
         };
         IdeaUpdateRequest: {
             /** @description Category code; compared exactly (PRD 6.6) */
@@ -360,6 +505,8 @@ export interface components {
     parameters: {
         /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
         CsrfToken: string;
+        /** @description Employee ID of the applicant; an unknown value answers the uniform 404. */
+        EmpNo: string;
         /** @description A malformed ID answers the uniform 404, not 400. */
         IdeaId: string;
     };
@@ -540,6 +687,87 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    putDeadline: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeadlineRequest"];
+            };
+        };
+        responses: {
+            /** @description The new deadline state, same body as GET /deadline */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Deadline"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listAuditLogs: {
+        parameters: {
+            query?: {
+                /** @description ISO 8601 instant with offset or Z; inclusive. Validated in the handler. */
+                from?: string;
+                /** @description ISO 8601 instant with offset or Z; exclusive. Validated in the handler. */
+                to?: string;
+                actorEmpNo?: string;
+                /** @description Audit action (PRD 6.11); repeat for several. An unknown value is 422 INVALID_ENUM. */
+                action?: string[];
+                /** @description SUCCESS, FAILED, DENIED or THROTTLED, else 422 INVALID_ENUM. */
+                outcome?: string;
+                /** @description USER, IDEA or DEADLINE, else 422 INVALID_ENUM. */
+                targetType?: string;
+                /** @description UUID, else 422 INVALID_FORMAT. */
+                targetId?: string;
+                /** @description UUID, else 422 INVALID_FORMAT. */
+                requestId?: string;
+                /** @description Exact IPv4 or IPv6 address, else 422 INVALID_FORMAT. */
+                ip?: string;
+                cursor?: string;
+                /** @description 1-100, default 50. Validated in the handler. */
+                limit?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of audit rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     listIdeas: {
         parameters: {
             query?: {
@@ -684,6 +912,35 @@ export interface operations {
             503: components["responses"]["Problem"];
         };
     };
+    deleteIdea: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
     downloadSlides: {
         parameters: {
             query?: never;
@@ -749,6 +1006,102 @@ export interface operations {
             401: components["responses"]["Problem"];
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
+            413: components["responses"]["Problem"];
+            415: components["responses"]["Problem"];
+            422: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    approveMember: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+                /** @description Employee ID of the applicant; an unknown value answers the uniform 404. */
+                empNo: components["parameters"]["EmpNo"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description IdeaDetail with the new Member */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdeaDetail"];
+                };
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    listJoinRequests: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pending join requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["JoinRequest"][];
+                    };
+                };
+            };
+            401: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    createJoinRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinRequestCreate"];
+            };
+        };
+        responses: {
+            /** @description JoinRequest */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinRequest"];
+                };
+            };
+            400: components["responses"]["Problem"];
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
+            409: components["responses"]["Problem"];
             413: components["responses"]["Problem"];
             415: components["responses"]["Problem"];
             422: components["responses"]["Problem"];
