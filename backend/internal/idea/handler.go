@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -51,6 +52,8 @@ type Handler struct {
 	// storage, D29).
 	ExpectedFilename func(category, org, leaderName, leaderEmpNo, ideaName string) (string, error)
 	Fail             func(w http.ResponseWriter, r *http.Request, err error)
+	// Log receives download failures the response cannot carry (nil = discard).
+	Log *slog.Logger
 }
 
 type person struct {

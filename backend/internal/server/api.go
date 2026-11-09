@@ -59,3 +59,8 @@ func (a API) CreateIdea(w http.ResponseWriter, r *http.Request, _ api.CreateIdea
 func (a API) ListIdeas(w http.ResponseWriter, r *http.Request, params api.ListIdeasParams) {
 	a.Ideas.ListIdeas(w, r, params)
 }
+
+// DownloadSlides serves GET /ideas/{id}/slides.
+func (a API) DownloadSlides(w http.ResponseWriter, r *http.Request, id api.IdeaId) {
+	a.Ideas.DownloadSlides(w, r, id)
+}

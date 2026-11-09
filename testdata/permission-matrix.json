@@ -117,6 +117,29 @@
       }
     },
     {
+      "id": "download-slides-missing",
+      "operation": "download slides of a missing Idea (uniform 404; cells for an existing Idea are in internal/idea/download_integration_test.go)",
+      "method": "GET",
+      "path": "/api/v1/ideas/00000000-0000-4000-8000-000000000000/slides",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 404, "code": "NOT_FOUND" },
+        "admin": { "status": 404, "code": "NOT_FOUND" }
+      }
+    },
+    {
+      "id": "download-slides-head",
+      "operation": "HEAD on the slide download: 405, never the GET handler (D47)",
+      "method": "HEAD",
+      "path": "/api/v1/ideas/00000000-0000-4000-8000-000000000000/slides",
+      "outsideSpec": true,
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 405, "code": "METHOD_NOT_ALLOWED" },
+        "admin": { "status": 405, "code": "METHOD_NOT_ALLOWED" }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

@@ -69,9 +69,13 @@ type SlideRules struct {
 	Validate func(f SlideFile, expectedBase string) (ext string, err error)
 }
 
-// ObjectStore is the part of the MinIO port create needs (storage.SlideStore).
+// ObjectStore is the part of the MinIO port idea needs (storage.SlideStore):
+// Put for create, Get for download. Outages are *web.Error
+// STORAGE_UNAVAILABLE; any other Get error (a missing object) answers 500.
 type ObjectStore interface {
 	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
+	// Get opens key; the caller closes the reader. size is the object length.
+	Get(ctx context.Context, key string) (rc io.ReadCloser, size int64, err error)
 }
 
 // UploadAborter compensates an uploaded object whose transaction did not

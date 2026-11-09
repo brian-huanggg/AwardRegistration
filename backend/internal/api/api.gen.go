@@ -336,6 +336,9 @@ type ServerInterface interface {
 	// GetIdea Idea detail
 	// (GET /ideas/{id})
 	GetIdea(w http.ResponseWriter, r *http.Request, id IdeaId)
+	// DownloadSlides Download the Idea's slides (Leader, Member, Admin)
+	// (GET /ideas/{id}/slides)
+	DownloadSlides(w http.ResponseWriter, r *http.Request, id IdeaId)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -393,6 +396,12 @@ func (_ Unimplemented) CreateIdea(w http.ResponseWriter, r *http.Request, params
 // GetIdea Idea detail
 // (GET /ideas/{id})
 func (_ Unimplemented) GetIdea(w http.ResponseWriter, r *http.Request, id IdeaId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadSlides Download the Idea's slides (Leader, Member, Admin)
+// (GET /ideas/{id}/slides)
+func (_ Unimplemented) DownloadSlides(w http.ResponseWriter, r *http.Request, id IdeaId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -800,6 +809,32 @@ func (siw *ServerInterfaceWrapper) GetIdea(w http.ResponseWriter, r *http.Reques
 	handler.ServeHTTP(w, r)
 }
 
+// DownloadSlides operation middleware
+func (siw *ServerInterfaceWrapper) DownloadSlides(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "id" -------------
+	var id IdeaId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", chi.URLParam(r, "id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadSlides(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -939,6 +974,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/ideas/{id}", wrapper.GetIdea)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ideas/{id}/slides", wrapper.DownloadSlides)
 	})
 
 	return r

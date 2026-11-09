@@ -246,6 +246,42 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '404': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
+  /ideas/{id}/slides:
+    get:
+      operationId: downloadSlides
+      tags: [ideas]
+      summary: Download the Idea's slides (Leader, Member, Admin)
+      description: >
+        The SLIDES_DOWNLOAD audit row is committed before the first byte is sent (PRD 6.11). The file
+        is named by the current expected filename (PRD 6.6). Range is not supported; HEAD answers 405
+        (no audit row). The Accept header is not checked on this route. MinIO unavailable before the
+        first byte answers 503 STORAGE_UNAVAILABLE; a storage failure after the headers are sent aborts
+        the connection (the body is shorter than Content-Length). A transaction whose outcome is
+        unknown answers 503 SERVICE_UNAVAILABLE and serves nothing.
+      parameters:
+        - $ref: '#/components/parameters/IdeaId'
+      responses:
+        '200':
+          description: The stored file
+          headers:
+            Content-Disposition:
+              description: 'attachment; filename="<ASCII fallback>"; filename*=UTF-8''''<percent-encoded> (RFC 6266)'
+              schema: { type: string }
+            Content-Length:
+              schema: { type: integer }
+            Cache-Control:
+              schema: { type: string, enum: [no-store] }
+            X-Content-Type-Options:
+              schema: { type: string, enum: [nosniff] }
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            application/vnd.openxmlformats-officedocument.presentationml.presentation:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Problem' }
+        '404': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
 components:
   securitySchemes:
     sessionCookie:

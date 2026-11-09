@@ -20,10 +20,11 @@ func MethodNotAllowed(w http.ResponseWriter, r *http.Request) {
 
 // AcceptCheck answers 406 when the Accept header cannot be satisfied by JSON.
 // A missing header, */*, application/* and application/json (also +problem)
-// are accepted. Slide download routes opt out of this check in their PR.
-func AcceptCheck(next http.Handler) http.Handler {
+// are accepted. Requests for which exempt reports true (routes that serve a
+// file, not JSON) skip the check; exempt may be nil.
+func AcceptCheck(next http.Handler, exempt func(*http.Request) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !acceptsJSON(r.Header.Values("Accept")) {
+		if (exempt == nil || !exempt(r)) && !acceptsJSON(r.Header.Values("Accept")) {
 			WriteProblem(w, r, NewError(CodeNotAcceptable, "Only application/json is supported."))
 			return
 		}

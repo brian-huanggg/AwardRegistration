@@ -7,6 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -93,6 +94,11 @@ type discardObjects struct{}
 func (discardObjects) Put(_ context.Context, _ string, r io.Reader, _ int64, _ string) error {
 	_, err := io.Copy(io.Discard, r)
 	return err
+}
+
+// Get is never reached by the matrix rows (they download only missing Ideas).
+func (discardObjects) Get(context.Context, string) (io.ReadCloser, int64, error) {
+	return nil, 0, errors.New("matrix: no objects")
 }
 
 func (discardObjects) AbortUpload(context.Context, string, shareddb.Outcome) {}

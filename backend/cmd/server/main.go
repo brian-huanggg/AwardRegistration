@@ -87,6 +87,7 @@ func run() error {
 			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
+			Log:              log,
 		},
 	}
 

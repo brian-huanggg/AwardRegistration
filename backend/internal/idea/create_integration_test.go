@@ -34,7 +34,10 @@ import (
 
 // fakeObjects is an in-memory storage.SlideStore. before runs inside Put, so a
 // test can change the database between the pre-checks and the transaction.
-// deleteErr makes Delete fail (MinIO down after the upload).
+// deleteErr makes Delete fail (MinIO down after the upload). For Get: onGet
+// runs first, getErr fails the open (MinIO down before the first byte), and
+// a positive failAfter makes the stream fail with streamErr after that many
+// bytes (MinIO down mid-stream).
 type fakeObjects struct {
 	mu        sync.Mutex
 	puts      map[string][]byte
@@ -44,6 +47,12 @@ type fakeObjects struct {
 	deleted   []string
 	last      string // key of the last successful Put
 	before    func()
+
+	onGet     func()
+	getErr    error
+	failAfter int64
+	streamErr error
+	gets      int
 }
 
 func newFakeObjects() *fakeObjects {
@@ -71,9 +80,30 @@ func (f *fakeObjects) Put(_ context.Context, key string, r io.Reader, size int64
 	return nil
 }
 
-func (f *fakeObjects) Get(context.Context, string) (io.ReadCloser, int64, error) {
-	return nil, 0, storage.ErrObjectNotFound
+func (f *fakeObjects) Get(_ context.Context, key string) (io.ReadCloser, int64, error) {
+	if f.onGet != nil {
+		f.onGet()
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.gets++
+	if f.getErr != nil {
+		return nil, 0, f.getErr
+	}
+	b, ok := f.puts[key]
+	if !ok {
+		return nil, 0, storage.ErrObjectNotFound
+	}
+	var r io.Reader = bytes.NewReader(b)
+	if f.failAfter > 0 {
+		r = io.MultiReader(io.LimitReader(r, f.failAfter), failingReader{f.streamErr})
+	}
+	return io.NopCloser(r), int64(len(b)), nil
 }
+
+type failingReader struct{ err error }
+
+func (r failingReader) Read([]byte) (int, error) { return 0, r.err }
 
 func (f *fakeObjects) Delete(_ context.Context, key string) error {
 	f.mu.Lock()

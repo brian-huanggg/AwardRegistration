@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -32,11 +33,29 @@ func NewPublic(log *slog.Logger, mount func(chi.Router), extra ...func(http.Hand
 	}
 	// The chain wraps the router instead of using r.Use: chi skips r.Use
 	// middleware (also for NotFound) while no route is registered.
-	h := web.AcceptCheck(r)
+	h := web.AcceptCheck(r, IsFileDownload)
 	for i := len(extra) - 1; i >= 0; i-- {
 		h = extra[i](h)
 	}
 	return web.RequestID(web.AccessLog(log)(web.Recover(log)(h)))
+}
+
+// SlidesPath is the slide download route under /api/v1.
+const SlidesPath = "/api/v1/ideas/{id}/slides"
+
+// IsFileDownload reports whether r targets the slide download, which serves a
+// file and therefore skips the JSON Accept check. HEAD is included so that it
+// answers 405, never 406. Errors on this route are still problem+json.
+func IsFileDownload(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	rest, ok := strings.CutPrefix(r.URL.Path, "/api/v1/ideas/")
+	if !ok {
+		return false
+	}
+	id, tail, ok := strings.Cut(rest, "/")
+	return ok && id != "" && tail == "slides"
 }
 
 // Check reports whether one dependency is usable; a non-nil error makes

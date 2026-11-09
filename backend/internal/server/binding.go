@@ -18,6 +18,10 @@ func Mount(si api.ServerInterface) func(chi.Router) {
 			BaseRouter:       r,
 			ErrorHandlerFunc: BindingError,
 		})
+		// HEAD on the download must never run the GET handler, which writes an
+		// audit row (D47). chi already answers 405; the explicit route keeps
+		// the rule independent of that router default (D59).
+		r.Head(SlidesPath, web.MethodNotAllowed)
 	}
 }
 
