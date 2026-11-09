@@ -7,6 +7,7 @@ import {
   type RouteObject,
 } from "react-router";
 import { decide, safeNext } from "./access";
+import { AppShell } from "./AppShell";
 import { Screen } from "./layouts";
 import { NotFound } from "./pages/NotFound";
 import { Login, Register } from "./pages/auth";
@@ -94,6 +95,14 @@ function Gate({ route }: { route?: (typeof ROUTES)[number] }) {
   ) : (
     <NotFound />
   );
+  // Signed in → the app shell (Frontend.md §6.5); visitors (login, register, their 404) keep the bare screen.
+  // Only an allowed route reaches the shell, so a role mismatch gets the 404 breadcrumb too.
+  if (me && route?.access !== "public")
+    return (
+      <AppShell me={me} route={Page ? route : undefined}>
+        {page}
+      </AppShell>
+    );
   return <Screen padded={route?.access !== "public"}>{page}</Screen>;
 }
 

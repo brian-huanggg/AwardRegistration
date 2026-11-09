@@ -7,9 +7,9 @@ import { problem } from '@/shared/api/mocks/problem';
 import { server } from '@/shared/api/mocks/server';
 import { initI18n } from '@/shared/i18n';
 import { App } from './App';
-import { safeNext } from './access';
+import { decide, findRoute, safeNext } from './access';
 import { PAGES, routes } from './router';
-import { ROUTES, type Role } from './routes';
+import { ROUTES, canAccess, navFor, type Role } from './routes';
 
 const API = 'http://localhost:3000/api/v1';
 const me = (role: Role | null) =>
@@ -70,6 +70,19 @@ describe('route access (Frontend.md §6.3)', () => {
   it('/ redirects by identity', async () => {
     const { router } = await open('/', null);
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
+  });
+});
+
+describe('navigation follows the route table (§6.2, §6.3)', () => {
+  it.each(['USER', 'ADMIN'] as const)("every route's access value matches the navigation items shown to %s", (role) => {
+    const shown = navFor(role).map((r) => r.path);
+    for (const r of ROUTES) expect([r.path, shown.includes(r.path)]).toEqual([r.path, !!r.navKey && canAccess(r.access, role)]);
+    for (const p of shown) expect(decide(findRoute(p)!.access, role, { pathname: p, search: '' }).kind).toBe('allow');
+  });
+
+  it('New Idea is a User-only navigation item', () => {
+    expect(navFor('USER').map((r) => r.navKey)).toEqual(['ideas', 'ideaNew', 'joinRequests']);
+    expect(navFor('ADMIN').map((r) => r.navKey)).toEqual(['ideas', 'deadline', 'stats']);
   });
 });
 

@@ -13,6 +13,7 @@ Project: **ESG Idea Contest** registration system. Employees register, form team
 | Sequence diagrams (create / replace / delete / download, storage consistency) | `docs/Architecture/Sequence.md` |
 | API contract (endpoints, error codes, response bodies) | `docs/API/` (start at `README.md`) |
 | Why Go, and the (historical) sqlc spike | `docs/Adr/0001-Backend-in-go.md`, `docs/Adr/0001-Annex-sqlc-spike.md` |
+| UI refactor to the Pencil design (`design/ui-design.pen`), one document per slice UI-01–UI-07 | `docs/UI-refactor/` (start at `README.md`) — **[Proposed]** |
 | Unresolved questions (OI-nn) and owner confirmations | `docs/Open-items.md` — the only tracker for them |
 | PR breakdown, slices S0–S7, PR rules and Definition of Done | `docs/PR-plan.md` (plan only; work items live in `bd`) |
 

@@ -242,6 +242,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ideas/{id}/members/{empNo}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Reject a pending request or remove a Member (Leader only)
+         * @description Works on PENDING and ACCEPTED rows. Check order (PRD 6.1): 404 (missing or hidden Idea) -> 403 FORBIDDEN (Admin, Member) -> 403 SUBMISSION_* (state) -> 404 (no row for this employee ID, including the Leader's own). Deletes the row and writes JOIN_REQUEST_REJECT (was PENDING) or MEMBER_REMOVE (was ACCEPTED). A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/join-requests": {
         parameters: {
             query?: never;
@@ -1043,6 +1063,37 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+                /** @description Employee ID of the applicant; an unknown value answers the uniform 404. */
+                empNo: components["parameters"]["EmpNo"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected or removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

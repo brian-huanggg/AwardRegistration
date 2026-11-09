@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 const src = fileURLToPath(new URL('./src', import.meta.url));
 const testdata = fileURLToPath(new URL('../testdata', import.meta.url));
@@ -20,5 +20,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
+    // e2e/ holds Playwright specs (`npx playwright test`); Vitest cannot run them.
+    exclude: [...configDefaults.exclude, 'e2e/**'],
   },
 });

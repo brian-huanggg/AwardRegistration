@@ -7,7 +7,7 @@ export interface RouteDef {
   path: string;
   access: Access;
   /** i18n key under `nav.*`; present only for routes shown in the navigation. */
-  navKey?: 'ideas' | 'joinRequests' | 'deadline' | 'stats';
+  navKey?: 'ideas' | 'ideaNew' | 'joinRequests' | 'deadline' | 'stats';
   /** i18n key under `nav.*` used as the page title / h1. */
   titleKey: 'ideas' | 'joinRequests' | 'deadline' | 'stats' | 'signIn' | 'register';
 }
@@ -16,7 +16,7 @@ export const ROUTES: readonly RouteDef[] = [
   { path: '/login', access: 'public', titleKey: 'signIn' },
   { path: '/register', access: 'public', titleKey: 'register' },
   { path: '/ideas', access: 'ANY', navKey: 'ideas', titleKey: 'ideas' },
-  { path: '/ideas/new', access: 'USER', titleKey: 'ideas' },
+  { path: '/ideas/new', access: 'USER', navKey: 'ideaNew', titleKey: 'ideas' },
   { path: '/ideas/:id', access: 'ANY', titleKey: 'ideas' },
   { path: '/ideas/:id/edit', access: 'USER', titleKey: 'ideas' },
   { path: '/join-requests', access: 'USER', navKey: 'joinRequests', titleKey: 'joinRequests' },

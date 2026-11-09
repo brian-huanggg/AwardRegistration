@@ -44,7 +44,7 @@ async function open({ me = USER as { empNo: string; name: string; email: string 
 describe('/join-requests', () => {
   it('lists my requests and has no axe violations', async () => {
     const { container } = await open({ items: [jr()] });
-    const item = await screen.findByRole('listitem');
+    const item = await within(await screen.findByRole('main')).findByRole('listitem');
     expect(within(item).getByText('成立供應商永續學院')).toBeInTheDocument();
     expect(within(item).getByText(/李小華 \(089291\)/)).toBeInTheDocument();
     expect((await axe(container)).violations).toEqual([]);
@@ -92,7 +92,7 @@ describe('/join-requests', () => {
     expect(await screen.findByText(/Your request was sent/)).toBeInTheDocument();
     expect(body).toEqual({ leaderEmpNo: '089291', ideaName: '成立供應商永續學院' });
     expect(csrf).toBe('tok');
-    expect(await screen.findByRole('listitem')).toHaveTextContent('成立供應商永續學院');
+    expect(await within(screen.getByRole('main')).findByRole('listitem')).toHaveTextContent('成立供應商永續學院');
     expect(screen.getByLabelText('Idea name')).toHaveValue('');
   });
 

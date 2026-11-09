@@ -31,14 +31,24 @@
   --chart-4: oklch(0.7686 0.1647 70.0804);
   --chart-5: oklch(0.6959 0.1491 162.4796);
   --sidebar: oklch(0.9911 0 0);
-  --sidebar-foreground: oklch(0.5452 0 0);
+  /* Near-black nav text as in the design (UI-01); same value as --foreground. */
+  --sidebar-foreground: oklch(0.2046 0 0);
   --sidebar-primary: oklch(0.8348 0.1302 160.9080);
   --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589);
   --sidebar-accent: oklch(0.9461 0 0);
   --sidebar-accent-foreground: oklch(0.2435 0 0);
   --sidebar-border: oklch(0.9037 0 0);
   --sidebar-ring: oklch(0.8348 0.1302 160.9080);
-  --font-sans: Outfit, sans-serif;
+  /* State colours for pills and badges (UI-01). Used as text / icon colour on a 10 % tint
+     of themselves over --background (>= 5.9:1), and as fill under the -foreground text
+     (>= 6.9:1). The design's #15803d on its 8 % tint reaches only ~4.4:1, so one step darker. */
+  --success: oklch(0.448 0.119 151.328);
+  --success-foreground: oklch(0.9911 0 0);
+  --warning: oklch(0.473 0.137 46.201);
+  --warning-foreground: oklch(0.9911 0 0);
+  /* Inter only when installed locally; it is not loaded from any CDN. The TC fonts cover
+     zh-TW glyphs before system-ui, which may pick Japanese or Simplified glyph shapes. */
+  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
   --shadow-color: #000000;
@@ -83,7 +93,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: Outfit, sans-serif;
+  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: monospace;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --radius: 0.5rem;
@@ -123,6 +133,10 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
@@ -172,7 +186,11 @@
   --sidebar-accent-foreground: oklch(0.9851 0 0);
   --sidebar-border: oklch(0.2809 0 0);
   --sidebar-ring: oklch(0.8003 0.1821 151.7110);
-  --font-sans: Outfit, sans-serif;
+  --success: oklch(0.792 0.209 151.711);
+  --success-foreground: oklch(0.1822 0 0);
+  --warning: oklch(0.828 0.189 84.429);
+  --warning-foreground: oklch(0.1822 0 0);
+  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
   --shadow-color: #000000;

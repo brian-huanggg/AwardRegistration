@@ -13,14 +13,14 @@ export function PageHeading({ title }: { title: string }) {
     <h1
       ref={ref}
       tabIndex={-1}
-      className="mb-6 text-2xl font-semibold outline-none"
+      className="text-2xl font-semibold outline-none"
     >
       {title}
     </h1>
   );
 }
 
-/** Every page fills the viewport; there is no header, navigation or footer around it. */
+/** Visitor pages (login, register, a visitor's 404) fill the viewport bare; signed-in pages use `AppShell`. */
 export function Screen({
   children,
   padded = true,
@@ -29,7 +29,7 @@ export function Screen({
   padded?: boolean;
 }) {
   return (
-    <main id="main" className={padded ? "min-h-screen p-6 md:p-10" : "min-h-screen"}>
+    <main id="main" className={padded ? "min-h-screen space-y-6 p-6 md:p-10" : "min-h-screen"}>
       {children}
     </main>
   );
