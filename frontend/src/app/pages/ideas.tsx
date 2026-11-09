@@ -94,11 +94,16 @@ export function IdeaCreate() {
   return (
     <>
       <PageHeading title={t("pages.ideaCreate.title")} />
-      <div className="max-w-2xl rounded-xl border bg-card p-6">
+      <div className="max-w-[55rem]">
         {me && (
           <IdeaForm
             leader={{ name: me.name, empNo: me.empNo }}
             canSubmit={open}
+            onCancel={
+              <Button asChild variant="outline">
+                <Link to="/ideas">{t("common.cancel")}</Link>
+              </Button>
+            }
             onOutcomeUnknown={() =>
               void client.invalidateQueries({ queryKey: ["ideas"] })
             }
@@ -383,10 +388,7 @@ export function IdeaEdit() {
   return (
     <>
       {heading}
-      <div className="max-w-2xl rounded-xl border bg-card p-6">
-        <p className="mb-4 text-sm text-muted-foreground">
-          {t("pages.ideaEdit.slidesNote")}
-        </p>
+      <div className="max-w-[55rem]">
         <IdeaForm
           key={`${idea.id}-${idea.version}`}
           leader={{ name: idea.leader.name, empNo: idea.leader.empNo }}

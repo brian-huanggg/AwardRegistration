@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
@@ -55,9 +55,11 @@ describe('Edit Idea page', () => {
     const { container } = await open();
     expect(await screen.findByLabelText('Idea name')).toHaveValue('成立供應商永續學院');
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Idea' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Category')).toHaveValue('COOL_IDEA');
+    expect(screen.getByRole('radio', { name: 'Cool Idea Award' })).toBeChecked();
     expect(screen.getByLabelText('Summary')).toHaveValue('line one');
     expect(screen.queryByLabelText('Slide file')).not.toBeInTheDocument();
+    // UI-05: the Slides section holds the note instead of the file input
+    expect(within(screen.getByRole('region', { name: 'Slides' })).getByText(/Slides are changed from the Idea page/)).toBeInTheDocument();
     expect((await axe(container)).violations).toEqual([]);
   });
 

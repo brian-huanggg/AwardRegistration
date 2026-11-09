@@ -62,7 +62,7 @@ function createReturns(respond: () => Response | Promise<Response>) {
 type User = ReturnType<typeof userEvent.setup>;
 
 async function fillText(user: User, v: { name?: string; summary?: string } = {}) {
-  await user.selectOptions(screen.getByLabelText('Category'), 'COOL_IDEA');
+  await user.click(screen.getByLabelText('Cool Idea Award'));
   await user.selectOptions(screen.getByLabelText('Organization'), 'BSID');
   await user.selectOptions(screen.getByLabelText('Direction'), 'RESPONSIBLE_SUPPLY_CHAIN');
   await user.type(screen.getByLabelText('Idea name'), v.name ?? '  成立供應商永續學院 ');
@@ -76,9 +76,12 @@ const submit = (user: User) => user.click(screen.getByRole('button', { name: 'Su
 describe('Create Idea page: markup and accessibility', () => {
   it('labels and requires every field; the Leader comes from the session', async () => {
     await open();
-    for (const label of ['Category', 'Organization', 'Direction', 'Idea name', 'Summary', 'Slide file']) {
+    for (const label of ['Organization', 'Direction', 'Idea name', 'Summary', 'Slide file']) {
       expect(screen.getByLabelText(label)).toBeRequired();
     }
+    const category = screen.getByRole('group', { name: 'Category' });
+    expect(within(category).getAllByRole('radio')).toHaveLength(2);
+    for (const radio of within(category).getAllByRole('radio')) expect(radio).toBeRequired();
     expect(screen.getByText('王小明 (089290)')).toBeInTheDocument();
     expect(screen.getByLabelText('Slide file')).toHaveAttribute('type', 'file');
     expect(screen.getByLabelText('Idea name')).not.toHaveAttribute('maxlength'); // counted in code points, not UTF-16
@@ -86,8 +89,8 @@ describe('Create Idea page: markup and accessibility', () => {
 
   it('shows the zh-TW working-draft labels (OI-17)', async () => {
     await open({ locale: 'zh-TW' });
-    const options = within(screen.getByLabelText('類別')).getAllByRole('option').map((o) => o.textContent);
-    expect(options).toEqual(['請選擇…', '酷點子獎', '卓越影響獎']);
+    const radios = within(screen.getByRole('group', { name: '類別' })).getAllByRole('radio');
+    expect(radios.map((r) => r.getAttribute('aria-labelledby')).map((id) => document.getElementById(id!)?.textContent)).toEqual(['酷點子獎', '卓越影響獎']);
     expect(within(screen.getByLabelText('方向')).getByRole('option', { name: '關懷弱勢' })).toBeInTheDocument();
   });
 
@@ -125,7 +128,7 @@ describe('Create Idea page: code-point counters', () => {
     await submit(user);
     expect(await screen.findByRole('link', { name: 'Idea name: The value is out of range.' })).toBeInTheDocument();
     expect(sent).toHaveLength(0);
-  });
+  }, 15_000); // types 75+ emoji one key at a time
 });
 
 describe('Create Idea page: expected filename (PRD §6.8, OI-21)', () => {
@@ -135,7 +138,7 @@ describe('Create Idea page: expected filename (PRD §6.8, OI-21)', () => {
     await fillText(user);
     expect(screen.getByText(`${BASE}.pdf`)).toBeInTheDocument();
     expect(screen.getByText(`${BASE}.pptx`)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText('Category'), 'OUTSTANDING_IMPACT');
+    await user.click(screen.getByLabelText('Outstanding Impact Award'));
     expect(screen.getByText(`O${BASE.slice(1)}.pdf`)).toBeInTheDocument();
   });
 
@@ -155,7 +158,7 @@ describe('Create Idea page: expected filename (PRD §6.8, OI-21)', () => {
     await submit(user);
     expect(await screen.findByRole('link', { name: 'Idea name: The file name is too long.' })).toBeInTheDocument();
     expect(sent).toHaveLength(0);
-  });
+  }, 15_000); // types 75+ emoji one key at a time
 });
 
 describe('Create Idea page: pre-check', () => {
@@ -353,5 +356,84 @@ describe('Create Idea page: upload progress and 503 (F3-02)', () => {
   it('a lost answer (network error) is also an uncertain result', async () => {
     await submitValid(() => HttpResponse.error());
     expect(await screen.findByRole('alert')).toHaveTextContent('The result is uncertain');
+  });
+});
+
+describe('Create Idea page: UI-05 layout (Pencil UfPqk)', () => {
+  it('groups the form into three named sections; the forbidden-character hint describes the name', async () => {
+    await open();
+    for (const name of ['Classification', 'About the Idea', 'Slides']) {
+      expect(screen.getByRole('region', { name })).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText('Idea name').getAttribute('aria-describedby')).toContain('name-hint');
+    expect(document.getElementById('name-hint')).toHaveTextContent('/ \\ : * ? " < > |');
+  });
+
+  it('arrow keys move between the category radio cards', async () => {
+    const { user } = await open();
+    const cool = screen.getByLabelText('Cool Idea Award');
+    const impact = screen.getByLabelText('Outstanding Impact Award');
+    await user.click(cool);
+    expect(cool).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(impact).toHaveFocus();
+    expect(impact).toBeChecked();
+    expect(cool).not.toBeChecked();
+    await user.keyboard('{ArrowLeft}');
+    expect(cool).toBeChecked();
+    expect(cool).toHaveAccessibleDescription('File name prefix I.');
+  });
+
+  it('the expected filename follows category, org and name', async () => {
+    const { user } = await open();
+    await fillText(user);
+    expect(screen.getByText(`${BASE}.pdf`)).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Organization'), 'TSID');
+    const tsid = BASE.replace('BSID', 'TSID');
+    expect(screen.getByText(`${tsid}.pdf`)).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Idea name'));
+    await user.type(screen.getByLabelText('Idea name'), 'Other');
+    expect(screen.getByText(`${tsid.replace('成立供應商永續學院', 'Other')}.pdf`)).toBeInTheDocument();
+  });
+
+  it('the file row shows whether the chosen file name matches, without renaming it (OI-21)', async () => {
+    const { user } = await open();
+    const status = () => document.getElementById('slides-status')!;
+    expect(status()).toHaveTextContent('No file chosen yet.');
+    await fillText(user);
+    await pick(user, `${BASE}.pdf`);
+    expect(status()).toHaveTextContent('File name matches');
+    expect(screen.getByText(`${BASE}.pdf`, { selector: 'span' })).toBeInTheDocument();
+    await pick(user, 'slides.pptx');
+    expect(status()).toHaveTextContent(`The file name does not match the expected name. Expected: ${BASE}.pptx`);
+    expect(screen.getByText('slides.pptx')).toBeInTheDocument();
+    // user.upload would honour accept=; the browser's picker can still return any file
+    await userEvent.setup({ applyAccept: false }).upload(screen.getByLabelText('Slide file'), new File(['x'], 'notes.txt'));
+    expect(status()).toHaveTextContent('This file type is not supported.');
+    await pick(user, `${BASE}.pdf`, 'x'.repeat(5 * 1024 * 1024 + 1));
+    expect(status()).toHaveTextContent('The file is too large (limit 5 MiB).');
+    expect(screen.getByLabelText('Slide file').getAttribute('aria-describedby')).toContain('slides-status');
+  });
+
+  it('Cancel goes back to the Idea list', async () => {
+    const { user, router } = await open();
+    await user.click(screen.getByRole('link', { name: 'Cancel' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/ideas'));
+  });
+
+  it('has no axe violations while uploading and with an uncertain result', async () => {
+    const { container, user } = await open();
+    let release!: (r: Response) => void;
+    createReturns(() => new Promise<Response>((r) => (release = r)));
+    await fillText(user);
+    await pick(user, `${BASE}.pdf`);
+    await submit(user);
+    await screen.findByRole('progressbar', { name: 'Upload progress' });
+    expect((await axe(container)).violations).toEqual([]);
+    release(problem(503, 'SERVICE_UNAVAILABLE'));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('The result is uncertain');
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect((await axe(container)).violations).toEqual([]);
   });
 });
