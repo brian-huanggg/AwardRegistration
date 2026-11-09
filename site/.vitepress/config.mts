@@ -11,6 +11,7 @@ export default defineConfig({
       { text: 'Audit Log', link: '/audit-log/' },
       { text: 'File Upload', link: '/file-upload/' },
       { text: 'Authentication', link: '/authentication/' },
+      { text: 'Authorization', link: '/authorization/' },
     ],
 
     sidebar: [
@@ -42,6 +43,16 @@ export default defineConfig({
           { text: 'Implementation', link: '/authentication/implementation' },
           { text: 'Decision Thinking', link: '/authentication/decisions' },
           { text: 'Technical FAQ', link: '/authentication/faq' }
+        ]
+      },
+      {
+        text: 'Authorization & Uniform 404',
+        items: [
+          { text: 'Concepts', link: '/authorization/' },
+          { text: 'Architecture', link: '/authorization/architecture' },
+          { text: 'Implementation', link: '/authorization/implementation' },
+          { text: 'Decision Thinking', link: '/authorization/decisions' },
+          { text: 'Technical FAQ', link: '/authorization/faq' }
         ]
       }
     ],
