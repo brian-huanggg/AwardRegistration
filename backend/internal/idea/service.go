@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea/internal/store"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/security"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/web"
@@ -18,10 +19,14 @@ import (
 // Idea is the module's read model of one Idea.
 type Idea = store.Idea
 
-// Service reads Ideas.
+// Service reads and creates Ideas.
 type Service struct {
 	DB    *sql.DB
 	Audit *audit.Service
+	// Gate, Slides and Objects are needed by Create only.
+	Gate    deadline.SubmissionGate
+	Slides  SlideRules
+	Objects ObjectStore
 }
 
 // Get returns the Idea if the caller may see it. A missing Idea and a hidden

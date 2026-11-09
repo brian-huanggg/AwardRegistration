@@ -14,13 +14,34 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "operation", "method", "path", "expect"],
+        "not": { "required": ["body", "multipart"] },
         "properties": {
           "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
           "operation": { "type": "string", "minLength": 1 },
           "method": { "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
           "path": { "type": "string", "pattern": "^/api/v1/" },
           "body": { "type": "object" },
+          "multipart": {
+            "description": "multipart/form-data body instead of JSON. Text values and the filename may use ${actorEmpNo} and ${actorName}.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fields", "file"],
+            "properties": {
+              "fields": { "type": "object", "additionalProperties": { "type": "string" } },
+              "file": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["field", "filename", "content"],
+                "properties": {
+                  "field": { "type": "string" },
+                  "filename": { "type": "string" },
+                  "content": { "enum": ["pdf"] }
+                }
+              }
+            }
+          },
           "csrf": { "enum": ["valid", "none"], "default": "valid" },
+          "state": { "enum": ["NOT_OPEN", "OPEN", "CLOSED"], "description": "Submission state set before the row runs (PRD §5); omitted = unchanged." },
           "outsideSpec": { "type": "boolean", "default": false },
           "expect": {
             "type": "object",

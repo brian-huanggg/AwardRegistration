@@ -194,6 +194,41 @@ paths:
         '401': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
         '500': { $ref: '#/components/responses/Problem' }
+    post:
+      operationId: createIdea
+      tags: [ideas]
+      summary: Create an Idea with its slides (User only)
+      description: >
+        One atomic multipart request (PRD 6.6). Order: role 403, state 403, 400 (missing or repeated
+        part), 422 text fields (incl. FILENAME_TOO_LONG), file 413 / 422 EMPTY_FILE / 415 /
+        422 FILENAME_MISMATCH, 409 IDEA_DUPLICATE, then upload (503 STORAGE_UNAVAILABLE). The Leader is
+        the caller; any leader value in the form is ignored. The body is read by the handler, so the
+        generated wrapper does not bind it.
+      parameters:
+        - $ref: '#/components/parameters/CsrfToken'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema: { $ref: '#/components/schemas/CreateIdeaForm' }
+      responses:
+        '201':
+          description: Created; Location is /api/v1/ideas/{id}
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IdeaDetail' }
+        '400': { $ref: '#/components/responses/Problem' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '413': { $ref: '#/components/responses/Problem' }
+        '415': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+        '500': { $ref: '#/components/responses/Problem' }
+        '503': { $ref: '#/components/responses/Problem' }
   /ideas/{id}:
     get:
       operationId: getIdea
@@ -306,6 +341,19 @@ components:
       properties:
         empNo: { type: string }
         name: { type: string }
+    CreateIdeaForm:
+      type: object
+      required: [category, org, direction, name, summary, slides]
+      properties:
+        category: { type: string, description: 'COOL_IDEA or OUTSTANDING_IMPACT' }
+        org: { type: string, description: 'AAID, BSID, ICSD, TSID, PLED or DEID' }
+        direction: { type: string, description: One of the five ESG directions (PRD 6.6) }
+        name: { type: string, description: '1-75 code points after clean-up; no / \ : * ? " < > |' }
+        summary: { type: string, description: 1-300 code points after clean-up }
+        slides:
+          type: string
+          format: binary
+          description: 'One PDF or PPTX, at most 5 MiB, named {I|O}_{org}_{leaderName}_{leaderEmpNo}_{name}.{pdf|pptx}'
     IdeaSummary:
       type: object
       required: [id, name, category, org, direction, leader, memberCount, myRelation, createdAt, slidesUpdatedAt]

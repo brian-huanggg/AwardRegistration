@@ -69,6 +69,54 @@
       }
     },
     {
+      "id": "create-idea",
+      "operation": "create Idea",
+      "method": "POST",
+      "path": "/api/v1/ideas",
+      "multipart": {
+        "fields": { "category": "COOL_IDEA", "org": "BSID", "direction": "TALENT_DEVELOPMENT", "name": "Matrix Idea", "summary": "Matrix summary" },
+        "file": { "field": "slides", "filename": "I_BSID_${actorName}_${actorEmpNo}_Matrix Idea.pdf", "content": "pdf" }
+      },
+      "state": "OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 201 },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "create-idea-not-open",
+      "operation": "create Idea before the contest opens",
+      "method": "POST",
+      "path": "/api/v1/ideas",
+      "multipart": {
+        "fields": { "category": "COOL_IDEA", "org": "BSID", "direction": "TALENT_DEVELOPMENT", "name": "Matrix Idea", "summary": "Matrix summary" },
+        "file": { "field": "slides", "filename": "I_BSID_${actorName}_${actorEmpNo}_Matrix Idea.pdf", "content": "pdf" }
+      },
+      "state": "NOT_OPEN",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "SUBMISSION_NOT_OPEN" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
+      "id": "create-idea-closed",
+      "operation": "create Idea after the deadline",
+      "method": "POST",
+      "path": "/api/v1/ideas",
+      "multipart": {
+        "fields": { "category": "COOL_IDEA", "org": "BSID", "direction": "TALENT_DEVELOPMENT", "name": "Matrix Idea", "summary": "Matrix summary" },
+        "file": { "field": "slides", "filename": "I_BSID_${actorName}_${actorEmpNo}_Matrix Idea.pdf", "content": "pdf" }
+      },
+      "state": "CLOSED",
+      "expect": {
+        "visitor": { "status": 401, "code": "UNAUTHENTICATED" },
+        "user": { "status": 403, "code": "SUBMISSION_CLOSED" },
+        "admin": { "status": 403, "code": "FORBIDDEN" }
+      }
+    },
+    {
       "id": "order-logout-no-csrf",
       "operation": "check order: a write without a CSRF token",
       "method": "POST",

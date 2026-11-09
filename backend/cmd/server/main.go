@@ -58,6 +58,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	slides, err := storage.NewMinIO(storage.MinIOConfig{
+		Endpoint: cfg.MinIO.Endpoint, AccessKey: cfg.MinIO.AccessKey, SecretKey: cfg.MinIO.SecretKey,
+		Bucket: cfg.MinIO.Bucket, Secure: cfg.MinIO.Secure,
+	})
+	if err != nil {
+		return err
+	}
 	si := server.API{
 		Auth:    auth.Handler{CSRF: csrf, Log: log},
 		Logins:  auth.LoginHandler{Logins: logins, Fail: errs.Write},
@@ -69,7 +76,12 @@ func run() error {
 		},
 		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},
 		Ideas: idea.Handler{
-			Service:          &idea.Service{DB: db, Audit: auditSvc},
+			Service: &idea.Service{
+				DB: db, Audit: auditSvc,
+				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
+				Slides:  server.IdeaSlideRules(),
+				Objects: slides,
+			},
 			ExpectedFilename: storage.ExpectedFilenameBase,
 			Fail:             errs.Write,
 		},

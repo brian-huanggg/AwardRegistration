@@ -31,6 +31,7 @@ var WriteActions = map[string]string{
 	http.MethodPost + " /api/v1/auth/login":    "AUTH_LOGIN",
 	http.MethodPost + " /api/v1/auth/register": "AUTH_REGISTER",
 	http.MethodPost + " /api/v1/auth/logout":   "AUTH_LOGOUT",
+	http.MethodPost + " /api/v1/ideas":         "IDEA_CREATE",
 }
 
 // ActionFor returns the audit action of r, or "" when unknown.

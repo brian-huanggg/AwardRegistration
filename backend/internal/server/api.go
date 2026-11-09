@@ -50,6 +50,11 @@ func (a API) GetIdea(w http.ResponseWriter, r *http.Request, id api.IdeaId) {
 	a.Ideas.GetIdea(w, r, id)
 }
 
+// CreateIdea serves POST /ideas.
+func (a API) CreateIdea(w http.ResponseWriter, r *http.Request, _ api.CreateIdeaParams) {
+	a.Ideas.CreateIdea(w, r)
+}
+
 // ListIdeas serves GET /ideas.
 func (a API) ListIdeas(w http.ResponseWriter, r *http.Request, params api.ListIdeasParams) {
 	a.Ideas.ListIdeas(w, r, params)

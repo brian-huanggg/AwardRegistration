@@ -25,9 +25,21 @@ type Row struct {
 	Method      string          `json:"method"`
 	Path        string          `json:"path"`
 	Body        json.RawMessage `json:"body"`
+	Multipart   *Multipart      `json:"multipart"`
 	CSRF        string          `json:"csrf"`
+	State       string          `json:"state"`
 	OutsideSpec bool            `json:"outsideSpec"`
 	Expect      map[string]Cell `json:"expect"`
+}
+
+// Multipart is a multipart/form-data body: text parts and one file part.
+type Multipart struct {
+	Fields map[string]string `json:"fields"`
+	File   struct {
+		Field    string `json:"field"`
+		Filename string `json:"filename"`
+		Content  string `json:"content"` // "pdf": a minimal valid PDF
+	} `json:"file"`
 }
 
 // Actors in PRD §7 order. The harness has a fixture for each one it lists in

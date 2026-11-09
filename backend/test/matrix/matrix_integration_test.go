@@ -3,10 +3,14 @@
 package matrix
 
 import (
+	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,8 +24,10 @@ import (
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/audit"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/auth"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/deadline"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/idea"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/server"
 	"github.com/brian-huanggg/AwardRegistration/backend/internal/shared/dbtest"
+	"github.com/brian-huanggg/AwardRegistration/backend/internal/storage"
 	"github.com/brian-huanggg/AwardRegistration/backend/test/apispec"
 )
 
@@ -61,11 +67,48 @@ func newEnv(t *testing.T) *env {
 			Fail:    errs.Write,
 		},
 		Deadline: deadline.Handler{Store: deadline.SQLStore{DB: db}},
+		Ideas: idea.Handler{
+			Service: &idea.Service{
+				DB: db, Audit: auditSvc,
+				Gate:    deadline.Gate{Store: deadline.SQLStore{DB: db}},
+				Slides:  server.IdeaSlideRules(),
+				Objects: discardObjects{},
+			},
+			ExpectedFilename: storage.ExpectedFilenameBase,
+			Fail:             errs.Write,
+		},
 	}
 	chain := server.NewPublic(log, server.Mount(si),
 		auth.Middleware(sessions, server.IsPublic, log),
 		csrf.Middleware(errs.Write, server.ActionFor))
 	return &env{db: db, plain: chain, checked: apispec.Load(t).Validate(t, chain)}
+}
+
+// discardObjects stands in for MinIO: the matrix is about who may call what,
+// not about storage.
+type discardObjects struct{}
+
+func (discardObjects) Put(_ context.Context, _ string, r io.Reader, _ int64, _ string) error {
+	_, err := io.Copy(io.Discard, r)
+	return err
+}
+
+// stateDeadline is the deadline expression that puts the contest in a state.
+var stateDeadline = map[string]string{
+	"NOT_OPEN": "NULL",
+	"OPEN":     "NOW(6) + INTERVAL 1 DAY",
+	"CLOSED":   "NOW(6) - INTERVAL 1 DAY",
+}
+
+func (e *env) setState(t *testing.T, state string) {
+	t.Helper()
+	expr, ok := stateDeadline[state]
+	if !ok {
+		t.Fatalf("unknown state %q", state)
+	}
+	if _, err := e.db.Exec(`UPDATE contest_setting SET deadline = ` + expr + ` WHERE id = 1`); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (e *env) do(h http.Handler, req *http.Request) *httptest.ResponseRecorder {
@@ -90,10 +133,11 @@ func (e *env) addUser(t *testing.T, empNo, role string) {
 	}
 }
 
-// actor is one caller of the matrix: its employee number and, when logged in,
-// its session cookie.
+// actor is one caller of the matrix: its employee number, account name and,
+// when logged in, its session cookie.
 type actor struct {
 	empNo   string
+	name    string
 	session *http.Cookie
 }
 
@@ -124,7 +168,7 @@ func (e *env) newActor(t *testing.T, name string) actor {
 	if rec.Code != 200 {
 		t.Fatalf("login %s: %d %s", name, rec.Code, rec.Body)
 	}
-	return actor{empNo: empNo, session: cookie(rec, auth.SessionCookie)}
+	return actor{empNo: empNo, name: "N " + empNo, session: cookie(rec, auth.SessionCookie)}
 }
 
 func cookie(rec *httptest.ResponseRecorder, name string) *http.Cookie {
@@ -161,7 +205,11 @@ func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 		body = strings.NewReader(s)
 	}
 	var req *http.Request
-	if body != nil {
+	if r.Multipart != nil {
+		buf, ct := multipartBody(t, r.Multipart, a)
+		req = httptest.NewRequest(r.Method, r.Path, buf)
+		req.Header.Set("Content-Type", ct)
+	} else if body != nil {
 		req = httptest.NewRequest(r.Method, r.Path, body)
 		req.Header.Set("Content-Type", "application/json")
 	} else {
@@ -180,9 +228,38 @@ func (e *env) request(t *testing.T, r Row, a actor) *http.Request {
 	return req
 }
 
+func multipartBody(t *testing.T, m *Multipart, a actor) (*bytes.Buffer, string) {
+	t.Helper()
+	sub := strings.NewReplacer("${actorEmpNo}", a.empNo, "${actorName}", a.name)
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	for k, v := range m.Fields {
+		if err := mw.WriteField(k, sub.Replace(v)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w, err := mw.CreateFormFile(m.File.Field, sub.Replace(m.File.Filename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch m.File.Content {
+	case "pdf":
+		_, _ = w.Write([]byte("%PDF-1.7\nmatrix\n%%EOF\n"))
+	default:
+		t.Fatalf("unknown file content %q", m.File.Content)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return &buf, mw.FormDataContentType()
+}
+
 func TestPermissionMatrix(t *testing.T) {
 	e := newEnv(t)
 	for _, r := range load(t) {
+		if r.State != "" {
+			e.setState(t, r.State)
+		}
 		for _, name := range Actors {
 			want, ok := r.Expect[name]
 			if !ok {

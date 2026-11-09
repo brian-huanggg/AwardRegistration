@@ -131,3 +131,36 @@ func GetVisible(ctx context.Context, q Querier, id, viewer uuid.UUID, isAdmin bo
 	}
 	return out, nil
 }
+
+// ErrNoLeader is returned by LeaderName when the user row is gone, which a
+// valid session rules out; the caller treats it as an internal error.
+var ErrNoLeader = errors.New("leader account not found")
+
+// LeaderName returns the account name of user id: the expected filename takes
+// the Leader's name from the account, never from the form (PRD 6.6).
+func LeaderName(ctx context.Context, q Querier, id uuid.UUID) (string, error) {
+	var name string
+	err := q.QueryRowContext(ctx, `SELECT name FROM app_user WHERE id = ?`, id.String()).Scan(&name)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNoLeader
+	}
+	if err != nil {
+		return "", fmt.Errorf("select leader name: %w", err)
+	}
+	return name, nil
+}
+
+// NameTaken is the read-only duplicate pre-check of create: it saves an upload
+// in the common case, while uq_idea_leader_name stays authoritative.
+func NameTaken(ctx context.Context, q Querier, leader uuid.UUID, name string) (bool, error) {
+	var one int
+	err := q.QueryRowContext(ctx, `SELECT 1 FROM idea WHERE leader_id = ? AND name = ?`,
+		leader.String(), name).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("select idea name: %w", err)
+	}
+	return true, nil
+}
