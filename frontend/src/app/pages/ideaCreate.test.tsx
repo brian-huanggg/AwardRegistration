@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { createMemoryRouter } from 'react-router';
@@ -37,7 +37,7 @@ async function open({ locale = 'en', state = 'OPEN' as State } = {}) {
   const router = createMemoryRouter(routes, { initialEntries: ['/ideas/new'] });
   const client = new QueryClient();
   const view = render(<App router={router} client={client} />);
-  await screen.findByRole('heading', { level: 1, name: locale === 'en' ? 'Create an Idea' : '建立提案' });
+  await screen.findByRole('heading', { level: 1, name: locale === 'en' ? 'Submit a new Idea' : '送出新提案' });
   return { router, client, user: userEvent.setup(), ...view };
 }
 
@@ -359,7 +359,7 @@ describe('Create Idea page: upload progress and 503 (F3-02)', () => {
   });
 });
 
-describe('Create Idea page: UI-05 layout (Pencil UfPqk)', () => {
+describe('Create Idea page: Eco layout (Pencil FIFiM)', () => {
   it('groups the form into three named sections; the forbidden-character hint describes the name', async () => {
     await open();
     for (const name of ['Classification', 'About the Idea', 'Slides']) {
@@ -413,6 +413,24 @@ describe('Create Idea page: UI-05 layout (Pencil UfPqk)', () => {
     await pick(user, `${BASE}.pdf`, 'x'.repeat(5 * 1024 * 1024 + 1));
     expect(status()).toHaveTextContent('The file is too large (limit 5 MiB).');
     expect(screen.getByLabelText('Slide file').getAttribute('aria-describedby')).toContain('slides-status');
+  });
+
+  it('the hero says who leads; the decorative section numbers are hidden', async () => {
+    await open();
+    expect(screen.getByText('You will be the Leader')).toBeInTheDocument();
+    expect(screen.getByText('Teammates join later by request — they are not added here.')).toBeInTheDocument();
+    const about = screen.getByRole('region', { name: 'About the Idea' });
+    expect(within(about).getByText('02')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('a file dropped on the drop zone is taken like a chosen one; the matched state passes axe', async () => {
+    const { container, user } = await open();
+    await fillText(user);
+    const zone = container.querySelector<HTMLElement>('[data-slot="drop-zone"]')!;
+    fireEvent.drop(zone, { dataTransfer: { files: [new File([PDF], `${BASE}.pdf`)] } });
+    expect(document.getElementById('slides-status')).toHaveTextContent('File name matches');
+    expect(screen.getByText(`${BASE}.pdf`, { selector: 'span' })).toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
   });
 
   it('Cancel goes back to the Idea list', async () => {

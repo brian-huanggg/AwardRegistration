@@ -1,18 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  FileTextIcon,
-  SendIcon,
-  SparklesIcon,
-  TriangleAlertIcon,
-  TrophyIcon,
-  UploadIcon,
-} from "lucide-react";
+import { CircleAlertIcon, FileTextIcon, TriangleAlertIcon, UploadIcon } from "lucide-react";
 import { Button, buttonVariants } from "@/shared/ui/button";
+import { Chip } from "@/shared/ui/chip";
 import { CopyButton } from "@/shared/ui/copy-button";
 import { Field, FieldDescription, FieldError, FieldLabel } from "@/shared/ui/field";
+import { ecoControl, ecoLabel } from "@/shared/ui/form-field";
 import { Input } from "@/shared/ui/input";
 import { NativeSelect } from "@/shared/ui/native-select";
 import { Textarea } from "@/shared/ui/textarea";
@@ -48,7 +41,8 @@ const OPTIONS = {
   direction: { list: DIRECTIONS, key: "enums.direction" },
 } as const;
 
-const CATEGORY_ICON = { COOL_IDEA: SparklesIcon, OUTSTANDING_IMPACT: TrophyIcon } as const;
+/** Eco look for the shared shadcn controls: warm 52 px field; drops their compact height/size/shadow. */
+const ECO_CONTROL = cn(ecoControl, "shadow-none md:text-base");
 
 /** A counter is read out only near its limit, not on every keystroke (UI-05). */
 const nearLimit = (n: number, max: number) => n >= Math.floor(max * 0.9);
@@ -58,7 +52,7 @@ const nearLimit = (n: number, max: number) => n >= Math.floor(max * 0.9);
  * a pre-check in the server's order, an error summary that takes focus, and server errors
  * mapped to fields. Create adds the expected filename with copy buttons and the slide file
  * (never renamed, OI-21: the user names it). Edit sends the five text fields only (PUT).
- * Layout: three `FormSection` cards, Pencil frame `UfPqk` (docs/UI-refactor/UI-05).
+ * Layout: three numbered `FormSection`s in the Eco style, Pencil frame `FIFiM` (slice E4).
  */
 export function IdeaForm({
   leader,
@@ -97,6 +91,8 @@ export function IdeaForm({
   // An earlier attempt ended without a usable answer; a later 409 may be its success (F12).
   const [earlierUncertain, setEarlierUncertain] = useState(false);
   const [summaryKey, setSummaryKey] = useState(0);
+  // A file dragged over the drop zone (visual only; the hidden input stays the keyboard path).
+  const [dragging, setDragging] = useState(false);
   const summary = useRef<HTMLDivElement>(null);
   const noticeRef = useRef<HTMLDivElement>(null);
   // WCAG 3.3.1: the error summary (or, without one, the notice) takes focus once it is on screen (re-keyed on every failed submit).
@@ -202,18 +198,29 @@ export function IdeaForm({
       </FieldError>
     );
 
-  const wrap = (f: IdeaField, control: ReactNode, below?: ReactNode) => (
+  /** Label row (label · counter), then the control and its error. */
+  const wrap = (f: IdeaField, control: ReactNode, count?: ReactNode) => (
     <Field key={f} data-invalid={problems[f] ? true : undefined} className="min-w-0 gap-2">
-      <FieldLabel htmlFor={f}>{label(f)}</FieldLabel>
+      <div className="flex flex-wrap items-baseline gap-x-2">
+        <FieldLabel htmlFor={f} className={cn(ecoLabel, "mb-0", problems[f] && "text-destructive")}>
+          {label(f)}
+        </FieldLabel>
+        {count}
+      </div>
       {control}
-      {below}
       {fieldError(f)}
     </Field>
   );
 
   const counter = (f: "name" | "summary", n: number, max: number) => (
     <>
-      <FieldDescription id={`${f}-count`} className={cn("text-xs", n > max && "text-destructive")}>
+      <span aria-hidden="true" className="text-xs text-muted-foreground">
+        ·
+      </span>
+      <FieldDescription
+        id={`${f}-count`}
+        className={cn("m-0 text-xs font-semibold tracking-[0.06em] tabular-nums", n > max && "text-destructive")}
+      >
         {t("pages.ideaForm.count", { n, max })}
       </FieldDescription>
       <span className="sr-only" aria-live="polite">
@@ -234,30 +241,21 @@ export function IdeaForm({
       className="flex min-w-0 flex-col gap-2"
       aria-describedby={problems.category ? "category-error" : undefined}
     >
-      <legend className={cn("mb-2 text-sm font-medium", problems.category && "text-destructive")}>{label("category")}</legend>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <legend className={cn(ecoLabel, problems.category && "text-destructive")}>{label("category")}</legend>
+      <div className="grid gap-4 sm:grid-cols-2">
         {CATEGORIES.map((code, i) => {
-          const Icon = CATEGORY_ICON[code];
           // The first radio carries the field id, so the error summary link can focus it.
           const radioId = i === 0 ? "category" : `category-${code}`;
           return (
             <label
               key={code}
               className={cn(
-                "group/card flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3.5 transition-colors",
-                "has-checked:border-primary has-checked:bg-primary/5 has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
+                "flex cursor-pointer items-start gap-3.5 rounded-[18px] border-[1.5px] border-border bg-background p-5 transition-colors",
+                "hover:border-accent-lime has-checked:border-accent-lime has-checked:bg-accent-lime-tint has-checked:outline-[1.5px] has-checked:outline-accent-lime",
+                "has-focus-visible:ring-[3px] has-focus-visible:ring-ring/50",
                 problems.category && "border-destructive",
               )}
             >
-              <Icon aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-muted-foreground group-has-checked/card:text-primary" />
-              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span id={`${radioId}-label`} className="text-sm font-semibold text-foreground">
-                  {t(`enums.category.${code}`)}
-                </span>
-                <span id={`${radioId}-hint`} className="text-xs text-muted-foreground">
-                  {t(`pages.ideaForm.categoryHint.${code}`)}
-                </span>
-              </span>
               <input
                 type="radio"
                 id={radioId}
@@ -268,8 +266,16 @@ export function IdeaForm({
                 onChange={set("category")}
                 aria-labelledby={`${radioId}-label`}
                 aria-describedby={[`${radioId}-hint`, problems.category && "category-error"].filter(Boolean).join(" ")}
-                className="mt-0.5 size-4 shrink-0 accent-primary outline-none"
+                className="mt-0.5 size-5 shrink-0 accent-brand-forest outline-none"
               />
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span id={`${radioId}-label`} className="text-base font-semibold text-foreground">
+                  {t(`enums.category.${code}`)}
+                </span>
+                <span id={`${radioId}-hint`} className="text-sm text-muted-foreground">
+                  {t(`pages.ideaForm.categoryHint.${code}`)}
+                </span>
+              </span>
             </label>
           );
         })}
@@ -278,10 +284,36 @@ export function IdeaForm({
     </fieldset>
   );
 
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    if (pending) return;
+    setFiles(Array.from(e.dataTransfer.files));
+  };
+
   const fileRow = (
-    <Field data-invalid={problems.slides ? true : undefined} className="gap-2">
-      <FieldLabel htmlFor="slides">{label("slides")}</FieldLabel>
-      <div className="flex flex-col gap-2.5 rounded-lg border p-3.5">
+    <Field data-invalid={problems.slides ? true : undefined} className="min-w-0 gap-2">
+      <FieldLabel htmlFor="slides" className={cn(ecoLabel, "mb-0", problems.slides && "text-destructive")}>
+        {label("slides")}
+      </FieldLabel>
+      <div
+        data-slot="drop-zone"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
+        className={cn(
+          "flex flex-col gap-3 rounded-[18px] border-[1.5px] bg-background p-5 transition-colors",
+          problems.slides || status.kind === "mismatch" || status.kind === "error"
+            ? "border-destructive"
+            : status.kind === "match"
+              ? "border-accent-lime"
+              : "border-dashed border-input",
+          dragging && "border-solid border-ring bg-field",
+        )}
+      >
         <div className="flex flex-wrap items-center gap-3">
           <input
             {...aria("slides", "slides-hint", "slides-status")}
@@ -290,36 +322,35 @@ export function IdeaForm({
             accept=".pdf,.pptx,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation"
             onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           />
-          <label
-            htmlFor="slides"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "cursor-pointer peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50",
-            )}
-          >
-            <UploadIcon aria-hidden="true" />
-            {t("pages.ideaForm.choose")}
-          </label>
-          {file && (
-            <div className="flex min-w-0 flex-1 items-center gap-3">
+          {file ? (
+            <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
               <FileTextIcon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
               <div className="flex min-w-0 flex-col">
-                <span className="text-sm font-medium break-all">{file.name}</span>
+                <span className="text-sm font-semibold break-all text-foreground">{file.name}</span>
                 <span className="text-xs text-muted-foreground">
                   {t("pages.ideaForm.fileSize", { size: formatSize(file.size, i18n.language), max: MAX_SLIDES_MIB })}
                 </span>
               </div>
             </div>
+          ) : (
+            <div className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+              <UploadIcon aria-hidden="true" className="size-5 shrink-0 text-brand-purple" />
+              <span className="text-sm text-muted-foreground">{t("pages.ideaForm.dropHint")}</span>
+            </div>
           )}
+          <label
+            htmlFor="slides"
+            className={cn(
+              buttonVariants({ variant: "light", size: "pill-sm" }),
+              "cursor-pointer peer-focus-visible:border-ring peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50",
+            )}
+          >
+            {t("pages.ideaForm.chooseFile")}
+          </label>
         </div>
         <p id="slides-status" role="status" className="text-xs empty:hidden">
           {status.kind === "none" && <span className="text-muted-foreground">{t("pages.ideaForm.noFile")}</span>}
-          {status.kind === "match" && (
-            <span className="inline-flex items-center gap-1 font-medium text-success">
-              <CircleCheckIcon aria-hidden="true" className="size-3.5" />
-              {t("pages.ideaForm.fileMatches")}
-            </span>
-          )}
+          {status.kind === "match" && <Chip tone="lime">{t("pages.ideaForm.fileMatches")}</Chip>}
           {status.kind === "mismatch" && (
             <span className="inline-flex items-start gap-1 text-destructive">
               <CircleAlertIcon aria-hidden="true" className="mt-px size-3.5 shrink-0" />
@@ -336,14 +367,14 @@ export function IdeaForm({
           )}
         </p>
         {progress !== null && (
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-3 text-sm">
             <progress
-              className="h-2 flex-1 accent-primary"
+              className="h-1.5 flex-1 appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-accent-lime [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-accent-lime"
               max={100}
               value={progress}
               aria-label={t("pages.ideaCreate.uploading")}
             />
-            <span aria-hidden="true" className="tabular-nums">
+            <span aria-hidden="true" className="text-xs text-muted-foreground tabular-nums">
               {progress}%
             </span>
           </div>
@@ -354,8 +385,8 @@ export function IdeaForm({
   );
 
   const expectedBox = (
-    <section aria-labelledby="expected-title" className="flex flex-col gap-1.5 rounded-lg bg-muted p-3.5 text-sm">
-      <h3 id="expected-title" className="text-xs text-muted-foreground">
+    <section aria-labelledby="expected-title" className="flex flex-col gap-2 rounded-[18px] bg-brand-lavender px-5 py-4 text-sm">
+      <h3 id="expected-title" className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
         {t("pages.ideaForm.expectedTitle")}
       </h3>
       {expectedBase === null ? (
@@ -368,13 +399,16 @@ export function IdeaForm({
               const name = `${expectedBase}.${ext}`;
               return (
                 <li key={ext} className="flex flex-wrap items-center gap-2">
-                  <code className="min-w-0 flex-1 font-semibold break-all text-foreground">{name}</code>
-                  <CopyButton
-                    value={name}
-                    label={t("pages.ideaForm.copy", { ext: ext.toUpperCase() })}
-                    copiedText={t("pages.ideaForm.copied")}
-                    failedText={t("pages.ideaForm.copyFailed")}
-                  />
+                  <code className="min-w-0 flex-1 font-sans text-base font-semibold break-all text-brand-purple">{name}</code>
+                  {/* the shared copy button, rounded to the Eco pill look */}
+                  <span className="contents [&_button]:rounded-full [&_button]:bg-background">
+                    <CopyButton
+                      value={name}
+                      label={t("pages.ideaForm.copy", { ext: ext.toUpperCase() })}
+                      copiedText={t("pages.ideaForm.copied")}
+                      failedText={t("pages.ideaForm.copyFailed")}
+                    />
+                  </span>
                 </li>
               );
             })}
@@ -385,16 +419,16 @@ export function IdeaForm({
   );
 
   return (
-    <form ref={form} onSubmit={(e) => void onSubmit(e)} noValidate className="flex flex-col gap-6">
+    <form ref={form} onSubmit={(e) => void onSubmit(e)} noValidate className="flex flex-col">
       {hasSummary && (
         <div
           key={summaryKey}
           ref={summary}
           role="alert"
           tabIndex={-1}
-          className="rounded-md border border-destructive bg-card p-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/40"
+          className="mt-6 rounded-[14px] border-[1.5px] border-destructive bg-background p-4 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/40"
         >
-          <p className="font-medium text-destructive">{t("pages.register.summaryTitle")}</p>
+          <p className="font-semibold text-destructive">{t("pages.register.summaryTitle")}</p>
           {formError !== null && <p>{formError}</p>}
           {listed.length > 0 && (
             <ul className="mt-1 list-disc pl-5">
@@ -410,75 +444,91 @@ export function IdeaForm({
         </div>
       )}
 
-      <div className="flex flex-col gap-1 text-sm">
-        {!edit && <p className="text-muted-foreground">{t("pages.ideaForm.leaderHint")}</p>}
-        <p>
-          <span className="font-medium">{t("fields.leader")}</span>{" "}
-          <span>
-            {leader.name} ({leader.empNo})
-          </span>
-        </p>
-      </div>
+      <p className="mt-6 flex flex-wrap items-baseline gap-x-2 text-sm">
+        <span className={cn(ecoLabel, "mb-0 inline")}>{t("fields.leader")}</span>
+        <span className="font-medium text-foreground">
+          {leader.name} ({leader.empNo})
+        </span>
+      </p>
 
-      <FormSection
-        id="classification"
-        title={t("pages.ideaForm.sections.classification")}
-        description={<p>{t("pages.ideaForm.sections.classificationHint")}</p>}
-      >
-        {categoryCards}
-        <div className="grid gap-4 sm:grid-cols-2">
-          {(["org", "direction"] as const).map((f) =>
-            wrap(
-              f,
-              <NativeSelect {...aria(f)} value={values[f]} onChange={set(f)}>
-                <option value="">{t("pages.ideaForm.choose")}</option>
-                {OPTIONS[f].list.map((code) => (
-                  <option key={code} value={code}>
-                    {t(`${OPTIONS[f].key}.${code}`)}
-                  </option>
-                ))}
-              </NativeSelect>,
-            ),
+      <div className="flex flex-col">
+        <FormSection
+          id="classification"
+          index={1}
+          title={t("pages.ideaForm.sections.classification")}
+          description={<p>{t("pages.ideaForm.sections.classificationHint")}</p>}
+        >
+          {categoryCards}
+          <div className="grid gap-4 sm:grid-cols-2">
+            {(["org", "direction"] as const).map((f) =>
+              wrap(
+                f,
+                <NativeSelect {...aria(f)} className={cn(ECO_CONTROL, "pr-11")} value={values[f]} onChange={set(f)}>
+                  <option value="">{t("pages.ideaForm.choose")}</option>
+                  {OPTIONS[f].list.map((code) => (
+                    <option key={code} value={code}>
+                      {t(`${OPTIONS[f].key}.${code}`)}
+                    </option>
+                  ))}
+                </NativeSelect>,
+              ),
+            )}
+          </div>
+        </FormSection>
+
+        <FormSection
+          id="about"
+          index={2}
+          title={t("pages.ideaForm.sections.about")}
+          description={
+            <>
+              <p>{t("pages.ideaForm.sections.aboutHint", { name: NAME_MAX, summary: SUMMARY_MAX })}</p>
+              <p id="name-hint">{t("pages.ideaForm.nameHint")}</p>
+            </>
+          }
+        >
+          {wrap(
+            "name",
+            <Input
+              {...aria("name", "name-count", "name-hint")}
+              className={ECO_CONTROL}
+              autoComplete="off"
+              value={values.name}
+              onChange={set("name")}
+            />,
+            counter("name", nameCount, NAME_MAX),
           )}
-        </div>
-      </FormSection>
+          {wrap(
+            "summary",
+            <Textarea
+              {...aria("summary", "summary-count")}
+              className={cn(ECO_CONTROL, "min-h-[120px]")}
+              rows={6}
+              value={values.summary}
+              onChange={set("summary")}
+            />,
+            counter("summary", summaryCount, SUMMARY_MAX),
+          )}
+        </FormSection>
 
-      <FormSection
-        id="about"
-        title={t("pages.ideaForm.sections.about")}
-        description={
-          <>
-            <p>{t("pages.ideaForm.sections.aboutHint", { name: NAME_MAX, summary: SUMMARY_MAX })}</p>
-            <p id="name-hint">{t("pages.ideaForm.nameHint")}</p>
-          </>
-        }
-      >
-        {wrap(
-          "name",
-          <Input {...aria("name", "name-count", "name-hint")} autoComplete="off" value={values.name} onChange={set("name")} />,
-          counter("name", nameCount, NAME_MAX),
-        )}
-        {wrap(
-          "summary",
-          <Textarea {...aria("summary", "summary-count")} rows={6} value={values.summary} onChange={set("summary")} />,
-          counter("summary", summaryCount, SUMMARY_MAX),
-        )}
-      </FormSection>
-
-      <FormSection
-        id="slides-section"
-        title={t("pages.ideaForm.sections.slides")}
-        description={edit ? undefined : <p id="slides-hint">{t("pages.ideaForm.slidesHint")}</p>}
-      >
-        {edit ? (
-          <p className="text-sm text-muted-foreground">{t("pages.ideaEdit.slidesNote")}</p>
-        ) : (
-          <>
-            {expectedBox}
-            {fileRow}
-          </>
-        )}
-      </FormSection>
+        <FormSection
+          id="slides-section"
+          index={3}
+          title={t("pages.ideaForm.sections.slides")}
+          description={edit ? undefined : <p id="slides-hint">{t("pages.ideaForm.slidesHint")}</p>}
+        >
+          {edit ? (
+            <p className="rounded-[18px] bg-brand-lavender px-5 py-4 text-sm text-muted-foreground">
+              {t("pages.ideaEdit.slidesNote")}
+            </p>
+          ) : (
+            <>
+              {expectedBox}
+              {fileRow}
+            </>
+          )}
+        </FormSection>
+      </div>
 
       {notice !== null && (
         <div
@@ -486,23 +536,29 @@ export function IdeaForm({
           ref={noticeRef}
           role="alert"
           tabIndex={-1}
-          className="flex items-start gap-2 rounded-md border border-warning bg-card p-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="mt-6 flex items-start gap-2 rounded-[14px] border-[1.5px] border-warning bg-background p-4 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <TriangleAlertIcon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
           <p>{notice}</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3 pt-8">
         {!canSubmit && (
-          <p className="text-sm text-muted-foreground sm:text-right">
+          <p className="text-sm text-muted-foreground min-[480px]:text-right">
             {t(edit ? "pages.ideaEdit.closedHint" : "pages.ideaCreate.closedHint")}
           </p>
         )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end [&>*]:w-full sm:[&>*]:w-auto">
+        <div className="flex flex-col gap-3 min-[480px]:flex-row min-[480px]:justify-end [&>*]:w-full min-[480px]:[&>*]:w-auto">
           {onCancel}
-          <Button type="submit" disabled={pending || !canSubmit} aria-busy={pending || undefined}>
-            {!edit && <SendIcon aria-hidden="true" />}
+          <Button
+            type="submit"
+            variant="lime"
+            size="pill"
+            className="px-8"
+            disabled={pending || !canSubmit}
+            aria-busy={pending || undefined}
+          >
             {edit
               ? pending
                 ? t("pages.ideaEdit.saving")
