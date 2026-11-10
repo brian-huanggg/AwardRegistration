@@ -159,7 +159,9 @@ export const zhTW: Dictionary = {
     ideaForm: {
       slidesHint: '必填。PDF 或 PPTX，最大 5 MiB，檔名須與應使用的檔名完全相同。',
       choose: '請選擇…',
-      leaderHint: '您將成為組長。組員之後以申請方式加入，無法在此新增。',
+      leaderHint: '組員之後以申請方式加入，無法在此新增。',
+      dropHint: '將簡報檔案拖曳到此處，或選擇檔案。',
+      chooseFile: '選擇檔案',
       nameHint: '不可包含 / \\ : * ? " < > | 等字元。',
       count: '{{n}} / {{max}} 字',
       expectedTitle: '應使用的檔名',
@@ -182,7 +184,8 @@ export const zhTW: Dictionary = {
       },
     },
     ideaCreate: {
-      title: '建立提案',
+      title: '送出新提案',
+      eyebrow: '您將擔任組長',
       submit: '送出提案',
       submitting: '送出中…',
       closedHint: '目前不在收件期間，暫時無法送出提案。',
@@ -192,6 +195,7 @@ export const zhTW: Dictionary = {
     },
     ideaEdit: {
       title: '編輯提案',
+      eyebrow: '您是組長',
       saving: '儲存中…',
       closedHint: '目前不在收件期間，暫時無法修改提案。',
       slidesNote: '簡報請在提案頁面更換。變更類別、單位或提案名稱後，預期的簡報檔名也會跟著改變。',

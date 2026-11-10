@@ -55,6 +55,9 @@ describe('Edit Idea page', () => {
     const { container } = await open();
     expect(await screen.findByLabelText('Idea name')).toHaveValue('成立供應商永續學院');
     expect(screen.getByRole('heading', { level: 1, name: 'Edit Idea' })).toBeInTheDocument();
+    // Eco hero (Pencil FIFiM): eyebrow and the Idea's current name under the title
+    expect(screen.getByText('You are the Leader')).toBeInTheDocument();
+    expect(screen.getByText('成立供應商永續學院', { selector: 'section[data-slot="page-hero"] p' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Cool Idea Award' })).toBeChecked();
     expect(screen.getByLabelText('Summary')).toHaveValue('line one');
     expect(screen.queryByLabelText('Slide file')).not.toBeInTheDocument();

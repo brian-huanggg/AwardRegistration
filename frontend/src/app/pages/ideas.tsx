@@ -20,6 +20,8 @@ import { JoinTeamDialog } from "@/features/team/JoinRequests";
 import { JoinRequestsCard, TeamCard, TEAM_SIZE } from "@/features/team/TeamCards";
 import { can } from "@/shared/permissions";
 import { Button } from "@/shared/ui/button";
+import { PageHero } from "@/shared/ui/page-hero";
+import heroLandscape from "@/shared/assets/hero-landscape.webp";
 import { ideasKey } from "../nav";
 import { PageHeading } from "../layouts";
 import { NotFound } from "./NotFound";
@@ -84,6 +86,9 @@ export function IdeaList() {
   );
 }
 
+/** Bleeds the create/edit hero to the shell's edges (cancels `<main>` padding: p-4 sm:p-8 xl:px-14). */
+const HERO_BLEED = "-mx-4 -mt-4 sm:-mx-8 sm:-mt-8 xl:-mx-14";
+
 export function IdeaCreate() {
   const { t } = useTranslation();
   const { data: me } = useMe();
@@ -93,14 +98,20 @@ export function IdeaCreate() {
   const open = deadline?.state === "OPEN"; // Frontend.md §6.3 rule 6: a hint and disabled controls, not a guard
   return (
     <>
-      <PageHeading title={t("pages.ideaCreate.title")} />
-      <div className="max-w-[55rem]">
+      <PageHero
+        className={HERO_BLEED}
+        eyebrow={t("pages.ideaCreate.eyebrow")}
+        title={<PageHeading title={t("pages.ideaCreate.title")} />}
+        subtitle={t("pages.ideaForm.leaderHint")}
+        image={heroLandscape}
+      />
+      <div className="max-w-[83rem]">
         {me && (
           <IdeaForm
             leader={{ name: me.name, empNo: me.empNo }}
             canSubmit={open}
             onCancel={
-              <Button asChild variant="outline">
+              <Button asChild variant="light" size="pill">
                 <Link to="/ideas">{t("common.cancel")}</Link>
               </Button>
             }
@@ -355,7 +366,16 @@ export function IdeaEdit() {
     retry: false,
     staleTime: 30_000,
   });
-  const heading = <PageHeading title={t("pages.ideaEdit.title")} />;
+  const hero = (subtitle?: string) => (
+    <PageHero
+      className={HERO_BLEED}
+      eyebrow={t("pages.ideaEdit.eyebrow")}
+      title={<PageHeading title={t("pages.ideaEdit.title")} />}
+      subtitle={subtitle}
+      image={heroLandscape}
+    />
+  );
+  const heading = hero();
   if (error instanceof ApiError && error.status === 404) return <NotFound />;
   if (isPending && !error)
     return (
@@ -387,8 +407,8 @@ export function IdeaEdit() {
   const back = `/ideas/${id}`;
   return (
     <>
-      {heading}
-      <div className="max-w-[55rem]">
+      {hero(idea.name)}
+      <div className="max-w-[83rem]">
         <IdeaForm
           key={`${idea.id}-${idea.version}`}
           leader={{ name: idea.leader.name, empNo: idea.leader.empNo }}
@@ -398,7 +418,7 @@ export function IdeaEdit() {
             void client.invalidateQueries({ queryKey: deadlineKey })
           }
           onCancel={
-            <Button asChild variant="outline">
+            <Button asChild variant="light" size="pill">
               <Link to={back}>{t("common.cancel")}</Link>
             </Button>
           }

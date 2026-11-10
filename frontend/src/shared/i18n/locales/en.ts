@@ -162,7 +162,9 @@ export const en = {
     ideaForm: {
       slidesHint: 'Required. PDF or PPTX, up to 5 MiB. The file name must match the expected file name exactly.',
       choose: 'Choose…',
-      leaderHint: 'You will be the Leader. Teammates join later by request; they are not added here.',
+      leaderHint: 'Teammates join later by request — they are not added here.',
+      dropHint: 'Drag the slide file here, or choose it.',
+      chooseFile: 'Choose file',
       nameHint: 'The characters / \\ : * ? " < > | are not allowed.',
       count: '{{n}} / {{max}} characters',
       expectedTitle: 'Expected file name',
@@ -185,7 +187,8 @@ export const en = {
       },
     },
     ideaCreate: {
-      title: 'Create an Idea',
+      title: 'Submit a new Idea',
+      eyebrow: 'You will be the Leader',
       submit: 'Submit Idea',
       submitting: 'Submitting…',
       closedHint: 'Submissions are not open, so the Idea cannot be submitted now.',
@@ -195,6 +198,7 @@ export const en = {
     },
     ideaEdit: {
       title: 'Edit Idea',
+      eyebrow: 'You are the Leader',
       saving: 'Saving…',
       closedHint: 'Submissions are not open, so the Idea cannot be changed now.',
       slidesNote: 'Slides are changed from the Idea page. After you change the category, organization or name, the expected slide file name changes too.',
