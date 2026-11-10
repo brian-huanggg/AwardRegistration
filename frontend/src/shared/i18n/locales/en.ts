@@ -101,8 +101,17 @@ export const en = {
       canRetry: 'You can sign in again.',
       sessionEnded: 'Your session has ended. Please sign in again.',
       brand: {
-        eyebrow: '2026 ESG Award · IT Division',
+        eyebrow: '2026 ESG Award',
         headline: 'Small teams.\nReal impact.',
+        subtitle: 'Form a team of up to four and submit one Idea for the 2026 ESG Award. Sign in with your 6-digit employee ID.',
+        stats: {
+          days: 'Days until',
+          daysCaption: 'deadline',
+          team: 'Max team',
+          teamCaption: 'size',
+          idea: 'Idea per',
+          ideaCaption: 'team',
+        },
         state: { NOT_OPEN: 'Submissions not open yet', OPEN: 'Submissions open', CLOSED: 'Submissions closed' },
         closes: 'Closes {{date}}',
         closed: 'Closed {{date}}',

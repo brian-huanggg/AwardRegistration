@@ -98,8 +98,17 @@ export const zhTW: Dictionary = {
       canRetry: '您可以再次登入。',
       sessionEnded: '您的登入已結束，請重新登入。',
       brand: {
-        eyebrow: '2026 ESG 大獎 · 資訊處',
+        eyebrow: '2026 ESG 大獎',
         headline: '小團隊，\n大影響。',
+        subtitle: '組成最多四人的團隊，為 2026 ESG 大獎提交一個提案。請使用 6 位數員工編號登入。',
+        stats: {
+          days: '距離截止',
+          daysCaption: '天數',
+          team: '每隊人數',
+          teamCaption: '上限',
+          idea: '每隊',
+          ideaCaption: '提案數',
+        },
         state: { NOT_OPEN: '尚未開放提案', OPEN: '開放提案中', CLOSED: '提案已截止' },
         closes: '截止時間 {{date}}',
         closed: '已於 {{date}} 截止',

@@ -257,8 +257,33 @@ describe("Login page: brand panel (UI-02)", () => {
   it("shows the pitch copy and no countdown cells before F2-02", async () => {
     await openPanel();
     expect(screen.getByText("Small teams.", { exact: false })).toBeInTheDocument();
-    expect(screen.getByText("2026 ESG Award · IT Division")).toBeInTheDocument();
+    expect(screen.getByText("2026 ESG Award")).toBeInTheDocument();
     expect(screen.queryByText("days")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    // serverTime is 2026-11-08T00:00Z: 22 days and 10 h left round up to 23
+    ["OPEN", DEADLINE, "23"],
+    ["CLOSED", "2026-11-01T00:00:00.000Z", "0"],
+    ["OPEN", null, "–"],
+  ] as const)(
+    "counts days until the deadline from the server time (%s, %s)",
+    async (state, deadline, days) => {
+      await openPanel({ state, deadline });
+      const region = screen.getByRole("region", { name: "Submission status" });
+      await within(region).findByText(state === "CLOSED" ? "Submissions closed" : "Submissions open");
+      const figure = within(region).getByText("Days until", { exact: false }).closest("div")!;
+      expect(within(figure).getByRole("definition")).toHaveTextContent(days);
+      expect(within(region).getByText("Max team", { exact: false }).nextElementSibling).toHaveTextContent("4");
+    },
+  );
+
+  it("shows the side-by-side fields, lime pill and stats with no axe violations", async () => {
+    const { container } = await openPanel({ state: "OPEN", deadline: DEADLINE });
+    await within(screen.getByRole("region", { name: "Submission status" })).findByText("Submissions open");
+    expect(screen.getByRole("button", { name: "Sign in" })).toHaveAttribute("data-variant", "lime");
+    expect(screen.getByRole("heading", { level: 1, name: "Sign in" })).toHaveClass("sr-only");
+    expect((await axe(container)).violations).toEqual([]);
   });
 
   it("renders the registered notice as a status in the slot above the heading", async () => {

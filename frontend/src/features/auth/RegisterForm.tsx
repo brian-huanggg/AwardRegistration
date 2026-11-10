@@ -9,6 +9,7 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/shared/ui/field";
+import { ecoControl } from "@/shared/ui/form-field";
 import { Input } from "@/shared/ui/input";
 import { PasswordChecklist } from "./PasswordChecklist";
 import {
@@ -128,7 +129,7 @@ export function RegisterForm({
             ref={summary}
             role="alert"
             tabIndex={-1}
-            className="rounded-md border border-destructive p-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/40"
+            className="rounded-xl border border-destructive px-4 py-3 text-sm outline-none focus-visible:ring-[3px] focus-visible:ring-destructive/40"
           >
             <p className="font-medium text-destructive">
               {t("pages.register.summaryTitle")}
@@ -163,9 +164,15 @@ export function RegisterForm({
               .join(" ") || undefined;
           return (
             <Field key={f} data-invalid={problem ? true : undefined}>
-              <FieldLabel htmlFor={f}>{t(`fields.${f}`)}</FieldLabel>
+              <FieldLabel
+                htmlFor={f}
+                className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase"
+              >
+                {t(`fields.${f}`)}
+              </FieldLabel>
               <Input
                 id={f}
+                className={ecoControl}
                 name={f}
                 type={a.type}
                 autoComplete={a.autoComplete}
@@ -197,9 +204,12 @@ export function RegisterForm({
             </Field>
           );
         })}
-        <Field>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
           <Button
             type="submit"
+            variant="lime"
+            size="pill"
+            className="h-[50px] px-[30px] text-sm"
             disabled={pending}
             aria-busy={pending || undefined}
           >
@@ -207,13 +217,16 @@ export function RegisterForm({
               ? t("pages.register.submitting")
               : t("pages.register.submit")}
           </Button>
-          <FieldDescription className="text-center">
+          <p className="text-sm text-muted-foreground">
             {t("pages.register.haveAccount")}{" "}
-            <Link to="/login" className="underline underline-offset-4">
+            <Link
+              to="/login"
+              className="rounded-sm font-semibold text-brand-purple underline underline-offset-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
               {t("nav.signIn")}
             </Link>
-          </FieldDescription>
-        </Field>
+          </p>
+        </div>
       </FieldGroup>
     </form>
   );
