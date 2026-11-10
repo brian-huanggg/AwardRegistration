@@ -271,6 +271,8 @@ export const en = {
       requestsHintAdmin: 'Visible only to the Leader and admins',
       requestsFooter: 'Approving checks capacity — a full team (4/4) can’t accept more.',
       requestedAgo: 'requested {{when}}',
+      seatsShort: '{{count}} of {{max}} seats',
+      pendingCount: '{{count}} pending',
     },
     joinRequests: {
       apply: 'Apply to join a team',

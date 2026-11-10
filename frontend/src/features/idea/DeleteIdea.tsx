@@ -61,20 +61,15 @@ export function DeleteIdea({
       }}
     >
       <AlertDialog.Trigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
+        <Button variant="danger-outline" size="pill" disabled={disabled}>
           <Trash2 aria-hidden="true" />
           {t('pages.ideaDetail.delete')}
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg">
-          <AlertDialog.Title className="text-lg font-semibold">{t('pages.ideaDetail.deleteTitle')}</AlertDialog.Title>
+        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border bg-background p-6 shadow-lg sm:p-7">
+          <AlertDialog.Title className="text-lg font-bold text-brand-ink">{t('pages.ideaDetail.deleteTitle')}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">
             {t('pages.ideaDetail.deleteBody', { name: idea.name })}
           </AlertDialog.Description>
@@ -85,12 +80,12 @@ export function DeleteIdea({
           )}
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
-              <Button variant="outline" disabled={pending}>
+              <Button variant="light" size="pill-sm" disabled={pending}>
                 {t('common.cancel')}
               </Button>
             </AlertDialog.Cancel>
             {/* not AlertDialog.Action: it would close the dialog before the request ends */}
-            <Button variant="destructive" disabled={pending} aria-busy={pending || undefined} onClick={() => void confirm()}>
+            <Button variant="destructive" size="pill-sm" className="font-semibold tracking-[0.09em] uppercase" disabled={pending} aria-busy={pending || undefined} onClick={() => void confirm()}>
               {pending ? t('pages.ideaDetail.deleting') : t('pages.ideaDetail.deleteConfirm')}
             </Button>
           </div>

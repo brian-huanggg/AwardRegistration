@@ -131,7 +131,8 @@ describe('Idea detail layout (UI-04)', () => {
 
   it('the join requests card shows the empty text for []', async () => {
     await open(LEADER, { idea: detail({ pendingRequests: [] }) });
-    expect(screen.getByRole('heading', { name: /Join requests/ })).toHaveTextContent('0');
+    expect(screen.getByRole('heading', { name: 'Join requests' })).toBeInTheDocument();
+    expect(screen.getByText('0 pending')).toBeInTheDocument();
     expect(screen.getByText('No pending requests.')).toBeInTheDocument();
   });
 
@@ -156,6 +157,23 @@ describe('Idea detail layout (UI-04)', () => {
     expect(time.tagName).toBe('TIME');
     expect(time).toHaveAttribute('dateTime', '2026-11-04T03:00:00.000Z');
     expect(time).toHaveAttribute('title');
+  });
+
+  it('Eco hero (uwwe8): eyebrow, relation and seat chips; seat bar is decorative next to its text', async () => {
+    const { main } = await open(LEADER);
+    expect(main.getByText('Cool Idea Award · BSID · Talent Development')).toBeInTheDocument();
+    expect(main.getByText('2 of 4 seats')).toBeInTheDocument();
+    const bar = screen.getByTestId('seat-bar');
+    expect(bar).toHaveAttribute('aria-hidden', 'true');
+    expect(bar.children).toHaveLength(4);
+    expect(bar.querySelectorAll('.bg-accent-lime')).toHaveLength(2);
+    expect(screen.getByText('1 pending')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove 李小華 (089291)' })).toHaveTextContent('Remove');
+  });
+
+  it('CLOSED state passes axe', async () => {
+    const { container } = await open(LEADER, { state: 'CLOSED' });
+    expect((await axe(container)).violations).toEqual([]);
   });
 
   it('the back link returns to the list URL from history state', async () => {

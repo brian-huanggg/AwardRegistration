@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
-import { ArrowLeft, Check, LogOut, Pencil, UserMinus, X } from "lucide-react";
+import { ArrowLeft, Check, LogOut, Pencil, X } from "lucide-react";
 import { ApiError } from "@/shared/api";
 import { deadlineKey, useDeadline } from "@/features/deadline/useDeadline";
 import { DeadlineNotice } from "@/features/deadline/DeadlineNotice";
@@ -22,6 +22,7 @@ import { can } from "@/shared/permissions";
 import { Button } from "@/shared/ui/button";
 import { PageHero } from "@/shared/ui/page-hero";
 import heroLandscape from "@/shared/assets/hero-landscape.webp";
+import { Chip } from "@/shared/ui/chip";
 import { ideasKey } from "../nav";
 import { PageHeading } from "../layouts";
 import { NotFound } from "./NotFound";
@@ -154,7 +155,7 @@ export function IdeaDetail() {
   const back = (
     <Link
       to={listUrl}
-      className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      className="inline-flex items-center gap-2 text-xs font-semibold tracking-[0.12em] text-foreground uppercase underline-offset-4 hover:underline"
     >
       <ArrowLeft aria-hidden="true" className="size-4" />
       {t("pages.ideaDetail.backTo", { list: t(ideasKey(me.role)) })}
@@ -170,6 +171,11 @@ export function IdeaDetail() {
         <PageHeading title={title ?? t("pages.ideaDetail.title")} />
       )}
       notice={<DeadlineNotice />}
+      heroChips={(idea) => (
+        <Chip tone="lavender">
+          {t("pages.ideaDetail.seatsShort", { count: 1 + idea.members.length, max: TEAM_SIZE })}
+        </Chip>
+      )}
       headerActions={(idea) => {
         // Frontend.md §5.4: a hint only; the Leader is limited to the submission window, an Admin is not.
         const ctx = { me, idea, state: deadline?.state };
@@ -179,7 +185,7 @@ export function IdeaDetail() {
         return (
           <>
             {edit.visible && (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="light" size="pill">
                 <Link to={`/ideas/${idea.id}/edit`}>
                   <Pencil aria-hidden="true" />
                   {t("pages.ideaDetail.edit")}
@@ -204,6 +210,7 @@ export function IdeaDetail() {
                 trigger={t("pages.ideaDetail.leave")}
                 triggerLabel={t("pages.ideaDetail.leave")}
                 icon={<LogOut aria-hidden="true" />}
+                appearance="danger"
                 title={t("pages.ideaDetail.leaveTitle")}
                 body={t("pages.ideaDetail.leaveBody", { name: idea.name })}
                 confirm={t("pages.ideaDetail.leaveConfirm")}
@@ -275,8 +282,7 @@ export function IdeaDetail() {
                   <ConfirmAction
                     trigger={t("pages.ideaDetail.remove")}
                     triggerLabel={t("pages.ideaDetail.removeNamed", { name: label })}
-                    icon={<UserMinus aria-hidden="true" />}
-                    iconOnly
+                    appearance="text"
                     title={t("pages.ideaDetail.removeTitle")}
                     body={t("pages.ideaDetail.removeBody", { name: label })}
                     confirm={t("pages.ideaDetail.removeConfirm")}

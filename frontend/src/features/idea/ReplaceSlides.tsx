@@ -99,15 +99,15 @@ export function ReplaceSlides({
       }}
     >
       <Dialog.Trigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>
+        <Button variant="light" size="pill" disabled={disabled}>
           <Upload aria-hidden="true" />
           {t('pages.ideaDetail.replace')}
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg">
-          <Dialog.Title className="text-lg font-semibold">{t('pages.ideaDetail.replace')}</Dialog.Title>
+        <Dialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border bg-background p-6 shadow-lg sm:p-7">
+          <Dialog.Title className="text-lg font-bold text-brand-ink">{t('pages.ideaDetail.replace')}</Dialog.Title>
           <Dialog.Description className="mt-2 text-sm text-muted-foreground">
             {t('pages.ideaDetail.replaceBody', { name: idea.expectedFilenameBase })}
           </Dialog.Description>
@@ -139,11 +139,11 @@ export function ReplaceSlides({
             {progress !== null && <progress className="h-2 w-full" max={100} value={progress} aria-label={t('pages.ideaCreate.uploading')} />}
             <div className="mt-2 flex justify-end gap-2">
               <Dialog.Close asChild>
-                <Button type="button" variant="outline" disabled={pending}>
+                <Button type="button" variant="light" size="pill-sm" disabled={pending}>
                   {t('common.cancel')}
                 </Button>
               </Dialog.Close>
-              <Button type="submit" disabled={pending} aria-busy={pending || undefined}>
+              <Button type="submit" variant="lime" size="pill-sm" disabled={pending} aria-busy={pending || undefined}>
                 {pending ? t('pages.ideaDetail.replacing') : t('pages.ideaDetail.replaceSubmit')}
               </Button>
             </div>
