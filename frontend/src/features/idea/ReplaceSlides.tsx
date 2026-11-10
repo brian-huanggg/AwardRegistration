@@ -99,7 +99,7 @@ export function ReplaceSlides({
       }}
     >
       <Dialog.Trigger asChild>
-        <Button variant="outline" size="sm" disabled={disabled}>
+        <Button variant="light" size="pill-sm" disabled={disabled}>
           <Upload aria-hidden="true" />
           {t('pages.ideaDetail.replace')}
         </Button>

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
-/** ≥ 640 px (Tailwind `sm`): table layout; below it the list renders cards (UI-03). */
-export const WIDE_QUERY = '(min-width: 640px)';
+/** ≥ 768 px (Tailwind `md`): table layout; below it the list renders cards (UI-03, Eco E2/E5). */
+export const WIDE_QUERY = '(min-width: 768px)';
 
 const media = () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(WIDE_QUERY) : null);
 
@@ -12,7 +12,7 @@ function subscribe(onChange: () => void) {
 }
 
 /**
- * True when the viewport is at least 640 px wide. Without `matchMedia` (jsdom) it reports wide, so
+ * True when the viewport is at least 768 px wide. Without `matchMedia` (jsdom) it reports wide, so
  * only one layout is ever in the DOM and assistive tech never meets the same links twice.
  */
 export function useWide(): boolean {

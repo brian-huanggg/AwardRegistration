@@ -18,13 +18,13 @@ export function SortMenu({ sort, order, onChange }: { sort: Sort; order: Order; 
   return (
     <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
-        <Button type="button" variant="outline" size="sm" aria-label={`${t('pages.ideaList.sort.label')}: ${t(`pages.ideaList.sort.${current.key}`)}`}>
+        <Button type="button" variant="ghost" className="h-11 gap-2 rounded-full px-3 text-xs font-semibold tracking-[0.1em] text-foreground uppercase" aria-label={`${t('pages.ideaList.sort.label')}: ${t(`pages.ideaList.sort.${current.key}`)}`}>
           <ArrowDownWideNarrow aria-hidden="true" />
           {t(`pages.ideaList.sort.${current.key}`)}
         </Button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-44 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+        <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-44 rounded-[14px] border bg-popover p-1 text-popover-foreground shadow-md">
           <DropdownMenu.RadioGroup
             value={current.key}
             onValueChange={(k) => {

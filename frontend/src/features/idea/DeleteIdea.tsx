@@ -61,12 +61,7 @@ export function DeleteIdea({
       }}
     >
       <AlertDialog.Trigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={disabled}
-          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-        >
+        <Button variant="danger-outline" size="pill-sm" disabled={disabled}>
           <Trash2 aria-hidden="true" />
           {t('pages.ideaDetail.delete')}
         </Button>
