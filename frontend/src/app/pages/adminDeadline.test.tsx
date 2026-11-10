@@ -36,7 +36,8 @@ async function open(me: Record<string, unknown> = ADMIN, current = body()) {
 const dateInput = () => screen.findByLabelText<HTMLInputElement>('Date', {}, { timeout: 5000 });
 const timeInput = () => screen.getByLabelText<HTMLInputElement>('Time');
 const pill = () => screen.getByRole('region', { name: 'Submission status' });
-const current = () => screen.getByRole('heading', { level: 3, name: 'Current deadline' }).parentElement!;
+const current = () => screen.getByRole('heading', { level: 2, name: 'Current deadline' }).closest('section')!;
+const live = async () => (await screen.findByText('Users will see:')).closest('[aria-live]')!;
 
 describe('Admin deadline page', () => {
   it('shows the current deadline, prefills Date + Time, keeps the shell pill and passes axe', async () => {
@@ -55,7 +56,13 @@ describe('Admin deadline page', () => {
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 2, name: 'How submission state works' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /clear/i })).not.toBeInTheDocument();
-    expect(await screen.findByText(/^Users will see: Submissions open · closes in 23d \d{2}h$/)).toBeInTheDocument();
+    expect(await live()).toHaveTextContent(/^Users will see:\s*Open · 23d \d{2}h left$/);
+    // Time left by server time (serverTime 2026-11-08T00:00Z, deadline 2026-12-01T02:30Z): 23 d 02 h (minutes depend on elapsed time).
+    const left = within(current()).getByRole('group', { name: 'Time left' });
+    expect(within(left).getByText('Days')).toBeInTheDocument();
+    expect(within(left).getByText('23')).toBeInTheDocument();
+    expect(within(left).getByText('02')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Set a new deadline' })).toBeInTheDocument();
     expect((await axe(container)).violations).toEqual([]);
   });
 
@@ -65,27 +72,30 @@ describe('Admin deadline page', () => {
     expect(screen.queryByLabelText('Date')).not.toBeInTheDocument();
   });
 
-  it('shows the "not set" variant with empty inputs when no deadline exists', async () => {
-    await open(ADMIN, body('NOT_OPEN', null));
+  it('shows the "not set" variant with empty inputs when no deadline exists and passes axe', async () => {
+    const { container } = await open(ADMIN, body('NOT_OPEN', null));
     const date = await dateInput();
     expect(await within(current()).findByText('Not set')).toBeInTheDocument();
     expect(within(current()).getByText('NOT OPEN')).toBeInTheDocument();
     expect(date).toHaveValue('');
     expect(timeInput()).toHaveValue('');
+    expect(within(current()).queryByText('Days')).not.toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
   });
 
   it('previews OPEN for a future instant and CLOSED for a past one, using server time', async () => {
-    await open();
+    const { container } = await open();
     const date = await dateInput();
     await waitFor(() => expect(date.value).not.toBe(''));
-    const live = (await screen.findByText(/^Users will see:/)).closest('[aria-live]');
-    expect(live).toHaveAttribute('aria-live', 'polite');
+    const region = await live();
+    expect(region).toHaveAttribute('aria-live', 'polite');
     // serverTime is 2026-11-08; a date before it closes submissions even if the client clock says otherwise.
     fireEvent.change(date, { target: { value: '2026-11-07' } });
-    expect(await screen.findByText('Users will see: Submissions closed')).toBeInTheDocument();
+    await waitFor(() => expect(region).toHaveTextContent(/^Users will see:\s*Closed$/));
     expect(screen.getByText(/A time in the past closes submissions immediately/).parentElement).toHaveAttribute('data-prominent', 'true');
+    expect((await axe(container)).violations).toEqual([]);
     fireEvent.change(date, { target: { value: '2026-11-10' } });
-    expect(await screen.findByText(/^Users will see: Submissions open · closes in [12]d \d{2}h$/)).toBeInTheDocument();
+    await waitFor(() => expect(region).toHaveTextContent(/^Users will see:\s*Open · [12]d \d{2}h left$/));
     expect(screen.getByText(/A time in the past closes submissions immediately/).parentElement).not.toHaveAttribute('data-prominent');
   });
 

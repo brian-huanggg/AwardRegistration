@@ -1,13 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Calendar, Clock4, Eye, Globe, Save, TriangleAlert } from 'lucide-react';
+import { TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from 'react';
-import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { ApiError } from '@/shared/api';
 import { makeServerClock } from '@/shared/time/offset';
 import { Button } from '@/shared/ui/button';
+import { ecoControl, ecoLabel } from '@/shared/ui/form-field';
 import { cn } from '@/shared/ui/utils';
-import { isoToLocalParts, localPartsToIso, previewFor, zoneLabel, type LocalParts, type Preview } from './preview';
+import { isoToLocalParts, localPartsToIso, offsetLabel, previewFor, zoneLabel, type LocalParts, type Preview } from './preview';
 import { putDeadline } from './set';
 import { StateBadge } from './StateBadge';
 import { deadlineKey, useDeadline, type Deadline } from './useDeadline';
@@ -15,7 +15,8 @@ import { deadlineKey, useDeadline, type Deadline } from './useDeadline';
 /** Debounce for the preview sentence, so the live region speaks once per edit and not per keystroke. */
 const PREVIEW_DELAY_MS = 300;
 
-const control = 'h-9 w-full rounded-md border bg-background px-3 text-sm aria-invalid:border-destructive';
+/** Eco field on the warm form card: the inputs themselves are white, as in the frame. */
+const control = cn(ecoControl, 'h-[52px] bg-background');
 
 /**
  * Admin deadline card (Frontend.md §5.3, UI-07): the current deadline, a Date + Time pair in the
@@ -101,142 +102,202 @@ export function DeadlineForm() {
   const zoneAt = new Date(iso ?? data?.deadline ?? data?.serverTime ?? Number.NaN);
 
   return (
-    <section aria-labelledby={`${id}-title`} className="rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
-      <h2 id={`${id}-title`} className="sr-only">
-        {t('pages.adminDeadline.formTitle')}
-      </h2>
+    <div className="flex min-w-0 flex-col gap-9">
       <CurrentDeadline data={data} loading={loading} error={isError} />
 
-      <form onSubmit={onSubmit} noValidate className="mt-6 space-y-5 border-t pt-6">
-        {problems.length > 0 && (
-          <div ref={summary} key={failKey} tabIndex={-1} role="alert" aria-label={t('pages.adminDeadline.problems')} className="rounded-md border border-destructive p-3 text-sm text-destructive outline-none">
-            <ul>
-              {problems.map((p) => (
-                <li key={p}>{p}</li>
-              ))}
-            </ul>
-          </div>
-        )}
+      <section aria-labelledby={`${id}-title`} className="rounded-[24px] border border-border bg-field p-5 text-card-foreground sm:p-7">
+        <h2 id={`${id}-title`} className="text-xl font-bold tracking-[0.03em] text-brand-ink uppercase">
+          {t('pages.adminDeadline.formTitle')}
+        </h2>
 
-        <fieldset>
-          <legend className="text-sm font-semibold">{t('pages.adminDeadline.newDeadline')}</legend>
-          <p id={hintId} className="mt-1 text-sm text-muted-foreground">
-            {t('pages.adminDeadline.hint')}
-          </p>
-          <div className="mt-3 grid gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor={`${id}-date`} className="mb-1 flex items-center gap-1.5 text-sm font-medium">
-                <Calendar aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t('pages.adminDeadline.date')}
-              </label>
-              <input {...fieldProps} id={`${id}-date`} name="date" type="date" value={value.date} onChange={(e) => change('date', e.target.value)} />
+        <form onSubmit={onSubmit} noValidate className="mt-5 flex flex-col gap-5">
+          {problems.length > 0 && (
+            <div
+              ref={summary}
+              key={failKey}
+              tabIndex={-1}
+              role="alert"
+              aria-label={t('pages.adminDeadline.problems')}
+              className="rounded-[14px] border-[1.5px] border-destructive bg-background px-[18px] py-3 text-sm text-destructive outline-none"
+            >
+              <ul>
+                {problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
             </div>
-            <div>
-              <label htmlFor={`${id}-time`} className="mb-1 flex items-center gap-1.5 text-sm font-medium">
-                <Clock4 aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t('pages.adminDeadline.time')}
-              </label>
-              <input {...fieldProps} id={`${id}-time`} name="time" type="time" step={1} value={value.time} onChange={(e) => change('time', e.target.value)} />
-            </div>
-            <div>
-              {/* Read-only: the API stores an instant; choosing another zone is an open owner decision. */}
-              <p id={`${id}-zone-label`} className="mb-1 flex items-center gap-1.5 text-sm font-medium">
-                <Globe aria-hidden="true" className="size-4 text-muted-foreground" />
-                {t('pages.adminDeadline.timeZone')}
-              </p>
-              <p aria-labelledby={`${id}-zone-label`} className="flex h-9 items-center truncate rounded-md border bg-muted px-3 text-sm">
-                {zoneLabel(zoneAt, i18n.language)}
-              </p>
-            </div>
-          </div>
-          {fieldError && (
-            <p id={errorId} role="alert" className="mt-2 text-sm text-destructive">
-              {fieldError}
-            </p>
           )}
-        </fieldset>
 
-        <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2 text-sm">
-          <Eye aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <p aria-live="polite">{preview && previewText(preview, t)}</p>
-        </div>
+          <fieldset className="min-w-0">
+            <legend className="sr-only">{t('pages.adminDeadline.newDeadline')}</legend>
+            <p id={hintId} className="text-sm text-muted-foreground">
+              {t('pages.adminDeadline.hint')}
+            </p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="min-w-0">
+                <label htmlFor={`${id}-date`} className={ecoLabel}>
+                  {t('pages.adminDeadline.date')}
+                </label>
+                <input {...fieldProps} id={`${id}-date`} name="date" type="date" value={value.date} onChange={(e) => change('date', e.target.value)} />
+              </div>
+              <div className="min-w-0">
+                <label htmlFor={`${id}-time`} className={ecoLabel}>
+                  {t('pages.adminDeadline.time')}
+                </label>
+                <input {...fieldProps} id={`${id}-time`} name="time" type="time" step={1} value={value.time} onChange={(e) => change('time', e.target.value)} />
+              </div>
+              <div className="min-w-0">
+                {/* Read-only: the API stores an instant; choosing another zone is an open owner decision. */}
+                <p id={`${id}-zone-label`} className={ecoLabel}>
+                  {t('pages.adminDeadline.timeZone')}
+                </p>
+                <p aria-labelledby={`${id}-zone-label`} className="flex h-[52px] items-center truncate rounded-[14px] border-[1.5px] border-border bg-muted px-[18px] text-base text-foreground">
+                  {zoneLabel(zoneAt, i18n.language)}
+                </p>
+              </div>
+            </div>
+            {fieldError && (
+              <p id={errorId} role="alert" className="mt-2 text-sm text-destructive">
+                {fieldError}
+              </p>
+            )}
+          </fieldset>
 
-        <div data-prominent={past || undefined} className={cn('flex items-start gap-2 rounded-md border p-3 text-sm', past ? 'border-warning bg-warning/10 font-medium text-warning' : 'text-muted-foreground')}>
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          <p>{t('pages.adminDeadline.pastWarning')}</p>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="mr-auto text-sm">
-            {saved ? t('pages.adminDeadline.saved') : ''}
+          <p aria-live="polite" className="flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
+            {preview && (
+              <>
+                <span>{t('pages.adminDeadline.preview.label')}</span>
+                <PreviewPill preview={preview} />
+              </>
+            )}
           </p>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              setEdited(null);
-              setSaved(false);
-            }}
-          >
-            {t('pages.adminDeadline.reset')}
-          </Button>
-          <Button type="submit" disabled={pending}>
-            <Save aria-hidden="true" />
-            {pending ? t('pages.adminDeadline.saving') : t('pages.adminDeadline.save')}
-          </Button>
-        </div>
-      </form>
-    </section>
+
+          <div data-prominent={past || undefined} className={cn('flex items-start gap-3 rounded-[14px] bg-warning/10 px-[18px] py-3.5 text-sm leading-5 text-foreground', past && 'font-medium ring-2 ring-warning')}>
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-[18px] shrink-0 text-warning" />
+            <p>{t('pages.adminDeadline.pastWarning')}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4">
+            <p role="status" className="mr-auto text-sm">
+              {saved ? t('pages.adminDeadline.saved') : ''}
+            </p>
+            <Button
+              type="button"
+              variant="light"
+              size="pill"
+              onClick={() => {
+                setEdited(null);
+                setSaved(false);
+              }}
+            >
+              {t('pages.adminDeadline.reset')}
+            </Button>
+            <Button type="submit" variant="lime" size="pill" className="px-8" disabled={pending}>
+              {pending ? t('pages.adminDeadline.saving') : t('pages.adminDeadline.save')}
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 
-function previewText(p: Preview, t: TFunction): string {
-  if (p.state === 'CLOSED') return t('pages.adminDeadline.preview.CLOSED');
+/** The state the entered instant would produce, styled like the shell pill. */
+function PreviewPill({ preview: p }: { preview: Preview }) {
+  const { t } = useTranslation();
+  const base = 'inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-xs leading-tight font-medium tracking-[0.06em] uppercase';
+  if (p.state === 'CLOSED')
+    return (
+      <span className={cn(base, 'border border-border bg-background text-destructive')}>
+        <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-destructive" />
+        {t('pages.adminDeadline.preview.CLOSED')}
+      </span>
+    );
   const left =
     p.days > 0
-      ? t('pages.adminDeadline.preview.days', { days: p.days, hours: String(p.hours).padStart(2, '0') })
-      : t('pages.adminDeadline.preview.hours', { hours: p.hours, minutes: String(p.minutes).padStart(2, '0') });
-  return t('pages.adminDeadline.preview.OPEN', { left });
+      ? t('pages.adminDeadline.preview.days', {
+          days: p.days,
+          hours: String(p.hours).padStart(2, '0'),
+        })
+      : t('pages.adminDeadline.preview.hours', {
+          hours: p.hours,
+          minutes: String(p.minutes).padStart(2, '0'),
+        });
+  return (
+    <span className={cn(base, 'bg-accent-lime-tint text-brand-ink')}>
+      <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-accent-lime" />
+      {t('pages.adminDeadline.preview.OPEN', { left })}
+    </span>
+  );
 }
 
-/** Current deadline in the browser's zone, the stored UTC value, and the state badge; a "not set" variant. */
+/**
+ * Current deadline (Pencil ra682 "Current"): state chip, the instant in the browser's zone, its offset
+ * and the stored UTC value, and the time left by server time (a snapshot; it does not tick).
+ * A "not set" variant when there is no deadline.
+ */
 function CurrentDeadline({ data, loading, error }: { data: Deadline | undefined; loading: boolean; error: boolean }) {
   const { t, i18n } = useTranslation();
+  const id = useId();
+  const left = useMemo(() => {
+    if (!data?.deadline || data.state !== 'OPEN') return null;
+    const p = previewFor(Date.parse(data.deadline), makeServerClock(data.serverTime).now());
+    return p.state === 'OPEN' ? p : null;
+  }, [data]);
+
   let body;
   if (loading) body = <p className="text-sm text-muted-foreground">{t('deadlineBanner.loading')}</p>;
   else if (error || !data) body = <p className="text-sm">{t('deadlineBanner.error')}</p>;
-  else
+  else if (!data.deadline) body = <p className="text-3xl font-bold text-brand-ink uppercase sm:text-[40px] sm:leading-tight">{t('pages.adminDeadline.notSet')}</p>;
+  else {
+    const at = new Date(data.deadline);
+    const offset = offsetLabel(at, i18n.language);
     body = (
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          {data.deadline ? (
-            <>
-              <p className="text-lg font-semibold">
-                {new Intl.DateTimeFormat(i18n.language, {
-                  weekday: 'short',
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  timeZoneName: 'shortOffset',
-                }).format(new Date(data.deadline))}
-              </p>
-              <p className="mt-1 text-sm break-all text-muted-foreground">
-                <code className="font-mono">{data.deadline}</code> {t('pages.adminDeadline.utc')}
-              </p>
-            </>
-          ) : (
-            <p className="text-lg font-semibold">{t('pages.adminDeadline.notSet')}</p>
-          )}
-        </div>
-        <StateBadge state={data.state} />
-      </div>
+      <>
+        <p className="text-3xl font-bold break-words text-brand-ink uppercase sm:text-[40px] sm:leading-tight">
+          {new Intl.DateTimeFormat(i18n.language, {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }).format(at)}
+        </p>
+        <p className="font-mono text-[13px] break-all text-muted-foreground">
+          {offset && <>{offset} · </>}
+          <code className="font-mono">{data.deadline}</code> {t('pages.adminDeadline.utc')}
+        </p>
+        {left && (
+          <div role="group" aria-label={t('pages.adminDeadline.countdown.label')}>
+            <dl className="flex flex-wrap items-center gap-x-11 gap-y-3 pt-2.5">
+              {(
+                [
+                  ['days', String(left.days)],
+                  ['hours', String(left.hours).padStart(2, '0')],
+                  ['minutes', String(left.minutes).padStart(2, '0')],
+                ] as const
+              ).map(([unit, n]) => (
+                <div key={unit} className="flex items-center gap-2.5">
+                  <dt className="order-last text-sm text-muted-foreground">{t(`pages.adminDeadline.countdown.${unit}`)}</dt>
+                  <dd className="text-[44px] leading-none font-medium text-brand-purple">{n}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      </>
     );
+  }
   return (
-    <div>
-      <h3 className="mb-2 text-sm font-medium text-muted-foreground">{t('pages.adminDeadline.current')}</h3>
+    <section aria-labelledby={id} data-slot="current-deadline" className="flex flex-col gap-3.5">
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 id={id} className="text-xs font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+          {t('pages.adminDeadline.current')}
+        </h2>
+        {data && !loading && !error && <StateBadge state={data.state} />}
+      </div>
       {body}
-    </div>
+    </section>
   );
 }
