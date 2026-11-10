@@ -23,8 +23,6 @@ import { JoinTeamDialog } from "@/features/team/JoinRequests";
 import { JoinRequestsCard, TeamCard, TEAM_SIZE } from "@/features/team/TeamCards";
 import { can } from "@/shared/permissions";
 import { Button } from "@/shared/ui/button";
-import { PageHero } from "@/shared/ui/page-hero";
-import heroLandscape from "@/shared/assets/hero-landscape.webp";
 import { Chip } from "@/shared/ui/chip";
 import { ideasKey } from "../nav";
 import { PageHeading } from "../layouts";
