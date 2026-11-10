@@ -91,10 +91,10 @@ describe("Login page", () => {
   });
 
   it("follows a role-allowed next", async () => {
-    const { router, user } = await open("/login?next=%2Fjoin-requests");
+    const { router, user } = await open("/login?next=%2Fideas%2Fnew");
     await signIn(user);
     await waitFor(() =>
-      expect(router.state.location.pathname).toBe("/join-requests"),
+      expect(router.state.location.pathname).toBe("/ideas/new"),
     );
   });
 

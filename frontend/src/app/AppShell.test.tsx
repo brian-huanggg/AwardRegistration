@@ -33,7 +33,6 @@ async function open(path: string, role: Role = 'USER', deadline: DeadlineMock = 
     }),
     http.get(`${API}/ideas`, () => HttpResponse.json({ items: [], page: 1, size: 20, total: 0 })),
     http.get(`${API}/ideas/:id`, () => problem(404, 'NOT_FOUND')),
-    http.get(`${API}/join-requests`, () => HttpResponse.json({ items: [] })),
   );
   await initI18n('en');
   const client = new QueryClient();
@@ -45,10 +44,10 @@ async function open(path: string, role: Role = 'USER', deadline: DeadlineMock = 
 
 const mainNav = () => screen.getByRole('navigation', { name: 'Main navigation' });
 
-describe('sidebar navigation (Frontend.md §6.2, §6.5)', () => {
+describe('navbar navigation (Frontend.md §6.2, §6.5; Eco Navbar)', () => {
   it.each([
-    ['USER', ['My Ideas', 'New Idea', 'Join requests']],
-    ['ADMIN', ['All Ideas', 'Deadline', 'Statistics']],
+    ['USER', ['My Ideas', 'New Idea']],
+    ['ADMIN', ['Registrations', 'Deadline', 'Statistics']],
   ] as const)('%s sees exactly navFor(role), in order', async (role, labels) => {
     await open('/ideas', role);
     const links = within(mainNav()).getAllByRole('link');
@@ -57,9 +56,40 @@ describe('sidebar navigation (Frontend.md §6.2, §6.5)', () => {
   });
 
   it('marks only the current page with aria-current', async () => {
-    await open('/join-requests');
+    await open('/admin/deadline', 'ADMIN');
     const links = within(mainNav()).getAllByRole('link');
-    expect(links.filter((l) => l.getAttribute('aria-current') === 'page').map((l) => l.textContent)).toEqual(['Join requests']);
+    expect(links.filter((l) => l.getAttribute('aria-current') === 'page').map((l) => l.textContent)).toEqual(['Deadline']);
+  });
+
+  it('/join-requests no longer exists: a User gets the 404 page', async () => {
+    await open('/join-requests');
+    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+  });
+
+  describe('Guide link (VITE_GUIDE_URL)', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
+    it('is hidden when the env var is unset', async () => {
+      vi.stubEnv('VITE_GUIDE_URL', '');
+      await open('/ideas');
+      expect(within(mainNav()).queryByRole('link', { name: /Guide/ })).not.toBeInTheDocument();
+    });
+
+    it('is an external link for Users, opening in a new tab', async () => {
+      vi.stubEnv('VITE_GUIDE_URL', 'https://example.com/guide');
+      await open('/ideas');
+      const guide = within(mainNav()).getByRole('link', { name: /^Guide/ });
+      expect(guide).toHaveTextContent('(opens in a new tab)');
+      expect(guide).toHaveAttribute('href', 'https://example.com/guide');
+      expect(guide).toHaveAttribute('target', '_blank');
+      expect(guide).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('is not shown to Admins', async () => {
+      vi.stubEnv('VITE_GUIDE_URL', 'https://example.com/guide');
+      await open('/ideas', 'ADMIN');
+      expect(within(mainNav()).queryByRole('link', { name: /Guide/ })).not.toBeInTheDocument();
+    });
   });
 
   it('/ideas/new is the New Idea page, not the list', async () => {
@@ -68,11 +98,32 @@ describe('sidebar navigation (Frontend.md §6.2, §6.5)', () => {
     expect(within(mainNav()).getByRole('link', { name: 'My Ideas' })).not.toHaveAttribute('aria-current');
   });
 
-  it('Admins get the Administrator badge; the email is never shown', async () => {
+  it('the user menu shows name, employee ID and role; the email is never shown', async () => {
     await open('/ideas', 'ADMIN');
-    expect(screen.getByText('Administrator')).toBeInTheDocument();
-    expect(screen.getByText('陳主任')).toBeInTheDocument();
-    expect(screen.getByText('000001')).toBeInTheDocument();
+    const menu = screen.getByRole('button', { name: /陳主任/ });
+    expect(within(menu).getByText('Administrator')).toBeInTheDocument();
+    expect(within(menu).getByText('000001')).toBeInTheDocument();
+    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+  });
+
+  it('a User is labelled User', async () => {
+    await open('/ideas');
+    expect(within(screen.getByRole('button', { name: /王小明/ })).getByText('User')).toBeInTheDocument();
+  });
+
+  it('the user menu opens a panel with Sign out, closes on Esc and returns focus', async () => {
+    const { user, container } = await open('/ideas');
+    const trigger = screen.getByRole('button', { name: /王小明/ });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible();
+    expect((await axe(container)).violations).toEqual([]);
+    await user.tab();
+    await user.keyboard('{Escape}');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveFocus();
   });
 
   it('the skip link moves focus to main', async () => {
@@ -89,6 +140,7 @@ describe('sign out', () => {
     server.use(http.post(`${API}/auth/logout`, () => (posted(), new HttpResponse(null, { status: 204 }))));
     const { router, client, user } = await open('/ideas?page=2');
     await waitFor(() => expect(client.getQueryData(['deadline'])).toBeDefined());
+    await user.click(screen.getByRole('button', { name: /王小明/ }));
     await user.click(screen.getByRole('button', { name: 'Sign out' }));
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'));
     expect(router.state.location.search).toBe('');
@@ -109,6 +161,7 @@ describe('sign out', () => {
       }),
     );
     const { router, user } = await open('/ideas');
+    await user.click(screen.getByRole('button', { name: /王小明/ }));
     const button = screen.getByRole('button', { name: 'Sign out' });
     await user.click(button);
     expect(button).toBeDisabled();
@@ -165,33 +218,29 @@ describe('deadline pill', () => {
   });
 });
 
-describe('breadcrumb', () => {
+describe('active navbar item (replaces the breadcrumb)', () => {
   it.each([
-    ['/ideas', 'USER', ['Contest', 'My Ideas'], []],
-    ['/ideas', 'ADMIN', ['Administration', 'All Ideas'], []],
-    ['/ideas/new', 'USER', ['Contest', 'My Ideas', 'Create an Idea'], ['My Ideas']],
-    [`/ideas/${ID}`, 'USER', ['Contest', 'My Ideas', 'Idea'], ['My Ideas']],
-    [`/ideas/${ID}`, 'ADMIN', ['Administration', 'All Ideas', 'Idea'], ['All Ideas']],
-    [`/ideas/${ID}/edit`, 'USER', ['Contest', 'My Ideas', 'Edit Idea'], ['My Ideas']],
-    ['/join-requests', 'USER', ['Contest', 'Join requests'], []],
-    ['/admin/deadline', 'ADMIN', ['Administration', 'Deadline'], []],
-    ['/admin/stats', 'ADMIN', ['Administration', 'Statistics'], []],
-    ['/nope', 'USER', ['Contest', 'Page not found'], []],
-    // a role mismatch is the same 404: the breadcrumb must not name the hidden page
-    ['/admin/deadline', 'USER', ['Contest', 'Page not found'], []],
-    ['/join-requests', 'ADMIN', ['Administration', 'Page not found'], []],
-  ] as const)('%s as %s', async (path, role, crumbs, links) => {
+    ['/ideas', 'USER', 'My Ideas', 'My Ideas'],
+    ['/ideas', 'ADMIN', 'Registrations', 'Registrations'],
+    ['/ideas/new', 'USER', 'New Idea', 'New Idea'],
+    // detail and edit belong to the list: underlined, but not the current page
+    [`/ideas/${ID}`, 'USER', 'My Ideas', null],
+    [`/ideas/${ID}`, 'ADMIN', 'Registrations', null],
+    [`/ideas/${ID}/edit`, 'USER', 'My Ideas', null],
+    ['/admin/deadline', 'ADMIN', 'Deadline', 'Deadline'],
+    ['/admin/stats', 'ADMIN', 'Statistics', 'Statistics'],
+    ['/nope', 'USER', null, null],
+    // a role mismatch is the same 404: no item reveals the hidden page
+    ['/admin/deadline', 'USER', null, null],
+  ] as const)('%s as %s', async (path, role, underlined, current) => {
     await open(path, role);
-    const nav = await screen.findByRole('navigation', { name: 'Breadcrumb' });
-    const items = within(nav).getAllByRole('listitem');
-    expect(items.map((li) => li.textContent)).toEqual(crumbs);
-    expect(within(nav).queryAllByRole('link').map((a) => a.textContent)).toEqual(links);
-    const current = items.at(-1)!.querySelector('[aria-current="page"]');
-    expect(current).toHaveTextContent(crumbs.at(-1)!);
+    const links = within(mainNav()).getAllByRole('link');
+    expect(links.filter((l) => l.className.includes('border-brand-ink')).map((l) => l.textContent)).toEqual(underlined ? [underlined] : []);
+    expect(links.filter((l) => l.getAttribute('aria-current') === 'page').map((l) => l.textContent)).toEqual(current ? [current] : []);
   });
 });
 
-describe('drawer (below 1024 px)', () => {
+describe('mobile menu (below 1024 px)', () => {
   it('opens with the navigation, traps focus, closes on Esc and returns focus', async () => {
     const { user, container } = await open('/ideas');
     const trigger = screen.getByRole('button', { name: 'Open menu' });
@@ -201,7 +250,7 @@ describe('drawer (below 1024 px)', () => {
     expect(trigger).toHaveAttribute('aria-expanded', 'true');
     expect(trigger).toHaveAttribute('aria-controls', dialog.id);
     expect(dialog).toContainElement(document.activeElement as HTMLElement);
-    expect(within(dialog).getAllByRole('link').map((l) => l.textContent)).toEqual(['My Ideas', 'New Idea', 'Join requests']);
+    expect(within(dialog).getAllByRole('link').map((l) => l.textContent)).toEqual(['My Ideas', 'New Idea']);
     expect((await axe(container.ownerDocument.body)).violations).toEqual([]);
     for (let i = 0; i < 8; i++) {
       await user.tab();
@@ -216,8 +265,8 @@ describe('drawer (below 1024 px)', () => {
     const { user, router } = await open('/ideas');
     await user.click(screen.getByRole('button', { name: 'Open menu' }));
     const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('link', { name: 'Join requests' }));
-    await waitFor(() => expect(router.state.location.pathname).toBe('/join-requests'));
+    await user.click(within(dialog).getByRole('link', { name: 'New Idea' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/ideas/new'));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });

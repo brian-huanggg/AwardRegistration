@@ -12,7 +12,6 @@ import { Screen } from "./layouts";
 import { NotFound } from "./pages/NotFound";
 import { Login, Register } from "./pages/auth";
 import { IdeaCreate, IdeaDetail, IdeaEdit, IdeaList } from "./pages/ideas";
-import { JoinRequests } from "./pages/JoinRequests";
 import { ROUTES } from "./routes";
 import { ApiError } from "@/shared/api";
 import { leavingReason, useMe, type SessionEndedState } from "./session";
@@ -32,7 +31,6 @@ export const PAGES: Record<string, ComponentType> = {
   "/ideas/new": IdeaCreate,
   "/ideas/:id": IdeaDetail,
   "/ideas/:id/edit": IdeaEdit,
-  "/join-requests": JoinRequests,
   "/admin/deadline": AdminDeadline,
   "/admin/stats": AdminStats,
 };
@@ -96,7 +94,7 @@ function Gate({ route }: { route?: (typeof ROUTES)[number] }) {
     <NotFound />
   );
   // Signed in → the app shell (Frontend.md §6.5); visitors (login, register, their 404) keep the bare screen.
-  // Only an allowed route reaches the shell, so a role mismatch gets the 404 breadcrumb too.
+  // Only an allowed route reaches the shell, so a role mismatch highlights no navigation item either.
   if (me && route?.access !== "public")
     return (
       <AppShell me={me} route={Page ? route : undefined}>

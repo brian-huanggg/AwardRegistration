@@ -242,6 +242,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ideas/{id}/members/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Withdraw the caller's pending request or leave as a Member
+         * @description Acts on the caller's own row. Check order (PRD 6.1): 404 (no row of the caller on this Idea: stranger, Admin, the Leader, missing Idea) -> 403 SUBMISSION_* (state) -> 404. Deletes the row and writes JOIN_REQUEST_WITHDRAW (was PENDING) or MEMBER_LEAVE (was ACCEPTED). A Leader cannot leave; they delete the Idea. A transaction whose outcome is unknown answers 503 SERVICE_UNAVAILABLE.
+         */
+        delete: operations["leaveIdea"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ideas/{id}/members/{empNo}": {
         parameters: {
             query?: never;
@@ -1063,6 +1083,35 @@ export interface operations {
             403: components["responses"]["Problem"];
             404: components["responses"]["Problem"];
             409: components["responses"]["Problem"];
+            500: components["responses"]["Problem"];
+            503: components["responses"]["Problem"];
+        };
+    };
+    leaveIdea: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Session-bound token from GET /auth/csrf. Mandatory on every write, but enforced by the CSRF middleware (403 CSRF_INVALID), so the generated wrapper must not reject its absence first (400). */
+                "X-CSRF-Token"?: components["parameters"]["CsrfToken"];
+            };
+            path: {
+                /** @description A malformed ID answers the uniform 404, not 400. */
+                id: components["parameters"]["IdeaId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Withdrawn or left */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Problem"];
+            403: components["responses"]["Problem"];
+            404: components["responses"]["Problem"];
             500: components["responses"]["Problem"];
             503: components["responses"]["Problem"];
         };

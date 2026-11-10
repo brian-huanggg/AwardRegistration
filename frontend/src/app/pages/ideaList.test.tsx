@@ -111,7 +111,7 @@ describe('Idea list: content', () => {
     expect(within(table).getAllByRole('link')).toHaveLength(2); // one tab stop per row
     const main = within(screen.getByRole('main'));
     expect(main.getByRole('link', { name: 'New Idea' })).toHaveAttribute('href', '/ideas/new');
-    expect(main.getByRole('link', { name: 'Join a team' })).toHaveAttribute('href', '/join-requests');
+    expect(main.getByRole('button', { name: 'Join a team' })).toHaveAttribute('aria-haspopup', 'dialog');
     expect(screen.queryByRole('button', { name: /^Actions for/ })).not.toBeInTheDocument();
     expect(screen.getByText('Showing 1–2 of 2 Ideas')).toBeInTheDocument();
   });
@@ -122,7 +122,7 @@ describe('Idea list: content', () => {
     const table = await screen.findByRole('table', { name: 'All Ideas' });
     const main = within(screen.getByRole('main'));
     expect(main.queryByRole('link', { name: 'New Idea' })).not.toBeInTheDocument();
-    expect(main.queryByRole('link', { name: 'Join a team' })).not.toBeInTheDocument();
+    expect(main.queryByRole('button', { name: 'Join a team' })).not.toBeInTheDocument();
     expect(within(table).queryByRole('columnheader', { name: 'Your role' })).not.toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Leader' })).toBeInTheDocument();
     expect(within(table).getByRole('row', { name: /Idea 1/ })).toHaveTextContent('王小明 (089290)');

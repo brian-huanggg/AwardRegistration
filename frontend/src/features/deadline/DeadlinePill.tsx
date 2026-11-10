@@ -7,15 +7,15 @@ const ICON = { NOT_OPEN: Clock, OPEN: CheckCircle2, CLOSED: Lock } satisfies Rec
 
 /** Tint per state; the text colour on each tint passes 4.5:1 (index.css). */
 const TONE: Record<SubmissionState | 'loading' | 'error', string> = {
-  OPEN: 'border-success/25 bg-success/10 text-success',
-  NOT_OPEN: 'border-warning/25 bg-warning/10 text-warning',
-  CLOSED: 'border-border bg-muted text-foreground',
-  loading: 'border-border bg-muted text-muted-foreground',
-  error: 'border-border bg-muted text-foreground',
+  OPEN: 'bg-accent-lime-tint text-brand-ink [&>svg]:text-brand-forest',
+  NOT_OPEN: 'bg-warning/10 text-warning',
+  CLOSED: 'bg-muted text-foreground',
+  loading: 'bg-muted text-muted-foreground',
+  error: 'bg-muted text-foreground',
 };
 
 /**
- * Compact submission-state pill for the app shell's top bar (UI-01). Same contract as
+ * Compact submission-state pill for the Eco navbar (Pencil "Deadline" pill). Same contract as
  * `DeadlineBanner`: a labelled region, state as text + icon (never colour alone), loading and
  * error texts. Shows the formatted deadline until the server-time countdown (F2-02) lands; it
  * never ticks from the client clock. Below 640 px the date is dropped, state text and icon stay.
@@ -47,7 +47,7 @@ export function DeadlinePill({ className }: { className?: string }) {
       role="region"
       aria-label={t('deadlineBanner.label')}
       data-state={key}
-      className={cn('inline-flex min-w-0 items-center gap-2 rounded-full border px-3 py-1.5 text-[13px] leading-tight', TONE[key], className)}
+      className={cn('inline-flex min-w-0 items-center gap-2 rounded-full px-3.5 py-2 text-xs leading-tight tracking-[0.04em]', TONE[key], className)}
     >
       <Icon aria-hidden="true" className="size-3.5 shrink-0" />
       <span className="font-semibold">{state}</span>

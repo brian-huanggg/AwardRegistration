@@ -12,10 +12,10 @@ export const en = {
     cancel: 'Cancel',
     retry: 'Try again',
     requestId: 'Request ID: {{id}}',
+    close: 'Close',
   },
   nav: {
     ideas: 'Ideas',
-    joinRequests: 'Join requests',
     deadline: 'Deadline',
     stats: 'Statistics',
     main: 'Main navigation',
@@ -27,11 +27,12 @@ export const en = {
     myIdeas: 'My Ideas',
     allIdeas: 'All Ideas',
     ideaNew: 'New Idea',
-    sectionContest: 'Contest',
-    sectionAdmin: 'Administration',
-    breadcrumb: 'Breadcrumb',
     switchLanguage: 'Switch language (EN / 中文)',
     openMenu: 'Open menu',
+    registrations: 'Registrations',
+    guide: 'Guide',
+    opensInNewTab: '(opens in a new tab)',
+    roleUser: 'User',
     closeMenu: 'Close menu',
   },
   notFound: {
@@ -259,7 +260,6 @@ export const en = {
       requestedAgo: 'requested {{when}}',
     },
     joinRequests: {
-      description: "Ask a Leader to add you to their team. You'll see the Idea once they approve.",
       apply: 'Apply to join a team',
       applyHint: 'Ask your Leader for their employee ID and the exact Idea name.',
       leaderEmpNoHint: 'Six digits, for example 054616.',
@@ -279,12 +279,6 @@ export const en = {
       lockedHint: "Pending applicants can't open the Idea or its slides until approved.",
       withdraw: 'Withdraw',
       withdrawNamed: 'Withdraw request for {{name}}',
-      stepsTitle: 'How it works',
-      steps: {
-        apply: { title: 'Apply', body: "Enter the Leader's employee ID and the exact Idea name." },
-        review: { title: 'Leader reviews', body: 'The Leader approves or rejects. Teams are capped at 4 people.' },
-        joined: { title: "You're in", body: 'The Idea appears under My Ideas. You can view, download slides, or leave.' },
-      },
     },
     adminDeadline: {
       description: 'One global deadline for every team. It can be moved, but never cleared.',

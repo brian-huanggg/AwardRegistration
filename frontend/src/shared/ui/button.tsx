@@ -18,6 +18,13 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Eco pills (Pencil "Eco" frames). Pair with a `pill*` size. Lime fill carries ink text
+        // (5.3:1); the design's white-on-lime (2.2:1) fails Frontend.md §8.1.
+        lime: "rounded-full bg-accent-lime font-semibold tracking-[0.1em] text-accent-lime-foreground uppercase hover:bg-accent-lime/85",
+        light:
+          "rounded-full border border-border bg-background font-semibold tracking-[0.09em] text-foreground uppercase hover:bg-accent",
+        "danger-outline":
+          "rounded-full border-[1.5px] border-destructive bg-background font-semibold tracking-[0.09em] text-destructive uppercase hover:bg-destructive/5 focus-visible:ring-destructive/30",
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -28,6 +35,9 @@ const buttonVariants = cva(
         "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
         "icon-sm": "size-8",
         "icon-lg": "size-10",
+        pill: "h-11 rounded-full px-6 text-[13px] has-[>svg]:px-5",
+        "pill-sm": "h-9 gap-1.5 rounded-full px-4 text-xs has-[>svg]:px-3.5",
+        "pill-icon": "size-[34px] rounded-full [&_svg:not([class*='size-'])]:size-[15px]",
       },
     },
     defaultVariants: {

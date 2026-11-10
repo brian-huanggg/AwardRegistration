@@ -81,7 +81,7 @@ describe('navigation follows the route table (§6.2, §6.3)', () => {
   });
 
   it('New Idea is a User-only navigation item', () => {
-    expect(navFor('USER').map((r) => r.navKey)).toEqual(['ideas', 'ideaNew', 'joinRequests']);
+    expect(navFor('USER').map((r) => r.navKey)).toEqual(['ideas', 'ideaNew']);
     expect(navFor('ADMIN').map((r) => r.navKey)).toEqual(['ideas', 'deadline', 'stats']);
   });
 });

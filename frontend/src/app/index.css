@@ -2,50 +2,67 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Theme tokens (shadcn/ui, neutral). Contrast of each pair is checked against
-   Frontend.md §8.1 (4.5:1 text, 3:1 components). */
+/* Theme tokens (shadcn/ui variable names) with the Pencil "Eco" palette (epic g4l, E0).
+   Contrast of each pair is checked against Frontend.md §8.1 (4.5:1 text, 3:1 components):
+   ink #3A3646 on white 12.0:1; muted #6E6979 on white 5.3:1, on lavender #F1EDF6 4.6:1,
+   on lime tint #EEF4D9 4.7:1, on --field #FBF8F6 5.1:1; purple #6B5C92 on white 5.9:1;
+   destructive #C04A3E on white 4.9:1; forest #2F5531 on lime tint 7.5:1.
+   Deviation from the design: the lime button (#9CBB2A) carries ink text (5.3:1), not white
+   (2.2:1). The lime fill and --brand-purple-soft are decorative (fills, dots), never text colours. */
 :root {
-  --radius: 0.5rem;
-  --background: oklch(0.9911 0 0);
-  --foreground: oklch(0.2046 0 0);
-  --card: oklch(0.9911 0 0);
-  --card-foreground: oklch(0.2046 0 0);
-  --popover: oklch(0.9911 0 0);
-  --popover-foreground: oklch(0.4386 0 0);
-  --primary: oklch(0.5203 0.1364 144.2);
-  --primary-foreground: oklch(0.9911 0 0);
-  --secondary: oklch(0.9940 0 0);
-  --secondary-foreground: oklch(0.2046 0 0);
-  --muted: oklch(0.9461 0 0);
-  --muted-foreground: oklch(0.4386 0 0);
-  --accent: oklch(0.9461 0 0);
-  --accent-foreground: oklch(0.2435 0 0);
-  --destructive: oklch(0.5523 0.1927 32.7272);
-  --border: oklch(0.9037 0 0);
-  --input: oklch(0.9731 0 0);
-  --ring: oklch(0.6 0.15 144.2);
-  --destructive-foreground: oklch(0.9934 0.0032 17.2118);
-  --chart-1: oklch(0.8348 0.1302 160.9080);
-  --chart-2: oklch(0.6231 0.1880 259.8145);
-  --chart-3: oklch(0.6056 0.2189 292.7172);
-  --chart-4: oklch(0.7686 0.1647 70.0804);
-  --chart-5: oklch(0.6959 0.1491 162.4796);
-  --sidebar: oklch(0.9911 0 0);
-  /* Near-black nav text as in the design (UI-01); same value as --foreground. */
-  --sidebar-foreground: oklch(0.2046 0 0);
-  --sidebar-primary: oklch(0.8348 0.1302 160.9080);
-  --sidebar-primary-foreground: oklch(0.2626 0.0147 166.4589);
-  --sidebar-accent: oklch(0.9461 0 0);
-  --sidebar-accent-foreground: oklch(0.2435 0 0);
-  --sidebar-border: oklch(0.9037 0 0);
-  --sidebar-ring: oklch(0.8348 0.1302 160.9080);
+  --radius: 0.875rem;
+  --background: #ffffff;
+  --foreground: #3a3646;
+  --card: #ffffff;
+  --card-foreground: #3a3646;
+  --popover: #ffffff;
+  --popover-foreground: #3a3646;
+  /* Forest green: white text 8.6:1, and usable as a text/link colour on white. */
+  --primary: #2f5531;
+  --primary-foreground: #ffffff;
+  --secondary: #f1edf6;
+  --secondary-foreground: #3a3646;
+  --muted: #f1edf6;
+  --muted-foreground: #6e6979;
+  --accent: #f1edf6;
+  --accent-foreground: #3a3646;
+  --destructive: #c04a3e;
+  --destructive-foreground: #ffffff;
+  --border: #e7e2ec;
+  --input: #e7e2ec;
+  --ring: #6b5c92;
+  --chart-1: #9cbb2a;
+  --chart-2: #6b5c92;
+  --chart-3: #2f5531;
+  --chart-4: #c98a1e;
+  --chart-5: #9786b5;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #3a3646;
+  --sidebar-primary: #2f5531;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1edf6;
+  --sidebar-accent-foreground: #3a3646;
+  --sidebar-border: #e7e2ec;
+  --sidebar-ring: #6b5c92;
+  /* Eco semantic tokens. --brand-ink: headings and nav; --brand-purple: eyebrows and stat
+     figures (text-safe); --brand-purple-soft: decorative only; --brand-lavender: selected rows,
+     member chips; --accent-lime: primary pill fill (ink text on it); --accent-lime-tint: leader
+     chip / open pill; --brand-forest: logo mark and text on the lime tint; --field: warm input fill. */
+  --brand-ink: #3a3646;
+  --brand-purple: #6b5c92;
+  --brand-purple-soft: #9786b5;
+  --brand-lavender: #f1edf6;
+  --brand-forest: #2f5531;
+  --accent-lime: #9cbb2a;
+  --accent-lime-foreground: #3a3646;
+  --accent-lime-tint: #eef4d9;
+  --field: #fbf8f6;
   /* State colours for pills and badges (UI-01). Used as text / icon colour on a 10 % tint
-     of themselves over --background (>= 5.9:1), and as fill under the -foreground text
-     (>= 6.9:1). The design's #15803d on its 8 % tint reaches only ~4.4:1, so one step darker. */
-  --success: oklch(0.448 0.119 151.328);
-  --success-foreground: oklch(0.9911 0 0);
+     of themselves over --background (>= 5.9:1), and as fill under the -foreground text. */
+  --success: #2f5531;
+  --success-foreground: #ffffff;
   --warning: oklch(0.473 0.137 46.201);
-  --warning-foreground: oklch(0.9911 0 0);
+  --warning-foreground: #ffffff;
   /* Login brand panel (UI-02, Pencil ZziSC). Stays dark in both themes. Every text token passes
      4.5:1 at the lightest point of the panel (the glow at 40 % over --brand-panel): accent 5.7:1,
      muted 6.6:1, foreground 7.6:1. --brand-panel-state is for the state dot only, not text. */
@@ -56,9 +73,10 @@
   --brand-panel-accent: oklch(0.871 0.136 154.4);
   --brand-panel-logo: oklch(0.723 0.192 149.6);
   --brand-panel-state: oklch(0.8 0.182 151.7);
-  /* Inter only when installed locally; it is not loaded from any CDN. The TC fonts cover
-     zh-TW glyphs before system-ui, which may pick Japanese or Simplified glyph shapes. */
-  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
+  /* The design uses Jost: used only when installed locally; no web font is loaded from any CDN
+     and none is bundled (no @fontsource package). The TC fonts cover zh-TW glyphs before
+     system-ui, which may pick Japanese or Simplified glyph shapes. */
+  --font-sans: Jost, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
   --shadow-color: #000000;
@@ -103,10 +121,10 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Jost, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-mono: monospace;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --radius: 0.5rem;
+  --radius: 0.875rem;
   --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
   --tracking-tight: calc(var(--tracking-normal) - 0.025em);
   --tracking-wide: calc(var(--tracking-normal) + 0.025em);
@@ -154,6 +172,15 @@
   --color-brand-panel-accent: var(--brand-panel-accent);
   --color-brand-panel-logo: var(--brand-panel-logo);
   --color-brand-panel-state: var(--brand-panel-state);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-purple-soft: var(--brand-purple-soft);
+  --color-brand-lavender: var(--brand-lavender);
+  --color-brand-forest: var(--brand-forest);
+  --color-accent-lime: var(--accent-lime);
+  --color-accent-lime-foreground: var(--accent-lime-foreground);
+  --color-accent-lime-tint: var(--accent-lime-tint);
+  --color-field: var(--field);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
@@ -194,7 +221,7 @@
   --chart-3: oklch(0.7090 0.1592 293.5412);
   --chart-4: oklch(0.8369 0.1644 84.4286);
   --chart-5: oklch(0.7845 0.1325 181.9120);
-  --radius: 0.5rem;
+  --radius: 0.875rem;
   --sidebar: oklch(0.1822 0 0);
   --sidebar-foreground: oklch(0.6301 0 0);
   --sidebar-primary: oklch(0.4365 0.1044 156.7556);
@@ -207,7 +234,16 @@
   --success-foreground: oklch(0.1822 0 0);
   --warning: oklch(0.828 0.189 84.429);
   --warning-foreground: oklch(0.1822 0 0);
-  --font-sans: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
+  --brand-ink: oklch(0.93 0.012 300);
+  --brand-purple: oklch(0.78 0.08 295);
+  --brand-purple-soft: oklch(0.62 0.07 295);
+  --brand-lavender: oklch(0.28 0.03 295);
+  --brand-forest: oklch(0.85 0.12 130);
+  --accent-lime: oklch(0.76 0.16 122);
+  --accent-lime-foreground: oklch(0.2 0.02 300);
+  --accent-lime-tint: oklch(0.3 0.05 125);
+  --field: oklch(0.2603 0 0);
+  --font-sans: Jost, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: monospace;
   --shadow-color: #000000;

@@ -13,13 +13,14 @@ import { IdeaForm } from "@/features/idea/IdeaForm";
 import { IdeaDetail as IdeaDetailView } from "@/features/idea/IdeaDetail";
 import { IdeaList as IdeaListView } from "@/features/idea/IdeaList";
 import { IdeaRowActions } from "@/features/idea/IdeaRowActions";
-import { Plus, UserPlus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ApproveButton, ConfirmAction } from "@/features/team/MemberActions";
 import { approveMember, leaveTeam, removeMember } from "@/features/team/members";
+import { JoinTeamDialog } from "@/features/team/JoinRequests";
 import { JoinRequestsCard, TeamCard, TEAM_SIZE } from "@/features/team/TeamCards";
 import { can } from "@/shared/permissions";
 import { Button } from "@/shared/ui/button";
-import { ideasKey } from "../breadcrumb";
+import { ideasKey } from "../nav";
 import { PageHeading } from "../layouts";
 import { NotFound } from "./NotFound";
 import { useMe } from "../session";
@@ -28,6 +29,7 @@ export function IdeaList() {
   const { t } = useTranslation();
   const { data: me } = useMe();
   const client = useQueryClient();
+  const { data: deadline } = useDeadline();
   const admin = me?.role === "ADMIN";
   // Both header actions are User-only (UI-03); "Join a team" has no `can()` action of its own and follows "createIdea".
   const userActions = me ? can("createIdea", { me }).visible : false;
@@ -42,12 +44,10 @@ export function IdeaList() {
         </div>
         {userActions && (
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link to="/join-requests">
-                <UserPlus aria-hidden="true" />
-                {t("pages.ideaList.joinTeam")}
-              </Link>
-            </Button>
+            <JoinTeamDialog
+              closed={deadline !== undefined && deadline.state !== "OPEN"}
+              serverTime={deadline?.serverTime}
+            />
             <Button asChild>
               <Link to="/ideas/new">
                 <Plus aria-hidden="true" />

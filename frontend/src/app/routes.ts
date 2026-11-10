@@ -7,9 +7,9 @@ export interface RouteDef {
   path: string;
   access: Access;
   /** i18n key under `nav.*`; present only for routes shown in the navigation. */
-  navKey?: 'ideas' | 'ideaNew' | 'joinRequests' | 'deadline' | 'stats';
+  navKey?: 'ideas' | 'ideaNew' | 'deadline' | 'stats';
   /** i18n key under `nav.*` used as the page title / h1. */
-  titleKey: 'ideas' | 'joinRequests' | 'deadline' | 'stats' | 'signIn' | 'register';
+  titleKey: 'ideas' | 'deadline' | 'stats' | 'signIn' | 'register';
 }
 
 export const ROUTES: readonly RouteDef[] = [
@@ -19,7 +19,6 @@ export const ROUTES: readonly RouteDef[] = [
   { path: '/ideas/new', access: 'USER', navKey: 'ideaNew', titleKey: 'ideas' },
   { path: '/ideas/:id', access: 'ANY', titleKey: 'ideas' },
   { path: '/ideas/:id/edit', access: 'USER', titleKey: 'ideas' },
-  { path: '/join-requests', access: 'USER', navKey: 'joinRequests', titleKey: 'joinRequests' },
   { path: '/admin/deadline', access: 'ADMIN', navKey: 'deadline', titleKey: 'deadline' },
   { path: '/admin/stats', access: 'ADMIN', navKey: 'stats', titleKey: 'stats' },
 ];

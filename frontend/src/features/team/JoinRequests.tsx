@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import { Hourglass, Lock, Send, Undo2 } from 'lucide-react';
+import { Hourglass, Lock, Send, Undo2, UserPlus } from 'lucide-react';
 import { ApiError } from '@/shared/api';
 import { Button } from '@/shared/ui/button';
+import { Chip } from '@/shared/ui/chip';
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/shared/ui/dialog';
 import { Field } from '@/shared/ui/form-field';
 import {
   createJoinRequest,
@@ -18,16 +20,44 @@ import {
   type JoinRequest,
 } from './requests';
 
-const card = 'rounded-xl border bg-card p-6 text-card-foreground shadow-sm';
-const STEPS = ['apply', 'review', 'joined'] as const;
+interface Props {
+  /** Submissions are known not to be open; unknown leaves the controls on and the server decides. */
+  closed: boolean;
+  /** The server clock from `GET /deadline`, used to tell "today" and "yesterday" apart; the browser clock is the fallback. */
+  serverTime?: string;
+}
 
 /**
- * `closed`: submissions are known not to be open; unknown leaves the controls on and the server decides.
- * `serverTime`: the server clock from `GET /deadline`, used to tell "today" and "yesterday" apart; the browser clock is the fallback.
+ * "Join a team" on My Ideas (owner decision 2026-11-11, replaces the /join-requests page): the
+ * trigger button opens a modal dialog with the apply form and "My pending requests" (withdraw).
+ * Radix Dialog: focus trapped, Esc closes, titled, focus returns to the trigger. Closing the
+ * dialog drops the form state; the request list is cached under `joinRequestsKey`.
  */
-export function JoinRequestsPanel({ closed, serverTime }: { closed: boolean; serverTime?: string }) {
+export function JoinTeamDialog(props: Props) {
+  const { t } = useTranslation();
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" variant="light" size="pill">
+          <UserPlus aria-hidden="true" />
+          {t('pages.ideaList.joinTeam')}
+        </Button>
+      </DialogTrigger>
+      <DialogContent closeLabel={t('common.close')} className="max-w-2xl">
+        <DialogTitle>{t('pages.ideaList.joinTeam')}</DialogTitle>
+        <DialogDescription>{t('pages.joinRequests.applyHint')}</DialogDescription>
+        <JoinRequestsPanel {...props} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Dialog body: apply form + my pending requests. */
+function JoinRequestsPanel({ closed, serverTime }: Props) {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
+  const applyId = useId();
+  const mineId = useId();
 
   const [values, setValues] = useState({ leaderEmpNo: '', ideaName: '' });
   const [problems, setProblems] = useState<JoinProblems>({});
@@ -95,126 +125,106 @@ export function JoinRequestsPanel({ closed, serverTime }: { closed: boolean; ser
   const items = list.data ?? [];
 
   return (
-    <>
-      <div className="grid items-start gap-6 lg:grid-cols-12">
-        <section className={`${card} lg:col-span-5`} aria-labelledby="apply-title">
-          <h2 id="apply-title" className="text-base font-semibold">
-            {t('pages.joinRequests.apply')}
-          </h2>
-          <p className="mt-1 mb-4 text-sm text-muted-foreground">{t('pages.joinRequests.applyHint')}</p>
-          {closed && <p className="mb-4 text-sm text-muted-foreground">{t('pages.joinRequests.closedHint')}</p>}
-          <form onSubmit={submit} noValidate>
-            <Field label={t('fields.leaderEmpNo')} hint={t('pages.joinRequests.leaderEmpNoHint')} error={problemText(problems.leaderEmpNo)}>
+    <div className="mt-6 flex flex-col gap-8">
+      <section aria-labelledby={applyId}>
+        <h3 id={applyId} className="mb-4 text-sm font-bold tracking-[0.1em] uppercase">
+          {t('pages.joinRequests.apply')}
+        </h3>
+        {closed && <p className="mb-4 text-sm text-muted-foreground">{t('pages.joinRequests.closedHint')}</p>}
+        <form onSubmit={submit} noValidate>
+          <div className="grid gap-x-4 sm:grid-cols-2">
+            <Field variant="eco" label={t('fields.leaderEmpNo')} hint={t('pages.joinRequests.leaderEmpNoHint')} error={problemText(problems.leaderEmpNo)}>
               {(p) => <input {...p} name="leaderEmpNo" inputMode="numeric" autoComplete="off" value={values.leaderEmpNo} onChange={set('leaderEmpNo')} />}
             </Field>
-            <Field label={t('fields.ideaName')} error={notFound ? t('pages.joinRequests.notFound') : problemText(problems.ideaName)}>
+            <Field variant="eco" label={t('fields.ideaName')} error={notFound ? t('pages.joinRequests.notFound') : problemText(problems.ideaName)}>
               {(p) => <input {...p} name="ideaName" autoComplete="off" value={values.ideaName} onChange={set('ideaName')} />}
             </Field>
-            {formError && (
-              <p role="alert" className="mb-4 text-sm text-destructive">
-                {formError}
-              </p>
-            )}
-            {sent && (
-              <p role="status" className="mb-4 text-sm text-success">
-                {t('pages.joinRequests.sent')}
-              </p>
-            )}
-            <Button type="submit" className="w-full" disabled={closed || create.isPending}>
-              <Send aria-hidden="true" />
-              {create.isPending ? t('pages.joinRequests.sending') : t('pages.joinRequests.submit')}
-            </Button>
-          </form>
-        </section>
-
-        <section className={`${card} lg:col-span-7`} aria-labelledby="my-requests">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 id="my-requests" className="text-base font-semibold">
-                {t('pages.joinRequests.mine')}
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">{t('pages.joinRequests.mineHint')}</p>
-            </div>
-            {items.length > 0 && (
-              <span data-testid="pending-count" className="rounded-full border px-2.5 py-0.5 text-xs font-semibold">
-                {t('pages.joinRequests.pendingCount', { count: items.length })}
-              </span>
-            )}
           </div>
-          {listError && (
-            <p role="alert" className="mb-3 text-sm text-destructive">
-              {listError}
+          {formError && (
+            <p role="alert" className="mb-4 text-sm text-destructive">
+              {formError}
             </p>
           )}
-          {list.isPending ? (
-            <p role="status" className="text-sm">
-              {t('common.loading')}
+          {sent && (
+            <p role="status" className="mb-4 text-sm text-success">
+              {t('pages.joinRequests.sent')}
             </p>
-          ) : list.isError ? (
-            <div role="alert">
-              <p className="mb-2 text-sm">{message(list.error instanceof ApiError ? list.error : new ApiError({ status: 0, code: 'UNKNOWN' }))}</p>
-              <Button variant="outline" onClick={() => void list.refetch()}>
-                {t('common.retry')}
-              </Button>
-            </div>
-          ) : items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t('pages.joinRequests.empty')}</p>
-          ) : (
-            <ul className="divide-y rounded-lg border">
-              {items.map((r) => (
-                <li key={r.ideaId} className="flex flex-wrap items-center gap-3 p-3">
-                  <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <Hourglass className="size-4" />
-                  </span>
-                  <div className="min-w-0 flex-1 text-sm">
-                    <p className="font-semibold break-words">{r.ideaName}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('pages.joinRequests.leader', { name: r.leader.name, empNo: r.leader.empNo })} ·{' '}
-                      <Trans i18nKey="pages.joinRequests.sentAt" values={{ at: sentAt(r.requestedAt) }} components={{ time: <time dateTime={r.requestedAt} /> }} />
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={closed || (withdraw.isPending && withdraw.variables === r.ideaId)}
-                    aria-label={t('pages.joinRequests.withdrawNamed', { name: r.ideaName })}
-                    onClick={() => {
-                      setListError(null);
-                      withdraw.mutate(r.ideaId);
-                    }}
-                  >
-                    <Undo2 aria-hidden="true" />
-                    {t('pages.joinRequests.withdraw')}
-                  </Button>
-                </li>
-              ))}
-            </ul>
           )}
-          <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
-            <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-            {t('pages.joinRequests.lockedHint')}
-          </p>
-        </section>
-      </div>
-
-      <section aria-labelledby="how-it-works" className="rounded-xl bg-muted p-6">
-        <h2 id="how-it-works" className="sr-only">
-          {t('pages.joinRequests.stepsTitle')}
-        </h2>
-        <ol className="grid gap-6 lg:grid-cols-3">
-          {STEPS.map((s, i) => (
-            <li key={s} className="flex items-start gap-3">
-              <span aria-hidden="true" className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                {i + 1}
-              </span>
-              <div className="text-sm">
-                <p className="font-semibold">{t(`pages.joinRequests.steps.${s}.title`)}</p>
-                <p className="text-muted-foreground">{t(`pages.joinRequests.steps.${s}.body`)}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
+          <Button type="submit" variant="lime" size="pill" className="w-full" disabled={closed || create.isPending}>
+            <Send aria-hidden="true" />
+            {create.isPending ? t('pages.joinRequests.sending') : t('pages.joinRequests.submit')}
+          </Button>
+        </form>
       </section>
-    </>
+
+      <section aria-labelledby={mineId} className="border-t pt-6">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 id={mineId} className="text-sm font-bold tracking-[0.1em] uppercase">
+              {t('pages.joinRequests.mine')}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">{t('pages.joinRequests.mineHint')}</p>
+          </div>
+          {items.length > 0 && (
+            <Chip tone="lavender" data-testid="pending-count">
+              {t('pages.joinRequests.pendingCount', { count: items.length })}
+            </Chip>
+          )}
+        </div>
+        {listError && (
+          <p role="alert" className="mb-3 text-sm text-destructive">
+            {listError}
+          </p>
+        )}
+        {list.isPending ? (
+          <p role="status" className="text-sm">
+            {t('common.loading')}
+          </p>
+        ) : list.isError ? (
+          <div role="alert">
+            <p className="mb-2 text-sm">{message(list.error instanceof ApiError ? list.error : new ApiError({ status: 0, code: 'UNKNOWN' }))}</p>
+            <Button variant="light" size="pill-sm" onClick={() => void list.refetch()}>
+              {t('common.retry')}
+            </Button>
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('pages.joinRequests.empty')}</p>
+        ) : (
+          <ul className="divide-y rounded-2xl border">
+            {items.map((r) => (
+              <li key={r.ideaId} className="flex flex-wrap items-center gap-3 p-4">
+                <span aria-hidden="true" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-lavender text-brand-purple">
+                  <Hourglass className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-semibold break-words text-brand-ink">{r.ideaName}</p>
+                  <p className="text-[13px] text-muted-foreground">
+                    {t('pages.joinRequests.leader', { name: r.leader.name, empNo: r.leader.empNo })} ·{' '}
+                    <Trans i18nKey="pages.joinRequests.sentAt" values={{ at: sentAt(r.requestedAt) }} components={{ time: <time dateTime={r.requestedAt} /> }} />
+                  </p>
+                </div>
+                <Button
+                  variant="light"
+                  size="pill-sm"
+                  disabled={closed || (withdraw.isPending && withdraw.variables === r.ideaId)}
+                  aria-label={t('pages.joinRequests.withdrawNamed', { name: r.ideaName })}
+                  onClick={() => {
+                    setListError(null);
+                    withdraw.mutate(r.ideaId);
+                  }}
+                >
+                  <Undo2 aria-hidden="true" />
+                  {t('pages.joinRequests.withdraw')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-4 flex items-start gap-2 text-xs text-muted-foreground">
+          <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          {t('pages.joinRequests.lockedHint')}
+        </p>
+      </section>
+    </div>
   );
 }

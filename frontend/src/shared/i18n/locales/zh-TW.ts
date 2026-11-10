@@ -9,10 +9,10 @@ export const zhTW: Dictionary = {
     cancel: '取消',
     retry: '再試一次',
     requestId: '請求編號：{{id}}',
+    close: '關閉',
   },
   nav: {
     ideas: '提案',
-    joinRequests: '加入申請',
     deadline: '截止時間',
     stats: '統計',
     main: '主要導覽',
@@ -24,11 +24,12 @@ export const zhTW: Dictionary = {
     myIdeas: '我的提案',
     allIdeas: '所有提案',
     ideaNew: '新增提案',
-    sectionContest: '競賽',
-    sectionAdmin: '管理',
-    breadcrumb: '導覽路徑',
     switchLanguage: '切換語言（EN / 中文）',
     openMenu: '開啟選單',
+    registrations: '報名管理',
+    guide: '參賽指南',
+    opensInNewTab: '（在新分頁開啟）',
+    roleUser: '使用者',
     closeMenu: '關閉選單',
   },
   notFound: {
@@ -256,7 +257,6 @@ export const zhTW: Dictionary = {
       requestedAgo: '{{when}}申請',
     },
     joinRequests: {
-      description: '請組長將您加入團隊。組長核准後，您就能看到該提案。',
       apply: '申請加入團隊',
       applyHint: '請向組長取得其員工編號與提案的完整名稱。',
       leaderEmpNoHint: '六位數字，例如 054616。',
@@ -276,12 +276,6 @@ export const zhTW: Dictionary = {
       lockedHint: '申請核准前，申請人無法開啟該提案或其簡報。',
       withdraw: '撤回',
       withdrawNamed: '撤回「{{name}}」的申請',
-      stepsTitle: '申請流程',
-      steps: {
-        apply: { title: '提出申請', body: '輸入組長的員工編號與提案的完整名稱。' },
-        review: { title: '組長審核', body: '組長核准或拒絕申請。每隊最多 4 人。' },
-        joined: { title: '加入團隊', body: '提案會出現在「我的提案」。您可以檢視、下載簡報或退出團隊。' },
-      },
     },
     adminDeadline: {
       description: '所有團隊共用一個截止時間。可以調整，但無法清除。',
