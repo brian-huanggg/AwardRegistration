@@ -1,15 +1,17 @@
 import { useId, useState, type ReactNode } from 'react';
-import { CirclePlus, X } from 'lucide-react';
+import { ChevronDown, X } from 'lucide-react';
 import { Popover } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/ui/utils';
 
-const POPOVER = 'z-50 w-64 rounded-md border bg-popover p-3 text-popover-foreground shadow-md outline-none';
+const POPOVER = 'z-50 w-64 rounded-[14px] border bg-popover p-3 text-popover-foreground shadow-md outline-none';
+/** Eco filter pill (design `vF25U` / `kVnXe`): 44 px, 1.5 px outline, small uppercase label. */
+const PILL = 'h-11 gap-2 rounded-full px-4 text-xs font-semibold tracking-[0.1em] uppercase';
 
 /**
- * The design's dashed "faceted filter" button (shadcn data-table pattern). The selected value is
- * shown inside the button; a separate clear button sits next to it (buttons cannot nest).
+ * Eco filter pill. Empty: an outlined pill with a chevron. Selected: a dark filled pill reading
+ * "LABEL: VALUE" with a clear button inside the same pill (two sibling buttons; buttons cannot nest).
  */
 function FacetShell({
   label,
@@ -30,18 +32,17 @@ function FacetShell({
   const { t } = useTranslation();
   const selected = value !== '';
   return (
-    <div className="inline-flex items-center">
+    <div className={cn('inline-flex items-center rounded-full', selected && 'bg-brand-ink text-background')}>
       <Popover.Root open={open} onOpenChange={onOpenChange}>
         <Popover.Trigger asChild>
-          <Button type="button" variant="outline" size="sm" className={cn('border-dashed', selected && 'rounded-r-none border-r-0')}>
-            <CirclePlus aria-hidden="true" />
-            {label}
-            {selected && (
-              <>
-                <span aria-hidden="true" className="h-4 w-px bg-border" />
-                <span className="rounded-sm bg-secondary px-1.5 py-0.5 text-xs font-normal text-secondary-foreground">{value}</span>
-              </>
-            )}
+          {/* one element for both looks, so focus returns to it when the popover closes after a pick */}
+          <Button
+            type="button"
+            variant={selected ? 'ghost' : 'light'}
+            className={cn(PILL, selected ? 'pr-2 hover:bg-background/10 hover:text-background focus-visible:ring-accent-lime' : 'border-[1.5px]')}
+          >
+            {selected ? `${label}: ${value}` : label}
+            {!selected && <ChevronDown aria-hidden="true" className="size-3.5" />}
           </Button>
         </Popover.Trigger>
         <Popover.Portal>
@@ -53,9 +54,9 @@ function FacetShell({
       {selected && (
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon-sm"
-          className="rounded-l-none border-dashed"
+          className="mr-1.5 rounded-full hover:bg-background/15 hover:text-background focus-visible:ring-accent-lime"
           aria-label={t('pages.ideaList.clearFacet', { name: label })}
           onClick={onClear}
         >

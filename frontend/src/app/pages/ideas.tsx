@@ -11,7 +11,10 @@ import { DeleteIdea } from "@/features/idea/DeleteIdea";
 import { ReplaceSlides } from "@/features/idea/ReplaceSlides";
 import { IdeaForm } from "@/features/idea/IdeaForm";
 import { IdeaDetail as IdeaDetailView } from "@/features/idea/IdeaDetail";
-import { IdeaList as IdeaListView } from "@/features/idea/IdeaList";
+import { IdeaList as IdeaListView, type ListStats } from "@/features/idea/IdeaList";
+import { PageHero, type HeroStat } from "@/shared/ui/page-hero";
+import heroLandscape from "@/shared/assets/hero-landscape.webp";
+import myIdeasHero from "@/shared/assets/my-ideas-hero.webp";
 import { IdeaRowActions } from "@/features/idea/IdeaRowActions";
 import { Plus } from "lucide-react";
 import { ApproveButton, ConfirmAction } from "@/features/team/MemberActions";
@@ -36,54 +39,75 @@ export function IdeaList() {
   const admin = me?.role === "ADMIN";
   // Both header actions are User-only (UI-03); "Join a team" has no `can()` action of its own and follows "createIdea".
   const userActions = me ? can("createIdea", { me }).visible : false;
+  // Whole days left, from the deadline response the navbar pill already loads (no extra call).
+  const daysLeft =
+    deadline?.state === "OPEN" && deadline.deadline
+      ? Math.max(0, Math.floor((Date.parse(deadline.deadline) - Date.parse(deadline.serverTime)) / 86_400_000))
+      : undefined;
+  const hero = (s: ListStats) => {
+    const stats: HeroStat[] = [];
+    if (s.total !== undefined)
+      stats.push({
+        value: s.total,
+        label: t("pages.ideaList.stats.ideas"),
+        caption: t(admin ? "pages.ideaList.stats.registered" : "pages.ideaList.stats.inTotal"),
+      });
+    if (!admin && s.led !== undefined)
+      stats.push({ value: s.led, label: t("pages.ideaList.stats.led"), caption: t("pages.ideaList.stats.byYou") });
+    if (!admin && daysLeft !== undefined)
+      stats.push({ value: daysLeft, label: t("pages.ideaList.stats.days"), caption: t("pages.ideaList.stats.deadline") });
+    return (
+      <PageHero
+        className="-mx-4 -mt-4 sm:-mx-8 sm:-mt-8 xl:-mx-14"
+        eyebrow={t(admin ? "pages.ideaList.eyebrowAdmin" : "pages.ideaList.eyebrowUser")}
+        // the h1 matches the navbar label (`nav.registrations` for an Admin)
+        title={<PageHeading title={t(admin ? "nav.registrations" : "nav.myIdeas")} />}
+        subtitle={t(admin ? "pages.ideaList.descriptionAdmin" : "pages.ideaList.descriptionUser")}
+        stats={stats}
+        image={admin ? heroLandscape : myIdeasHero}
+      />
+    );
+  };
+  if (!me) return null;
   return (
-    <>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="max-w-2xl space-y-1">
-          <PageHeading title={t(admin ? "nav.allIdeas" : "nav.myIdeas")} />
-          <p className="text-sm text-muted-foreground">
-            {t(admin ? "pages.ideaList.descriptionAdmin" : "pages.ideaList.descriptionUser")}
-          </p>
-        </div>
-        {userActions && (
-          <div className="flex flex-wrap gap-2">
+    <IdeaListView
+      admin={admin}
+      hero={hero}
+      actions={
+        userActions && (
+          <>
             <JoinTeamDialog
               closed={deadline !== undefined && deadline.state !== "OPEN"}
               serverTime={deadline?.serverTime}
             />
-            <Button asChild>
+            <Button asChild variant="lime" size="pill">
               <Link to="/ideas/new">
                 <Plus aria-hidden="true" />
                 {t("pages.ideaList.create")}
               </Link>
             </Button>
-          </div>
-        )}
-      </div>
-      {me && (
-        <IdeaListView
-          admin={admin}
-          rowActions={(idea) => {
-            // F6-01: Admin actions on the shared list; a User's summary has no members, so `can()` hides them.
-            const download = can("downloadSlides", { me }).visible;
-            const replace = can("replaceSlides", { me }).visible;
-            const remove = can("deleteIdea", { me }).visible;
-            return (
-              <IdeaRowActions
-                idea={idea}
-                download={download}
-                replace={replace}
-                remove={remove}
-                onDeleted={() => {
-                  client.removeQueries({ queryKey: ideaKey(idea.id) });
-                  void client.invalidateQueries({ queryKey: ["ideas"] });
-                }}
-              />
-            );
-          }}
-        />
-      )}
-    </>
+          </>
+        )
+      }
+      rowActions={(idea) => {
+        // F6-01: Admin actions on the shared list; a User's summary has no members, so `can()` hides them.
+        const download = can("downloadSlides", { me }).visible;
+        const replace = can("replaceSlides", { me }).visible;
+        const remove = can("deleteIdea", { me }).visible;
+        return (
+          <IdeaRowActions
+            idea={idea}
+            download={download}
+            replace={replace}
+            remove={remove}
+            onDeleted={() => {
+              client.removeQueries({ queryKey: ideaKey(idea.id) });
+              void client.invalidateQueries({ queryKey: ["ideas"] });
+            }}
+          />
+        );
+      }}
+    />
   );
 }
 

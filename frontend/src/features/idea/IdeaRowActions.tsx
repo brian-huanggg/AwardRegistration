@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Ellipsis } from 'lucide-react';
-import { AlertDialog, DropdownMenu } from 'radix-ui';
+import { Download, Eye, LoaderCircle, Trash2, Upload } from 'lucide-react';
+import { AlertDialog } from 'radix-ui';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { ApiError } from '@/shared/api';
@@ -9,14 +9,15 @@ import { fetchSlides, IncompleteDownloadError, saveBlob } from './detail';
 import type { IdeaSummary } from './list';
 import { deleteIdea } from './slides';
 
-const ITEM =
-  'flex cursor-default items-center rounded-sm px-2 py-1.5 text-sm outline-none select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-disabled:opacity-50';
+/** Round 34 px outlined icon button (design `kVnXe` row actions). */
+const ICON = 'size-[34px] border-[1.5px] p-0';
 
 /**
- * Admin row action menu on the shared list (F6-01, UI-03). Which items exist is decided by the
- * page through `can()`; this component only runs them. Replace needs the expected file name from
- * the detail, so it links to the detail page instead of fetching it here (every Admin detail GET
- * is audited, Frontend.md §6.7).
+ * Admin row actions on the shared list (F6-01, UI-03, Eco E5): view, download, replace and delete
+ * as round icon buttons, each named after the Idea. Which ones exist is decided by the page through
+ * `can()`; this component only runs them. Replace needs the expected file name from the detail, so
+ * it links to the detail page instead of fetching it here (every Admin detail GET is audited,
+ * Frontend.md §6.7).
  */
 export function IdeaRowActions({
   idea,
@@ -81,32 +82,47 @@ export function IdeaRowActions({
   if (!download && !replace && !remove) return null;
   return (
     <div className="flex flex-col items-end gap-1">
-      <DropdownMenu.Root modal={false}>
-        <DropdownMenu.Trigger asChild>
-          <Button type="button" variant="ghost" size="icon-sm" aria-label={t('pages.ideaList.rowActions', { name: idea.name })} aria-busy={busy || undefined}>
-            <Ellipsis aria-hidden="true" />
+      <div className="flex items-center justify-end gap-2">
+        <Button asChild variant="light" size="pill-icon" className={ICON}>
+          <Link to={`/ideas/${idea.id}`} aria-label={t('pages.ideaList.view', { name: idea.name })}>
+            <Eye aria-hidden="true" />
+          </Link>
+        </Button>
+        {download && (
+          <Button
+            type="button"
+            variant="light"
+            size="pill-icon"
+            className={ICON}
+            aria-label={t('pages.ideaList.downloadRow', { name: idea.name })}
+            aria-busy={busy || undefined}
+            disabled={busy}
+            onClick={() => void runDownload()}
+          >
+            {busy ? <LoaderCircle aria-hidden="true" className="animate-spin" /> : <Download aria-hidden="true" />}
           </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content align="end" sideOffset={4} className="z-50 min-w-40 rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-            {download && (
-              <DropdownMenu.Item className={ITEM} disabled={busy} onSelect={() => void runDownload()}>
-                {busy ? t('pages.ideaDetail.downloading') : t('pages.ideaDetail.download')}
-              </DropdownMenu.Item>
-            )}
-            {replace && (
-              <DropdownMenu.Item className={ITEM} asChild>
-                <Link to={`/ideas/${idea.id}`}>{t('pages.ideaDetail.replace')}</Link>
-              </DropdownMenu.Item>
-            )}
-            {remove && (
-              <DropdownMenu.Item className={`${ITEM} text-destructive`} onSelect={() => setConfirm(true)}>
-                {t('pages.ideaDetail.delete')}
-              </DropdownMenu.Item>
-            )}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+        )}
+        {replace && (
+          <Button asChild variant="light" size="pill-icon" className={ICON}>
+            <Link to={`/ideas/${idea.id}`} aria-label={t('pages.ideaList.replaceRow', { name: idea.name })}>
+              <Upload aria-hidden="true" />
+            </Link>
+          </Button>
+        )}
+        {remove && (
+          <Button
+            type="button"
+            variant="danger-outline"
+            size="pill-icon"
+            className="size-[34px] p-0"
+            aria-label={t('pages.ideaList.deleteRow', { name: idea.name })}
+            aria-haspopup="dialog"
+            onClick={() => setConfirm(true)}
+          >
+            <Trash2 aria-hidden="true" />
+          </Button>
+        )}
+      </div>
       {failure && (
         <p role="alert" className="text-xs text-destructive">
           {failure}
@@ -122,7 +138,7 @@ export function IdeaRowActions({
       >
         <AlertDialog.Portal>
           <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-          <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg">
+          <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-[14px] border bg-background p-6 shadow-lg">
             <AlertDialog.Title className="text-lg font-semibold">{t('pages.ideaDetail.deleteTitle')}</AlertDialog.Title>
             <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">{t('pages.ideaDetail.deleteBody', { name: idea.name })}</AlertDialog.Description>
             {dialogFailure && (

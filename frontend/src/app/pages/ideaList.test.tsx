@@ -45,13 +45,13 @@ function listReturns(respond: (q: URLSearchParams) => Response | Promise<Respons
 const page = (items: unknown[], over: Record<string, unknown> = {}) =>
   HttpResponse.json({ items, page: 1, size: 20, total: items.length, ...over });
 
-const HEADING = { en: { USER: 'My Ideas', ADMIN: 'All Ideas' }, 'zh-TW': { USER: '我的提案', ADMIN: '所有提案' } } as const;
+const HEADING = { en: { USER: 'My Ideas', ADMIN: 'Registrations' }, 'zh-TW': { USER: '我的提案', ADMIN: '報名管理' } } as const;
 
-async function open(url = '/ideas', { me = USER as typeof USER | typeof ADMIN, locale = 'en' as Locale } = {}) {
+async function open(url = '/ideas', { me = USER as typeof USER | typeof ADMIN, locale = 'en' as Locale, deadline = null as string | null } = {}) {
   clearCsrfToken();
   server.use(
     http.get(`${API}/auth/me`, () => HttpResponse.json(me)),
-    http.get(`${API}/deadline`, () => HttpResponse.json({ deadline: null, state: 'OPEN', serverTime: '2026-11-08T00:00:00.000Z' })),
+    http.get(`${API}/deadline`, () => HttpResponse.json({ deadline, state: 'OPEN', serverTime: '2026-11-08T00:00:00.000Z' })),
   );
   await initI18n(locale);
   const router = createMemoryRouter(routes, { initialEntries: [url] });
@@ -112,24 +112,27 @@ describe('Idea list: content', () => {
     const main = within(screen.getByRole('main'));
     expect(main.getByRole('link', { name: 'New Idea' })).toHaveAttribute('href', '/ideas/new');
     expect(main.getByRole('button', { name: 'Join a team' })).toHaveAttribute('aria-haspopup', 'dialog');
-    expect(screen.queryByRole('button', { name: /^Actions for/ })).not.toBeInTheDocument();
-    expect(screen.getByText('Showing 1–2 of 2 Ideas')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^View / })).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1–2 of 2 Ideas · 1 led by you')).toBeInTheDocument();
   });
 
-  it('for an Admin: title "All Ideas", no header actions, a Leader column instead of the role, a Leader filter', async () => {
+  it('for an Admin: title "Registrations" (the navbar label), no header actions, a Leader column instead of the role, a Leader filter', async () => {
     listReturns(() => page([idea(1, { myRelation: null })]));
     await open('/ideas', { me: ADMIN });
-    const table = await screen.findByRole('table', { name: 'All Ideas' });
+    const table = await screen.findByRole('table', { name: 'Registrations' });
+    expect(document.title).toMatch(/^Registrations · /);
     const main = within(screen.getByRole('main'));
     expect(main.queryByRole('link', { name: 'New Idea' })).not.toBeInTheDocument();
     expect(main.queryByRole('button', { name: 'Join a team' })).not.toBeInTheDocument();
     expect(within(table).queryByRole('columnheader', { name: 'Your role' })).not.toBeInTheDocument();
     expect(within(table).getByRole('columnheader', { name: 'Leader' })).toBeInTheDocument();
-    expect(within(table).getByRole('row', { name: /Idea 1/ })).toHaveTextContent('王小明 (089290)');
+    const row = within(table).getByRole('row', { name: /Idea 1/ });
+    expect(row).toHaveTextContent('王小明');
+    expect(row).toHaveTextContent('089290');
     expect(screen.getByLabelText('Leader employee ID')).toBeInTheDocument();
   });
 
-  it('Admin row actions: download, replace (via the detail) and delete with confirmation', async () => {
+  it('Admin row actions: view, download, replace (via the detail) and delete with confirmation', async () => {
     let deleted = false;
     const seen = listReturns(() => page(deleted ? [] : [idea(1, { myRelation: null })]));
     server.use(
@@ -141,16 +144,49 @@ describe('Idea list: content', () => {
     );
     const { user } = await open('/ideas', { me: ADMIN });
     await screen.findByRole('table');
-    await user.click(screen.getByRole('button', { name: 'Actions for Idea 1' }));
-    const menu = await screen.findByRole('menu');
-    expect(within(menu).getByRole('menuitem', { name: 'Download' })).toBeInTheDocument();
-    expect(within(menu).getByRole('menuitem', { name: 'Replace slides' })).toHaveAttribute('href', '/ideas/0193a1b2-0000-7000-8000-000000000001');
-    await user.click(within(menu).getByRole('menuitem', { name: 'Delete Idea' }));
+    const href = '/ideas/0193a1b2-0000-7000-8000-000000000001';
+    expect(screen.getByRole('link', { name: 'View Idea 1' })).toHaveAttribute('href', href);
+    expect(screen.getByRole('button', { name: 'Download the slides of Idea 1' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Replace the slides of Idea 1' })).toHaveAttribute('href', href);
+    await user.click(screen.getByRole('button', { name: 'Delete Idea 1' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete this Idea?' });
     const before = seen.length;
     await user.click(within(dialog).getByRole('button', { name: 'Delete Idea' }));
     await waitFor(() => expect(seen.length).toBeGreaterThan(before));
     expect(await screen.findByText('No Ideas yet.')).toBeInTheDocument();
+  });
+
+  it('the User hero shows Ideas in total, led by you and whole days until the deadline, from data already loaded', async () => {
+    listReturns(() => page([idea(1), idea(2, { myRelation: 'MEMBER' }), idea(3)]));
+    await open('/ideas', { deadline: '2026-11-29T12:00:00.000Z' });
+    await screen.findByRole('table');
+    const hero = screen.getByText('Your contest').closest('section')!;
+    const stat = (caption: RegExp) => within(hero).getByText(caption).closest('div')!.querySelector('dd')!.textContent;
+    expect(stat(/Ideas\s*in total/)).toBe('3');
+    expect(stat(/Led\s*by you/)).toBe('2');
+    expect(stat(/Days until\s*deadline/)).toBe('21');
+    expect(within(hero).getByText('Ideas you lead or have joined. One Idea = one team of up to four.')).toBeInTheDocument();
+  });
+
+  it('leaves "led by you" out when the list does not fit one page, and keeps the unfiltered total while filtering', async () => {
+    listReturns((q) => (q.has('org') ? page([idea(1)], { total: 1 }) : page([idea(1)], { total: 30 })));
+    const { user } = await open();
+    await screen.findByRole('table');
+    expect(screen.queryByText(/Led/)).not.toBeInTheDocument();
+    await user.click(facet('Organization'));
+    await user.click(await screen.findByRole('radio', { name: 'BSID' }));
+    expect(await screen.findByText('Showing 1–1 of 1 Ideas · 30 Ideas in total')).toBeInTheDocument();
+    expect(facet('Organization')).toHaveTextContent('Organization: BSID');
+  });
+
+  it('the Admin hero shows only the registered total (no participants or join-request figures without new calls)', async () => {
+    listReturns(() => page([idea(1, { myRelation: null, memberCount: 3 })], { total: 128 }));
+    await open('/ideas', { me: ADMIN, deadline: '2026-11-29T12:00:00.000Z' });
+    const table = await screen.findByRole('table');
+    const hero = screen.getByText('Administration').closest('section')!;
+    expect(within(hero).getAllByRole('definition')).toHaveLength(1);
+    expect(within(hero).getByRole('definition')).toHaveTextContent('128');
+    expect(within(table).getByText('4/4')).toHaveClass('text-brand-forest'); // full team; the text says it too
   });
 
   it('tells "no Ideas yet" from "no results for these filters"', async () => {
@@ -222,6 +258,17 @@ describe('Idea list: content', () => {
     await screen.findByRole('radio', { name: 'BSID' });
     expect((await axe(document.body)).violations).toEqual([]);
   });
+
+  it('has no axe violations with an active (dark) filter pill and the delete confirmation open', async () => {
+    listReturns(() => page([idea(1, { myRelation: null })]));
+    const { container, user } = await open('/ideas?category=COOL_IDEA', { me: ADMIN });
+    await screen.findByRole('table');
+    expect(screen.getByRole('button', { name: 'Clear the Category filter' })).toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Delete Idea 1' }));
+    await screen.findByRole('alertdialog');
+    expect((await axe(document.body)).violations).toEqual([]);
+  });
 });
 
 describe('Idea list: state lives in the URL', () => {
@@ -248,7 +295,8 @@ describe('Idea list: state lives in the URL', () => {
     expect(facet('Created')).toHaveTextContent('2026');
     expect(screen.getByRole('button', { name: 'Sort: Name Z–A' })).toBeInTheDocument();
     expect(screen.getByLabelText('Search by name')).toHaveValue('supply');
-    expect(screen.getByText('Page 3 of 4')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Page 3' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Page 4' })).not.toHaveAttribute('aria-current');
     expect(screen.getByText('Showing 101–101 of 200 Ideas')).toBeInTheDocument();
   });
 
@@ -353,17 +401,21 @@ describe('Idea list: state lives in the URL', () => {
   it('paging pushes history entries; the size select resets to page 1', async () => {
     listReturns((q) => page([idea(1)], { page: Number(q.get('page')), size: Number(q.get('size')), total: 100 }));
     const { router, user } = await open();
-    await screen.findByText('Page 1 of 5');
+    const current = async (n: number) => waitFor(() => expect(screen.getByRole('button', { name: `Page ${n}` })).toHaveAttribute('aria-current', 'page'));
+    await current(1);
+    expect(screen.getByRole('button', { name: 'Page 5' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
     await user.click(screen.getByRole('button', { name: 'Next' }));
-    await screen.findByText('Page 2 of 5');
+    await current(2);
     expect(search(router).get('page')).toBe('2');
     await router.navigate(-1);
-    await screen.findByText('Page 1 of 5');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await screen.findByText('Page 2 of 5');
+    await current(1);
+    await user.click(screen.getByRole('button', { name: 'Page 3' }));
+    await current(3);
+    expect(search(router).get('page')).toBe('3');
     await user.selectOptions(screen.getByLabelText('Per page'), '50');
-    await screen.findByText('Page 1 of 2');
+    await current(1);
+    expect(screen.queryByRole('button', { name: 'Page 3' })).not.toBeInTheDocument();
     expect(search(router).toString()).toBe('size=50');
   });
 
