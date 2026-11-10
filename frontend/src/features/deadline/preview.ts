@@ -43,8 +43,12 @@ export function previewFor(instantMs: number, nowMs: number): Preview {
 /** The zone label shown read-only beside the inputs, e.g. "Asia/Taipei (GMT+8)", for the offset at `at`. */
 export function zoneLabel(at: Date, locale: string): string {
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const offset = Number.isNaN(at.getTime())
-    ? undefined
-    : new Intl.DateTimeFormat(locale, { timeZoneName: 'shortOffset' }).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value;
+  const offset = offsetLabel(at, locale);
   return offset ? `${zone} (${offset})` : zone;
+}
+
+/** The browser zone's offset at `at`, e.g. "GMT+8"; `undefined` for an invalid date. */
+export function offsetLabel(at: Date, locale: string): string | undefined {
+  if (Number.isNaN(at.getTime())) return undefined;
+  return new Intl.DateTimeFormat(locale, { timeZoneName: 'shortOffset' }).formatToParts(at).find((p) => p.type === 'timeZoneName')?.value;
 }
