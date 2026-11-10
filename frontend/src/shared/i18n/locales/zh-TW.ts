@@ -255,6 +255,8 @@ export const zhTW: Dictionary = {
       requestsHintAdmin: '僅組長與管理員可見',
       requestsFooter: '核准時會檢查名額，滿員（4/4）的團隊無法再加入成員。',
       requestedAgo: '{{when}}申請',
+      seatsShort: '{{count}}/{{max}} 席',
+      pendingCount: '{{count}} 筆待審',
     },
     joinRequests: {
       apply: '申請加入團隊',

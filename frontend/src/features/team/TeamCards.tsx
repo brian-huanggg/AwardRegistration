@@ -1,6 +1,6 @@
-import { Plus } from 'lucide-react';
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Chip } from '@/shared/ui/chip';
 import { CopyButton } from '@/shared/ui/copy-button';
 import { cn } from '@/shared/ui/utils';
 
@@ -12,14 +12,14 @@ interface Person {
   name: string;
 }
 
-/** Decorative initial; the name is always next to it as text. */
+/** Decorative initial; the name is always next to it as text. Purple 6.4:1, lavender 5.1:1 text contrast. */
 function Avatar({ name, tone = 'muted' }: { name: string; tone?: 'muted' | 'primary' }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
-        'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold',
-        tone === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
+        'flex size-10 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold',
+        tone === 'primary' ? 'bg-brand-purple text-white' : 'bg-brand-lavender text-brand-purple',
       )}
     >
       {Array.from(name.trim())[0] ?? '?'}
@@ -27,16 +27,21 @@ function Avatar({ name, tone = 'muted' }: { name: string; tone?: 'muted' | 'prim
   );
 }
 
-function CardShell({ labelledBy, children }: { labelledBy: string; children: React.ReactNode }) {
+function CardShell({ labelledBy, tone = 'plain', children }: { labelledBy: string; tone?: 'plain' | 'warm'; children: React.ReactNode }) {
   return (
-    <section aria-labelledby={labelledBy} className="rounded-xl border bg-card text-card-foreground shadow-sm">
+    <section
+      aria-labelledby={labelledBy}
+      className={cn('rounded-3xl p-5 text-card-foreground sm:p-6', tone === 'warm' ? 'bg-field' : 'border bg-card')}
+    >
       {children}
     </section>
   );
 }
 
+const cardTitle = 'text-xl font-bold tracking-[0.02em] text-brand-ink uppercase';
+
 /**
- * Team card (UI-04): the Leader first, then the approved Members. `memberActions` renders the
+ * Team card (UI-04, Eco `uwwe8`): seat bar, then the Leader first, then the approved Members. `memberActions` renders the
  * per-row control (remove) for a Member; the Leader row carries a badge instead.
  */
 export function TeamCard<M extends Person>({
@@ -63,55 +68,56 @@ export function TeamCard<M extends Person>({
     empNo === meEmpNo ? <span className="font-normal text-muted-foreground"> {t('pages.ideaDetail.you')}</span> : null;
 
   return (
-    <CardShell labelledBy={titleId}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2 border-b px-5 py-4">
-        <h2 id={titleId} className="text-base font-semibold">
+    <CardShell labelledBy={titleId} tone="warm">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id={titleId} className={cardTitle}>
           {t('pages.ideaDetail.team')}
         </h2>
-        <p className="text-sm text-muted-foreground">{t('pages.ideaDetail.seats', { count: filled, max: TEAM_SIZE })}</p>
+        <p className="text-[13px] font-medium text-muted-foreground">{t('pages.ideaDetail.seats', { count: filled, max: TEAM_SIZE })}</p>
       </div>
-      <ul aria-labelledby={titleId} className="divide-y">
-        <li className="flex items-center gap-3 px-5 py-3">
+      {/* decorative: the seat count text above carries the same information */}
+      <div aria-hidden="true" data-testid="seat-bar" className="mt-4 grid grid-cols-4 gap-1.5">
+        {Array.from({ length: TEAM_SIZE }, (_, i) => (
+          <span key={i} className={cn('h-1.5 rounded-[3px]', i < filled ? 'bg-accent-lime' : 'bg-border')} />
+        ))}
+      </div>
+      <ul aria-labelledby={titleId} className="mt-2">
+        <li className="flex items-center gap-3 py-2.5">
           <Avatar name={leader.name} tone="primary" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">
+            <p className="truncate text-[15px] font-semibold text-brand-ink">
               {leader.name}
               {you(leader.empNo)}
             </p>
-            <p className="text-xs text-muted-foreground">{leader.empNo}</p>
+            <p className="text-[13px] text-muted-foreground">{leader.empNo}</p>
           </div>
-          <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-            {t('pages.ideaDetail.leaderBadge')}
-          </span>
+          <Chip tone="lime">{t('pages.ideaDetail.leaderBadge')}</Chip>
         </li>
         {members.map((m) => (
-          <li key={m.empNo} className="flex items-center gap-3 px-5 py-3">
+          <li key={m.empNo} className="flex items-center gap-3 py-2.5">
             <Avatar name={m.name} />
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">
+              <p className="truncate text-[15px] font-semibold text-brand-ink">
                 {m.name}
                 {you(m.empNo)}
               </p>
-              <p className="text-xs text-muted-foreground">{m.empNo}</p>
+              <p className="text-[13px] text-muted-foreground">{m.empNo}</p>
             </div>
             {memberActions?.(m)}
           </li>
         ))}
       </ul>
       {showOpenSeats && open > 0 && (
-        <div className="flex items-start gap-2 border-t px-5 py-3 text-sm text-muted-foreground">
-          <Plus aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-          <div className="min-w-0 flex-1">
-            <p>{t('pages.ideaDetail.openSeats', { count: open, empNo: leader.empNo })}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="min-w-0 flex-1 break-words font-medium text-foreground">{ideaName}</span>
-              <CopyButton
-                value={ideaName}
-                label={t('pages.ideaDetail.copyName')}
-                copiedText={t('pages.ideaDetail.nameCopied')}
-                failedText={t('pages.ideaDetail.nameCopyFailed')}
-              />
-            </div>
+        <div className="mt-2 text-[13px] leading-[19px] text-muted-foreground">
+          <p>{t('pages.ideaDetail.openSeats', { count: open, empNo: leader.empNo })}</p>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="min-w-0 flex-1 font-medium break-words text-foreground">{ideaName}</span>
+            <CopyButton
+              value={ideaName}
+              label={t('pages.ideaDetail.copyName')}
+              copiedText={t('pages.ideaDetail.nameCopied')}
+              failedText={t('pages.ideaDetail.nameCopyFailed')}
+            />
           </div>
         </div>
       )}
@@ -142,39 +148,41 @@ export function JoinRequestsCard<R extends Person & { requestedAt: string }>({
 
   return (
     <CardShell labelledBy={titleId}>
-      <div className="border-b px-5 py-4">
-        <h2 id={titleId} className="flex items-center gap-2 text-base font-semibold">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id={titleId} className={cardTitle}>
           {t('pages.ideaDetail.pending')}
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{requests.length}</span>
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">{hint}</p>
+        <p className="text-[13px] font-medium text-muted-foreground">{t('pages.ideaDetail.pendingCount', { count: requests.length })}</p>
       </div>
+      <p className="mt-2 text-[13px] text-muted-foreground">{hint}</p>
       {requests.length === 0 ? (
-        <p className="px-5 py-4 text-sm">{t('pages.ideaDetail.noPending')}</p>
+        <p className="mt-4 text-sm">{t('pages.ideaDetail.noPending')}</p>
       ) : (
-        <ul aria-labelledby={titleId} className="divide-y">
+        <ul aria-labelledby={titleId} className="mt-2 divide-y">
           {requests.map((r) => {
             const absolute = fmt.format(new Date(r.requestedAt));
             const when = now ? t('pages.ideaDetail.requestedAgo', { when: relative(r.requestedAt, now(), i18n.language) }) : absolute;
             return (
-              <li key={r.empNo} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 py-3">
-                <Avatar name={r.name} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{r.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {r.empNo} ·{' '}
-                    <time dateTime={r.requestedAt} title={absolute}>
-                      {when}
-                    </time>
-                  </p>
+              <li key={r.empNo} className="flex flex-col gap-3.5 py-4">
+                <div className="flex items-center gap-3">
+                  <Avatar name={r.name} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-semibold text-brand-ink">{r.name}</p>
+                    <p className="text-[13px] text-muted-foreground">
+                      {r.empNo} ·{' '}
+                      <time dateTime={r.requestedAt} title={absolute}>
+                        {when}
+                      </time>
+                    </p>
+                  </div>
                 </div>
-                <div className="flex flex-wrap gap-2">{actions?.(r)}</div>
+                <div className="flex flex-wrap gap-2.5 [&>button]:min-w-[7.5rem] [&>button]:flex-1">{actions?.(r)}</div>
               </li>
             );
           })}
         </ul>
       )}
-      {footer && <p className="border-t px-5 py-3 text-xs text-muted-foreground">{footer}</p>}
+      {footer && <p className="mt-2 text-[13px] text-muted-foreground">{footer}</p>}
     </CardShell>
   );
 }

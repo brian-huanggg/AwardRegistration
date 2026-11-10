@@ -46,7 +46,8 @@ export function ApproveButton({ name, disabled, icon, ...h }: ActionHandlers & {
   return (
     <>
       <Button
-        size="sm"
+        variant="lime"
+        size="pill-sm"
         disabled={disabled || pending}
         aria-label={t('pages.ideaDetail.approveNamed', { name })}
         onClick={async () => {
@@ -78,7 +79,7 @@ export function ConfirmAction({
   busy,
   disabled,
   icon,
-  iconOnly = false,
+  appearance = 'light',
   ...h
 }: ActionHandlers & {
   trigger: string;
@@ -90,8 +91,8 @@ export function ConfirmAction({
   disabled: boolean;
   /** Decorative icon before the trigger text (UI-04). */
   icon?: React.ReactNode;
-  /** Show only the icon; `triggerLabel` stays the accessible name. */
-  iconOnly?: boolean;
+  /** Trigger look (Eco `uwwe8`): light pill (reject), danger outline pill (leave), red text (remove). */
+  appearance?: 'light' | 'danger' | 'text';
 }) {
   const { t } = useTranslation();
   const text = useErrorText();
@@ -119,15 +120,21 @@ export function ConfirmAction({
       }}
     >
       <AlertDialog.Trigger asChild>
-        <Button variant="outline" size={iconOnly ? 'icon-sm' : 'sm'} disabled={disabled} aria-label={triggerLabel}>
-          {icon}
-          {!iconOnly && trigger}
+        <Button
+          variant={appearance === 'danger' ? 'danger-outline' : appearance === 'text' ? 'ghost' : 'light'}
+          size={appearance === 'danger' ? 'pill' : 'pill-sm'}
+          className={appearance === 'text' ? 'rounded-full text-xs font-semibold tracking-[0.1em] text-destructive uppercase hover:bg-destructive/5 hover:text-destructive' : undefined}
+          disabled={disabled}
+          aria-label={triggerLabel}
+        >
+          {appearance !== 'text' && icon}
+          {trigger}
         </Button>
       </AlertDialog.Trigger>
       <AlertDialog.Portal>
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border bg-background p-6 shadow-lg">
-          <AlertDialog.Title className="text-lg font-semibold">{title}</AlertDialog.Title>
+        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-3xl border bg-background p-6 shadow-lg sm:p-7">
+          <AlertDialog.Title className="text-lg font-bold text-brand-ink">{title}</AlertDialog.Title>
           <AlertDialog.Description className="mt-2 text-sm text-muted-foreground">{body}</AlertDialog.Description>
           {failure && (
             <p role="alert" className="mt-3 text-sm text-destructive">
@@ -136,12 +143,12 @@ export function ConfirmAction({
           )}
           <div className="mt-6 flex justify-end gap-2">
             <AlertDialog.Cancel asChild>
-              <Button variant="outline" disabled={pending}>
+              <Button variant="light" size="pill-sm" disabled={pending}>
                 {t('common.cancel')}
               </Button>
             </AlertDialog.Cancel>
             {/* not AlertDialog.Action: it would close the dialog before the request ends */}
-            <Button variant="destructive" disabled={pending} aria-busy={pending || undefined} onClick={() => void go()}>
+            <Button variant="destructive" size="pill-sm" className="font-semibold tracking-[0.09em] uppercase" disabled={pending} aria-busy={pending || undefined} onClick={() => void go()}>
               {pending ? busy : confirm}
             </Button>
           </div>

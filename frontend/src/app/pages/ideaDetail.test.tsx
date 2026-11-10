@@ -66,7 +66,7 @@ describe('Idea detail', () => {
     server.use(http.get(`${API}/ideas/${ID}`, () => HttpResponse.json(detail())));
     const { container } = await open();
     expect(await screen.findByRole('heading', { level: 1, name: '成立供應商永續學院' })).toBeInTheDocument();
-    expect(screen.getByText('Cool Idea Award')).toBeInTheDocument();
+    expect(screen.getByText(/^Cool Idea Award · /)).toBeInTheDocument(); // hero eyebrow: category · org · direction
     expect(within(screen.getByRole('list', { name: 'Team' })).getByText('李小華')).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: /Join requests/ })).getByText('陳大文')).toBeInTheDocument();
     expect(screen.getByText('I_BSID_王小明_089290_成立供應商永續學院.pptx')).toBeInTheDocument();

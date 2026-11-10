@@ -1,30 +1,21 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Download, FileText, Info } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { ApiError } from '@/shared/api';
 import { SLIDE_EXTS } from '@/shared/slides';
 import { Button } from '@/shared/ui/button';
 import { CopyButton } from '@/shared/ui/copy-button';
-import { cn } from '@/shared/ui/utils';
+import { Chip } from '@/shared/ui/chip';
+import { PageHero } from '@/shared/ui/page-hero';
+import heroImage from '@/shared/assets/hero-landscape.webp';
 import { fetchIdea, fetchSlides, IncompleteDownloadError, ideaKey, saveBlob, type IdeaDetail as Idea } from './detail';
 
-const Card = ({ title, children }: { title: string; children?: React.ReactNode }) => (
-  <section className="rounded-xl border bg-card p-5 text-card-foreground shadow-sm sm:p-6">
-    <h2 className="mb-3 text-base font-semibold">{title}</h2>
+/** Section heading (Pencil uwwe8): bold uppercase, ink. */
+const SectionTitle = ({ id, children }: { id?: string; children: React.ReactNode }) => (
+  <h2 id={id} className="text-xl font-bold tracking-[0.02em] text-brand-ink uppercase sm:text-[22px]">
     {children}
-  </section>
-);
-
-const Badge = ({ tone = 'outline', children }: { tone?: 'primary' | 'outline'; children: React.ReactNode }) => (
-  <span
-    className={cn(
-      'inline-flex max-w-full items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
-      tone === 'primary' ? 'bg-primary text-primary-foreground' : 'border text-foreground',
-    )}
-  >
-    {children}
-  </span>
+  </h2>
 );
 
 interface Props {
@@ -36,10 +27,12 @@ interface Props {
   heading: (title?: string) => React.ReactNode;
   /** The back link above the heading. */
   back?: React.ReactNode;
-  /** Edit, delete or leave, right of the heading. */
+  /** Edit, delete or leave, right of the "Idea summary" heading. */
   headerActions?: (idea: Idea) => React.ReactNode;
   /** Extra controls in the slides card (replace). */
   slideActions?: (idea: Idea) => React.ReactNode;
+  /** Extra chips in the hero after the relation chip (the seat count). */
+  heroChips?: (idea: Idea) => React.ReactNode;
   /** The side column: team and join requests. */
   side?: (idea: Idea) => React.ReactNode;
   /** The deadline alert, last on narrow screens, under the slides on wide ones. */
@@ -47,10 +40,12 @@ interface Props {
 }
 
 /**
- * Idea detail page body (UI-04, Pencil `rsQOw`). Two columns from 1024 px: Idea content left,
- * team right; one column below in DOM order header → summary → slides → team → requests → notice.
+ * Idea detail page body (UI-04, Eco restyle E3: Pencil `uwwe8`). A full-bleed hero (back link,
+ * category · org · direction eyebrow, h1, relation and seat chips), then two columns from 1024 px:
+ * Idea content left, team right; one column below in DOM order hero → summary → slides → team →
+ * requests → notice.
  */
-export function IdeaDetail({ id, me, notFound, heading, back, headerActions, slideActions, side, notice }: Props) {
+export function IdeaDetail({ id, me, notFound, heading, back, headerActions, slideActions, heroChips, side, notice }: Props) {
   const { t, i18n } = useTranslation();
   const admin = me.role === 'ADMIN';
   // An Admin's GET writes an IDEA_VIEW audit row (Frontend.md §6.7): no refocus refetch, no polling.
@@ -63,6 +58,8 @@ export function IdeaDetail({ id, me, notFound, heading, back, headerActions, sli
   });
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const summaryId = useId();
+  const slidesId = useId();
 
   if (isPending && !error)
     return (
@@ -110,21 +107,24 @@ export function IdeaDetail({ id, me, notFound, heading, back, headerActions, sli
     }
   };
 
+  const leader = data.leader.empNo === me.empNo;
   const relation = admin
-    ? t('nav.administrator')
-    : data.leader.empNo === me.empNo
-      ? t('pages.ideaDetail.youAreLeader')
+    ? { tone: 'neutral' as const, text: t('nav.administrator') }
+    : leader
+      ? { tone: 'lime' as const, text: t('pages.ideaDetail.youAreLeader') }
       : data.members.some((m) => m.empNo === me.empNo)
-        ? t('pages.ideaDetail.youAreMember')
+        ? { tone: 'lavender' as const, text: t('pages.ideaDetail.youAreMember') }
         : null;
   const category = t(`enums.category.${data.category}`);
+  const org = t(`enums.org.${data.org}`);
+  const direction = t(`enums.direction.${data.direction}`);
   // the filename prefix is the first part of the expected name ({I|O}_…), as the server builds it
   const prefix = data.expectedFilenameBase.split('_')[0];
 
   const rows: [string, React.ReactNode][] = [
     [t('fields.category'), prefix ? `${category} (${prefix})` : category],
-    [t('fields.org'), t(`enums.org.${data.org}`)],
-    [t('fields.direction'), t(`enums.direction.${data.direction}`)],
+    [t('fields.org'), org],
+    [t('fields.direction'), direction],
     [t('fields.leader'), `${data.leader.name} · ${data.leader.empNo}`],
     [t('pages.ideaDetail.createdAt'), when(data.createdAt)],
     [t('pages.ideaDetail.updatedAt'), when(data.updatedAt)],
@@ -132,50 +132,63 @@ export function IdeaDetail({ id, me, notFound, heading, back, headerActions, sli
 
   return (
     <>
-      <div className="space-y-3">
-        {back}
-        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-          <div className="min-w-0 space-y-3 break-words">
+      <PageHero
+        className="-mx-4 -mt-4 sm:-mx-8 sm:-mt-8 xl:-mx-14"
+        image={heroImage}
+        title={
+          // back link and eyebrow live in the title slot so the DOM order is back → eyebrow → h1
+          <div className="flex flex-col gap-2.5">
+            <div className="mb-1">{back}</div>
+            <p className="text-base tracking-[0.06em] text-brand-purple uppercase">
+              {category} · {org} · {direction}
+            </p>
             {heading(data.name)}
-            <div className="flex flex-wrap gap-2">
-              {relation && <Badge tone="primary">{relation}</Badge>}
-              <Badge>{category}</Badge>
-              <Badge>{t(`enums.org.${data.org}`)}</Badge>
-              <Badge>{t(`enums.direction.${data.direction}`)}</Badge>
-            </div>
           </div>
-          <div className="flex flex-wrap gap-2">{headerActions?.(data)}</div>
-        </div>
-      </div>
+        }
+        actions={
+          <>
+            {relation && <Chip tone={relation.tone}>{relation.text}</Chip>}
+            {heroChips?.(data)}
+          </>
+        }
+      />
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr]">
-        <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1">
-          <Card title={t('pages.ideaDetail.details')}>
-            <p className="whitespace-pre-wrap break-words text-sm">{data.summary}</p>
-            <dl className="mt-5 grid gap-x-6 gap-y-4 border-t pt-5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-6 grid items-start gap-8 sm:mt-9 lg:grid-cols-[minmax(0,1fr)_360px] lg:grid-rows-[auto_1fr] lg:gap-10 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
+          <section aria-labelledby={summaryId}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
+              <SectionTitle id={summaryId}>{t('pages.ideaDetail.details')}</SectionTitle>
+              <div aria-hidden="true" className="hidden h-px flex-1 sm:block" />
+              <div className="flex flex-wrap gap-2.5">{headerActions?.(data)}</div>
+            </div>
+            <p className="mt-5 text-base leading-7 break-words whitespace-pre-wrap text-foreground sm:text-[17px]">{data.summary}</p>
+            <dl className="mt-6 grid border-b sm:grid-cols-2 lg:grid-cols-3">
               {rows.map(([k, v]) => (
-                <div key={k} className="min-w-0">
-                  <dt className="text-xs text-muted-foreground">{k}</dt>
-                  <dd className="mt-1 break-words font-medium">{v}</dd>
+                <div key={k} className="min-w-0 border-t py-4 pr-6">
+                  <dt className="text-[11px] font-semibold tracking-[0.13em] text-muted-foreground uppercase">{k}</dt>
+                  <dd className="mt-1.5 text-base font-medium break-words text-brand-ink">{v}</dd>
                 </div>
               ))}
             </dl>
-          </Card>
+          </section>
 
-          <Card title={t('pages.ideaDetail.slides')}>
-            <p className="mb-4 text-sm text-muted-foreground">{t('pages.ideaDetail.slidesHint')}</p>
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
-              <FileText aria-hidden="true" className="size-8 shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <p className="break-all text-sm font-medium">{data.slides.downloadFilename}</p>
-                <p className="text-xs text-muted-foreground">
+          <section aria-labelledby={slidesId}>
+            <SectionTitle id={slidesId}>{t('pages.ideaDetail.slides')}</SectionTitle>
+            <p className="mt-1.5 text-sm text-muted-foreground">{t('pages.ideaDetail.slidesHint')}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-4 rounded-[18px] bg-brand-lavender p-4 sm:px-5">
+              <span aria-hidden="true" className="flex size-12 shrink-0 items-center justify-center rounded-[10px] bg-brand-purple text-xs font-bold tracking-[0.08em] text-white uppercase">
+                {data.slides.ext}
+              </span>
+              <div className="min-w-[12rem] flex-1">
+                <p className="text-[15px] font-semibold break-all text-brand-ink">{data.slides.downloadFilename}</p>
+                <p className="mt-1 text-[13px] text-muted-foreground">
                   {data.slides.ext.toUpperCase()} · {t('pages.ideaDetail.size', { kb: Math.max(1, Math.round(data.slides.size / 1024)) })} ·{' '}
                   {t('pages.ideaDetail.uploadedAt')} {when(data.slides.updatedAt)}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2.5">
                 {slideActions?.(data)}
-                <Button size="sm" disabled={busy} onClick={() => void download()}>
+                <Button variant="lime" size="pill" disabled={busy} onClick={() => void download()}>
                   <Download aria-hidden="true" />
                   {busy ? t('pages.ideaDetail.downloading') : t('pages.ideaDetail.download')}
                 </Button>
@@ -186,29 +199,26 @@ export function IdeaDetail({ id, me, notFound, heading, back, headerActions, sli
                 {failure}
               </p>
             )}
-            <div className="mt-4 flex gap-2 text-sm">
-              <Info aria-hidden="true" className="mt-1.5 size-4 shrink-0 text-muted-foreground" />
-              <div className="min-w-0 flex-1">
-                <h3 className="font-medium">{t('pages.ideaForm.expectedTitle')}</h3>
-                <ul className="mt-1 flex flex-col gap-2">
-                  {SLIDE_EXTS.map((ext) => {
-                    const name = `${data.expectedFilenameBase}.${ext}`;
-                    return (
-                      <li key={ext} className="flex items-center gap-2">
-                        <code className="min-w-0 flex-1 break-all rounded bg-muted px-2 py-1">{name}</code>
-                        <CopyButton
-                          value={name}
-                          label={t('pages.ideaForm.copy', { ext: ext.toUpperCase() })}
-                          copiedText={t('pages.ideaForm.copied')}
-                          failedText={t('pages.ideaForm.copyFailed')}
-                        />
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+            <div className="mt-4 text-[13px] text-muted-foreground">
+              <h3 className="font-medium">{t('pages.ideaForm.expectedTitle')}</h3>
+              <ul className="mt-1.5 flex flex-col gap-1.5">
+                {SLIDE_EXTS.map((ext) => {
+                  const name = `${data.expectedFilenameBase}.${ext}`;
+                  return (
+                    <li key={ext} className="flex items-center gap-2">
+                      <code className="min-w-0 flex-1 rounded-md bg-field px-2 py-1 break-all text-foreground">{name}</code>
+                      <CopyButton
+                        value={name}
+                        label={t('pages.ideaForm.copy', { ext: ext.toUpperCase() })}
+                        copiedText={t('pages.ideaForm.copied')}
+                        failedText={t('pages.ideaForm.copyFailed')}
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          </Card>
+          </section>
         </div>
 
         <div className="min-w-0 space-y-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">{side?.(data)}</div>
