@@ -16,6 +16,7 @@ Project: **ESG Idea Contest** registration system. Employees register, form team
 | UI refactor to the Pencil design (`design/ui-design.pen`), one document per slice UI-01–UI-07 | `docs/UI-refactor/` (start at `README.md`) — **[Proposed]** |
 | Unresolved questions (OI-nn) and owner confirmations | `docs/Open-items.md` — the only tracker for them |
 | PR breakdown, slices S0–S7, PR rules and Definition of Done | `docs/PR-plan.md` (plan only; work items live in `bd`) |
+| Interview question bank (questions only; rubrics stay private because the repo is public) | `site/Interview/` (start at `README.md`, which the site does not render) — **[Proposed]** |
 
 Not written yet (do not cite as existing): `docs/modules/`, `docs/runbook.md`, `docs/test-report.md`, `docs/limitations.md`, root `README.md`, `backend/api/openapi.yaml`.
 
